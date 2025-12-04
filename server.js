@@ -465,13 +465,20 @@ const checkDatabaseReady = (req, res, next) => {
   }
   
   // Test database connection with a simple query
-  db.get('SELECT 1', (err) => {
-    if (err) {
-      console.error('Database connection test failed:', err);
-      return res.status(503).json({ error: 'Database connection error. Please try again in a moment.' });
-    }
-    next();
-  });
+  try {
+    db.get('SELECT 1', (err) => {
+      if (err) {
+        console.error('Database connection test failed:', err);
+        console.error('Error stack:', err.stack);
+        return res.status(503).json({ error: 'Database connection error. Please try again in a moment.' });
+      }
+      next();
+    });
+  } catch (error) {
+    console.error('Error in checkDatabaseReady:', error);
+    console.error('Error stack:', error.stack);
+    return res.status(503).json({ error: 'Database check failed. Please try again in a moment.' });
+  }
 };
 
 // Authentication middleware
@@ -504,15 +511,33 @@ const requireRole = (...roles) => {
 
 // SECURITY: Helper function to sanitize error messages in production
 const sanitizeError = (err, isProduction = process.env.NODE_ENV === 'production') => {
+  // Always log the full error for debugging
+  console.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    name: err.name,
+    code: err.code
+  });
+  
   if (isProduction) {
-    // Return generic error messages in production
+    // Return more specific error messages in production based on error type
     if (err.message && err.message.includes('SQLITE')) {
-      return 'Database error occurred';
+      return 'Database error occurred. Please try again or contact support.';
     }
     if (err.message && err.message.includes('ENOENT')) {
       return 'File not found';
     }
-    return 'An error occurred';
+    if (err.message && err.message.includes('JWT_SECRET')) {
+      return 'Server configuration error. Please contact administrator.';
+    }
+    if (err.message && err.message.includes('database') || err.message && err.message.includes('Database')) {
+      return 'Database error occurred. Please try again in a moment.';
+    }
+    // Return the error message if it's safe to expose, otherwise generic message
+    if (err.message && (err.message.includes('configuration') || err.message.includes('not configured'))) {
+      return err.message;
+    }
+    return 'An error occurred. Please try again or contact support.';
   }
   return err.message || 'Unknown error';
 };
@@ -659,8 +684,10 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
   };
 
   try {
+    console.log('Login attempt received');
     const { username, password } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    console.log('Login request:', { username: username ? 'provided' : 'missing', password: password ? 'provided' : 'missing', ipAddress });
 
     // SECURITY: Input validation
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
@@ -3802,6 +3829,27 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
   process.exit(1);
+});
+
+// Global error handler middleware (must be after all routes)
+app.use((err, req, res, next) => {
+  console.error('Global error handler caught error:', err);
+  console.error('Error stack:', err.stack);
+  console.error('Request path:', req.path);
+  console.error('Request method:', req.method);
+  
+  // Don't send response if headers already sent
+  if (res.headersSent) {
+    return next(err);
+  }
+  
+  const statusCode = err.statusCode || err.status || 500;
+  const errorMessage = sanitizeError(err, process.env.NODE_ENV === 'production');
+  
+  res.status(statusCode).json({
+    error: errorMessage,
+    message: process.env.NODE_ENV === 'production' ? undefined : err.message
+  });
 });
 
 // Serve frontend (only for non-API routes)
