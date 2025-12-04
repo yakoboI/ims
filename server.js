@@ -17,6 +17,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Railway and other reverse proxies
+// This allows Express to correctly identify client IPs from X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // SECURITY: Environment variable validation
 const validateEnvironment = () => {
   const required = ['JWT_SECRET'];
