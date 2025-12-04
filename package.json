@@ -12,7 +12,8 @@
     "dev": "nodemon server.js",
     "init-db": "node scripts/init-db.js",
     "build": "echo 'No build step required'",
-    "postinstall": "echo 'Installation complete'"
+    "postinstall": "echo 'Installation complete'",
+    "railway:build": "npm cache clean --force && npm ci --omit=dev"
   },
   "keywords": [
     "inventory",
