@@ -728,127 +728,154 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
 
     // SECURITY: Check account lockout
     checkAccountLockout(username, (err, isLocked) => {
-      if (err) {
-        console.error('Error in checkAccountLockout:', err);
-        console.error('Error stack:', err.stack);
-        // Continue with login attempt even if lockout check fails
-      }
-      if (isLocked) {
-        recordLoginAttempt(username, ipAddress, false);
-        return sendResponse(429, { 
-          error: 'Account temporarily locked due to too many failed login attempts. Please try again after 15 minutes.' 
-        });
-      }
-
-      db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
+      try {
         if (err) {
-          console.error('Database error fetching user:', err);
+          console.error('Error in checkAccountLockout:', err);
           console.error('Error stack:', err.stack);
-          recordLoginAttempt(username, ipAddress, false);
-          return sendResponse(500, { error: sanitizeError(err) });
+          // Continue with login attempt even if lockout check fails
         }
-        if (!user) {
+        if (isLocked) {
           recordLoginAttempt(username, ipAddress, false);
-          return sendResponse(401, { error: 'Invalid credentials' });
-        }
-
-        // Check if user has a password hash
-        if (!user.password) {
-          console.error('User found but has no password hash:', username);
-          recordLoginAttempt(username, ipAddress, false);
-          return sendResponse(500, { error: 'User account configuration error' });
+          return sendResponse(429, { 
+            error: 'Account temporarily locked due to too many failed login attempts. Please try again after 15 minutes.' 
+          });
         }
 
-        bcrypt.compare(password, user.password, (err, match) => {
-          if (err) {
-            console.error('Error comparing password:', err);
-            console.error('Error stack:', err.stack);
-            recordLoginAttempt(username, ipAddress, false);
-            return sendResponse(500, { error: sanitizeError(err) });
-          }
-          if (!match) {
-            recordLoginAttempt(username, ipAddress, false);
-            return sendResponse(401, { error: 'Invalid credentials' });
-          }
+        if (!db) {
+          console.error('Database became unavailable during login');
+          recordLoginAttempt(username, ipAddress, false);
+          return sendResponse(500, { error: 'Database unavailable. Please try again.' });
+        }
 
-          // Successful login
-          recordLoginAttempt(username, ipAddress, true);
-
-          try {
-            // Generate access token
-            if (!JWT_SECRET) {
-              throw new Error('JWT_SECRET is not configured');
-            }
-            
-            const token = jwt.sign(
-              { id: user.id, username: user.username, role: user.role },
-              JWT_SECRET,
-              { expiresIn: JWT_EXPIRES_IN }
-            );
-
-            // Generate refresh token
-            const refreshToken = generateRefreshToken();
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-            // Store refresh token in database
-            db.run(
-              'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-              [user.id, refreshToken, expiresAt.toISOString()],
-              (err) => {
-                if (err) {
-                  console.error('Failed to store refresh token:', err);
-                  console.error('Error stack:', err.stack);
-                  // Still return access token even if refresh token storage fails
-                }
-              }
-            );
-
-            // Log successful login (non-blocking)
+          db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
             try {
-              const mockReq = {
-                user: { id: user.id },
-                ip: ipAddress,
-                connection: { remoteAddress: ipAddress },
-                get: (header) => {
-                  if (header === 'user-agent') {
-                    return req.get('user-agent') || 'unknown';
-                  }
-                  return null;
-                }
-              };
-              logAudit(mockReq, 'LOGIN_SUCCESS', 'user', user.id);
-            } catch (auditErr) {
-              console.error('Failed to log audit:', auditErr);
-              console.error('Error stack:', auditErr.stack);
-              // Don't fail login if audit logging fails
-            }
-
-            // Send response
-            return sendResponse(200, {
-              token,
-              refreshToken,
-              user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                full_name: user.full_name
+              if (err) {
+                console.error('Database error fetching user:', err);
+                console.error('Error stack:', err.stack);
+                recordLoginAttempt(username, ipAddress, false);
+                return sendResponse(500, { error: sanitizeError(err) });
               }
-            });
-          } catch (tokenErr) {
-            console.error('Error generating token:', tokenErr);
-            console.error('Token error stack:', tokenErr.stack);
-            console.error('JWT_SECRET exists:', !!JWT_SECRET);
-            recordLoginAttempt(username, ipAddress, false);
-            return sendResponse(500, { 
-              error: sanitizeError(tokenErr),
-              message: 'Failed to generate authentication token'
-            });
-          }
-        });
+              if (!user) {
+                recordLoginAttempt(username, ipAddress, false);
+                return sendResponse(401, { error: 'Invalid credentials' });
+              }
+
+              // Check if user has a password hash
+              if (!user.password) {
+                console.error('User found but has no password hash:', username);
+                recordLoginAttempt(username, ipAddress, false);
+                return sendResponse(500, { error: 'User account configuration error' });
+              }
+
+              bcrypt.compare(password, user.password, (err, match) => {
+                try {
+                  if (err) {
+                    console.error('Error comparing password:', err);
+                    console.error('Error stack:', err.stack);
+                    recordLoginAttempt(username, ipAddress, false);
+                    return sendResponse(500, { error: sanitizeError(err) });
+                  }
+                  if (!match) {
+                    recordLoginAttempt(username, ipAddress, false);
+                    return sendResponse(401, { error: 'Invalid credentials' });
+                  }
+
+                  // Successful login
+                  recordLoginAttempt(username, ipAddress, true);
+
+                  try {
+                    // Generate access token
+                    if (!JWT_SECRET) {
+                      throw new Error('JWT_SECRET is not configured');
+                    }
+                    
+                    const token = jwt.sign(
+                      { id: user.id, username: user.username, role: user.role },
+                      JWT_SECRET,
+                      { expiresIn: JWT_EXPIRES_IN }
+                    );
+
+                    // Generate refresh token
+                    const refreshToken = generateRefreshToken();
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+
+                    // Store refresh token in database
+                    db.run(
+                      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+                      [user.id, refreshToken, expiresAt.toISOString()],
+                      (err) => {
+                        if (err) {
+                          console.error('Failed to store refresh token:', err);
+                          console.error('Error stack:', err.stack);
+                          // Still return access token even if refresh token storage fails
+                        }
+                      }
+                    );
+
+                    // Log successful login (non-blocking)
+                    try {
+                      const mockReq = {
+                        user: { id: user.id },
+                        ip: ipAddress,
+                        connection: { remoteAddress: ipAddress },
+                        get: (header) => {
+                          if (header === 'user-agent') {
+                            return req.get('user-agent') || 'unknown';
+                          }
+                          return null;
+                        }
+                      };
+                      logAudit(mockReq, 'LOGIN_SUCCESS', 'user', user.id);
+                    } catch (auditErr) {
+                      console.error('Failed to log audit:', auditErr);
+                      console.error('Error stack:', auditErr.stack);
+                      // Don't fail login if audit logging fails
+                    }
+
+                    // Send response
+                    return sendResponse(200, {
+                      token,
+                      refreshToken,
+                      user: {
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        role: user.role,
+                        full_name: user.full_name
+                      }
+                    });
+                  } catch (tokenErr) {
+                    console.error('Error generating token:', tokenErr);
+                    console.error('Token error stack:', tokenErr.stack);
+                    console.error('JWT_SECRET exists:', !!JWT_SECRET);
+                    recordLoginAttempt(username, ipAddress, false);
+                    return sendResponse(500, { 
+                      error: sanitizeError(tokenErr),
+                      message: 'Failed to generate authentication token'
+                    });
+                  }
+                } catch (bcryptErr) {
+                  console.error('Error in bcrypt comparison callback:', bcryptErr);
+                  console.error('Error stack:', bcryptErr.stack);
+                  recordLoginAttempt(username, ipAddress, false);
+                  return sendResponse(500, { error: 'Password verification error' });
+                }
+              });
+            } catch (dbErr) {
+              console.error('Error in database query callback:', dbErr);
+              console.error('Error stack:', dbErr.stack);
+              recordLoginAttempt(username, ipAddress, false);
+              return sendResponse(500, { error: 'Database error occurred' });
+            }
+          });
+        } catch (lockoutErr) {
+          console.error('Error in account lockout check callback:', lockoutErr);
+          console.error('Error stack:', lockoutErr.stack);
+          recordLoginAttempt(username, ipAddress, false);
+          return sendResponse(500, { error: 'Authentication error occurred' });
+        }
       });
-    });
   } catch (error) {
     console.error('Unexpected error in login endpoint:', error);
     console.error('Error stack:', error.stack);
