@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Purchase Management - Inventory Management System | IMS</title>
+    <meta name="description" content="Record purchases, manage suppliers, track inventory restocking, and monitor purchase history with the IMS purchase management system.">
+    <meta name="keywords" content="purchase management, supplier management, inventory restocking, purchase tracking, procurement, vendor management">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Purchases">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Barcode Utilities -->
+    <script src="barcode-utils.js"></script>
+    
+    <!-- Product Flow Management -->
+    <script src="product-flow.js"></script>
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+        <div class="nav-menu" id="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link" role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory.html" class="nav-link" role="menuitem"><i class="fas fa-warehouse fa-icon-info"></i> Inventory</a>
+            <a href="purchases.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link" role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link" role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="users.html" class="nav-link" id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Purchase Management</h1>
+            <button class="btn btn-primary" onclick="openNewPurchaseModal()" aria-label="Create new purchase">+ New Purchase</button>
+        </header>
+
+        <section class="table-container" aria-label="Purchase transactions table">
+            <table class="data-table" role="table" aria-label="Purchase transactions">
+                <thead>
+                    <tr>
+                        <th scope="col">Purchase ID</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Supplier</th>
+                        <th scope="col" class="col-amount">Total Amount</th>
+                        <th scope="col">Created By</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="purchasesTableBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- New Purchase Modal -->
+    <div id="newPurchaseModal" class="modal" role="dialog" aria-labelledby="newPurchaseTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content large">
+            <button class="close" onclick="closeNewPurchaseModal()" aria-label="Close modal">&times;</button>
+            <h2 id="newPurchaseTitle">New Purchase</h2>
+            <form id="newPurchaseForm" role="form" aria-label="New purchase form">
+                <div class="form-group">
+                    <label for="purchaseSupplier">Supplier *</label>
+                    <select id="purchaseSupplier" required aria-required="true" aria-label="Select supplier">
+                        <option value="">Select Supplier</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="openSupplierModal()" aria-label="Add new supplier">+ Add Supplier</button>
+                </div>
+                
+                <section class="purchase-items-section" aria-labelledby="purchaseItemsHeading">
+                    <h3 id="purchaseItemsHeading">Items</h3>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="purchaseBarcodeInput">Scan Barcode (or select item below)</label>
+                        <input type="text" id="purchaseBarcodeInput" placeholder="Scan barcode here..." autocomplete="off" style="font-size: 1.1rem; padding: 0.75rem;" aria-label="Scan barcode to add item">
+                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Barcode scanner will auto-add items</small>
+                    </div>
+                    <div class="add-item-row">
+                        <label for="purchaseItemSelect" class="sr-only">Select item</label>
+                        <select id="purchaseItemSelect" class="item-select" aria-label="Select item to add">
+                            <option value="">Select Item</option>
+                        </select>
+                        <label for="purchaseQuantity" class="sr-only">Quantity</label>
+                        <input type="number" id="purchaseQuantity" placeholder="Qty" min="1" class="qty-input" value="1" aria-label="Item quantity">
+                        <label for="purchaseUnitPrice" class="sr-only">Unit price</label>
+                        <input type="number" id="purchaseUnitPrice" placeholder="Unit Price" step="0.01" class="price-input" aria-label="Unit price">
+                        <button type="button" class="btn btn-secondary" onclick="addPurchaseItem()" aria-label="Add item to purchase">Add</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" role="table" aria-label="Purchase items">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Item</th>
+                                    <th scope="col" class="col-quantity">Qty</th>
+                                    <th scope="col" class="col-price">Unit Price</th>
+                                    <th scope="col" class="col-total">Total</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseItemsList" role="rowgroup" aria-live="polite"></tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-right"><strong>Total:</strong></td>
+                                    <td><strong id="purchaseTotal" aria-live="polite">0.00</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="form-group">
+                    <label for="purchaseNotes">Notes</label>
+                    <textarea id="purchaseNotes" rows="2" aria-label="Purchase notes"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewPurchaseModal()" aria-label="Cancel purchase">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Record purchase transaction">Record Purchase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Modal -->
+    <div id="supplierModal" class="modal" role="dialog" aria-labelledby="supplierModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeSupplierModal()" aria-label="Close modal">&times;</button>
+            <h2 id="supplierModalTitle">Add Supplier</h2>
+            <form id="supplierForm" role="form" aria-label="Add supplier form">
+                <div class="form-group">
+                    <label for="supplierName">Name *</label>
+                    <input type="text" id="supplierName" required aria-required="true" aria-label="Supplier name">
+                </div>
+                <div class="form-group">
+                    <label for="supplierContact">Contact Person</label>
+                    <input type="text" id="supplierContact" aria-label="Contact person name">
+                </div>
+                <div class="form-group">
+                    <label for="supplierEmail">Email</label>
+                    <input type="email" id="supplierEmail" aria-label="Supplier email address">
+                </div>
+                <div class="form-group">
+                    <label for="supplierPhone">Phone</label>
+                    <input type="text" id="supplierPhone" aria-label="Supplier phone number">
+                </div>
+                <div class="form-group">
+                    <label for="supplierAddress">Address</label>
+                    <textarea id="supplierAddress" rows="2" aria-label="Supplier address"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeSupplierModal()" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save supplier">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Purchase Modal -->
+    <div id="viewPurchaseModal" class="modal" role="dialog" aria-labelledby="viewPurchaseTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeViewPurchaseModal()" aria-label="Close modal">&times;</button>
+            <h2 id="viewPurchaseTitle">Purchase Details</h2>
+            <div id="purchaseDetails" role="region" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="purchases.js"></script>
+</body>
+</html>
+
