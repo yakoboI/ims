@@ -147,13 +147,33 @@ if (process.env.NODE_ENV === 'production') {
 // Apply general API rate limiting to all API routes
 app.use('/api/', apiLimiter);
 
-// Static files with no-cache headers for development
+// Static files with optimized caching for 304 responses
+// Enable ETag support (default in Express, but explicit for clarity)
+app.set('etag', 'strong');
+
 app.use(express.static('public', {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+  etag: true, // Enable ETag generation
+  lastModified: true, // Enable Last-Modified headers
+  setHeaders: (res, path, stat) => {
+    // HTML files: short cache with revalidation (allows 304s)
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      res.setHeader('Last-Modified', stat.mtime.toUTCString());
+    }
+    // JavaScript and CSS: longer cache with revalidation (allows 304s)
+    else if (path.endsWith('.js') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, must-revalidate'); // 1 year, but revalidate
+      res.setHeader('Last-Modified', stat.mtime.toUTCString());
+    }
+    // Images, fonts, and other static assets: very long cache with revalidation
+    else if (path.match(/\.(jpg|jpeg|png|gif|svg|ico|woff|woff2|ttf|eot)$/i)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year, immutable
+      res.setHeader('Last-Modified', stat.mtime.toUTCString());
+    }
+    // Other static files: moderate cache
+    else {
+      res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate'); // 1 hour
+      res.setHeader('Last-Modified', stat.mtime.toUTCString());
     }
   }
 }));
