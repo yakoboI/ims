@@ -80,19 +80,42 @@ async function apiRequest(endpoint, options = {}) {
         const response = await fetch(url, config);
         const contentType = response.headers.get('content-type');
         let data;
+        let errorText = '';
         
-        if (contentType && contentType.includes('application/json')) {
-            data = await response.json();
-        } else {
-            const text = await response.text();
-            throw new Error(text || `HTTP ${response.status}: ${response.statusText}`);
+        // Try to parse response as JSON first
+        try {
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                errorText = await response.text();
+                // Try to parse as JSON even if content-type doesn't say so
+                try {
+                    data = JSON.parse(errorText);
+                } catch {
+                    // Not JSON, use as text
+                    data = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+                }
+            }
+        } catch (parseError) {
+            // If JSON parsing fails, try to get text
+            try {
+                errorText = await response.text();
+                data = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+            } catch (textError) {
+                data = { error: `HTTP ${response.status}: ${response.statusText}` };
+            }
         }
         
         if (!response.ok) {
-            // Log 404 errors for debugging
-            if (response.status === 404) {
+            // Log errors for debugging
+            if (response.status >= 500) {
+                console.error('Server Error - URL:', url, 'Method:', config.method, 'Status:', response.status);
+                console.error('Response data:', data);
+                console.error('Response text:', errorText);
+            } else if (response.status === 404) {
                 console.error('404 Error - URL:', url, 'Method:', config.method, 'Response:', data);
             }
+            
             // Handle authentication errors - try to refresh token first
             if (response.status === 401 || response.status === 403) {
                 // Try to refresh token if we have a refresh token and this is not a refresh request
@@ -132,8 +155,34 @@ async function apiRequest(endpoint, options = {}) {
                 }
             }
             
-            const error = new Error(data.error || `Request failed: ${response.status} ${response.statusText}`);
+            // Extract error message from response
+            let errorMessage = 'Request failed';
+            if (data) {
+                if (data.error) {
+                    errorMessage = data.error;
+                } else if (data.message) {
+                    errorMessage = data.message;
+                } else if (typeof data === 'string') {
+                    errorMessage = data;
+                } else if (errorText) {
+                    errorMessage = errorText;
+                }
+            }
+            
+            // For 500 errors, provide more helpful message
+            if (response.status === 500) {
+                if (errorMessage.includes('JWT_SECRET') || errorMessage.includes('configuration')) {
+                    errorMessage = 'Server configuration error. Please contact administrator.';
+                } else if (errorMessage.includes('Database') || errorMessage.includes('database')) {
+                    errorMessage = 'Database error. Please try again in a moment.';
+                } else if (!errorMessage || errorMessage === 'Request failed') {
+                    errorMessage = 'Server error occurred. Please try again or contact support.';
+                }
+            }
+            
+            const error = new Error(errorMessage || `Request failed: ${response.status} ${response.statusText}`);
             error.status = response.status;
+            error.data = data;
             
             // Log error
             if (window.ErrorLogger) {
