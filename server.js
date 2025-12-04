@@ -145,23 +145,39 @@ app.use(express.static('public', {
 }));
 
 // Database connection
-let db = new sqlite3.Database('./ims.db', (err) => {
+// Database file path - use environment variable if set, otherwise default to ./ims.db
+const DB_PATH = process.env.DATABASE_PATH || './ims.db';
+
+let db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('Error opening database:', err.message);
+    console.error('Database path:', DB_PATH);
+    console.error('Error details:', err);
+    // Don't exit - let the app start and handle errors gracefully
   } else {
-    console.log('Connected to SQLite database');
+    console.log('Connected to SQLite database at:', DB_PATH);
+  }
+});
+
+// Enable foreign keys
+db.run('PRAGMA foreign_keys = ON', (err) => {
+  if (err) {
+    console.error('Error enabling foreign keys:', err);
   }
 });
 
 // Function to reconnect database (assumes db is already closed)
 const reconnectDatabase = () => {
   return new Promise((resolve, reject) => {
-    db = new sqlite3.Database('./ims.db', (err) => {
+    db = new sqlite3.Database(DB_PATH, (err) => {
       if (err) {
         console.error('Error reopening database:', err.message);
         reject(err);
       } else {
         console.log('Database reconnected');
+        db.run('PRAGMA foreign_keys = ON', (err) => {
+          if (err) console.error('Error enabling foreign keys:', err);
+        });
         resolve();
       }
     });
@@ -170,6 +186,11 @@ const reconnectDatabase = () => {
 
 // Initialize database tables
 const initDatabase = () => {
+  if (!db) {
+    console.error('Cannot initialize database - database connection not available');
+    return;
+  }
+  
   db.serialize(() => {
     // Users table
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -423,7 +444,13 @@ const initDatabase = () => {
     // Create default admin user if not exists
     const defaultPassword = bcrypt.hashSync('admin123', 10);
     db.run(`INSERT OR IGNORE INTO users (username, email, password, role, full_name) 
-            VALUES ('admin', 'admin@ims.com', ?, 'admin', 'Admin')`, [defaultPassword]);
+            VALUES ('admin', 'admin@ims.com', ?, 'admin', 'Admin')`, [defaultPassword], (err) => {
+      if (err) {
+        console.error('Error creating default admin user:', err);
+      } else {
+        console.log('✓ Database initialization complete');
+      }
+    });
   });
 };
 
@@ -433,9 +460,18 @@ initDatabase();
 // Middleware to check database readiness
 const checkDatabaseReady = (req, res, next) => {
   if (!db) {
+    console.error('Database check failed - db is null');
     return res.status(503).json({ error: 'Database not available. Please try again in a moment.' });
   }
-  next();
+  
+  // Test database connection with a simple query
+  db.get('SELECT 1', (err) => {
+    if (err) {
+      console.error('Database connection test failed:', err);
+      return res.status(503).json({ error: 'Database connection error. Please try again in a moment.' });
+    }
+    next();
+  });
 };
 
 // Authentication middleware
@@ -711,6 +747,7 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
               // Don't fail login if audit logging fails
             }
 
+            // Send response
             res.json({
               token,
               refreshToken,
@@ -724,15 +761,23 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
             });
           } catch (tokenErr) {
             console.error('Error generating token:', tokenErr);
+            console.error('Token error stack:', tokenErr.stack);
             recordLoginAttempt(username, ipAddress, false);
-            return res.status(500).json({ error: sanitizeError(tokenErr) });
+            return res.status(500).json({ 
+              error: sanitizeError(tokenErr),
+              message: 'Failed to generate authentication token'
+            });
           }
         });
       });
     });
   } catch (error) {
     console.error('Unexpected error in login endpoint:', error);
-    return res.status(500).json({ error: sanitizeError(error) });
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ 
+      error: sanitizeError(error),
+      message: 'An unexpected error occurred during login'
+    });
   }
 });
 
@@ -3014,7 +3059,7 @@ app.post('/api/clear-data/initiate', authenticateToken, requireRole('admin'), (r
   const pdfPath = path.join(pdfDir, pdfFileName);
 
   // Create backup
-  fs.copyFileSync('./ims.db', backupPath);
+  fs.copyFileSync(DB_PATH, backupPath);
 
   // Generate PDF
   generateFullSystemPDF(pdfPath, (err) => {
@@ -3412,7 +3457,7 @@ app.post('/api/clear-data/generate-user-pdfs', authenticateToken, requireRole('a
 
 app.post('/api/backup', authenticateToken, requireRole('admin'), (req, res) => {
   const backupDir = path.join(__dirname, 'backups');
-  const dbPath = './ims.db';
+  const dbPath = DB_PATH;
   
   // Create backups directory if it doesn't exist
   if (!fs.existsSync(backupDir)) {
@@ -3497,7 +3542,7 @@ app.post('/api/restore', authenticateToken, requireRole('admin'), (req, res) => 
   
   const backupDir = path.join(__dirname, 'backups');
   const backupPath = path.join(backupDir, safeFilename);
-  const dbPath = './ims.db';
+  const dbPath = DB_PATH;
   
   // SECURITY: Ensure the resolved path is within the backup directory
   const resolvedBackupPath = path.resolve(backupPath);
@@ -3701,6 +3746,31 @@ const apiV1 = express.Router();
 // Move all API routes to v1 (keeping backward compatibility with /api/ routes)
 // For now, we'll keep both /api/ and /api/v1/ working
 // In the future, we can deprecate /api/ and only use /api/v1/
+
+// Global error handler middleware (must be after all routes)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  console.error('Stack:', err.stack);
+  
+  // Don't leak error details in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  res.status(err.status || 500).json({
+    error: isDevelopment ? err.message : 'Internal Server Error',
+    ...(isDevelopment && { stack: err.stack })
+  });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
 
 // Serve frontend (only for non-API routes)
 app.get('*', (req, res) => {
