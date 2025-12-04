@@ -427,7 +427,16 @@ const initDatabase = () => {
   });
 };
 
+// Initialize database tables
 initDatabase();
+
+// Middleware to check database readiness
+const checkDatabaseReady = (req, res, next) => {
+  if (!db) {
+    return res.status(503).json({ error: 'Database not available. Please try again in a moment.' });
+  }
+  next();
+};
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -495,15 +504,23 @@ const checkAccountLockout = (username, callback) => {
   const maxAttempts = 5;
   const cutoffTime = new Date(Date.now() - lockoutWindow).toISOString();
 
+  // Check if database is ready
+  if (!db) {
+    console.error('Database not initialized');
+    return callback(new Error('Database not initialized'), false);
+  }
+
   db.all(
     `SELECT COUNT(*) as count FROM login_attempts 
      WHERE username = ? AND success = 0 AND attempt_time > ?`,
     [username, cutoffTime],
     (err, rows) => {
       if (err) {
-        return callback(err, false);
+        console.error('Error checking account lockout:', err);
+        // Don't block login if lockout check fails - allow login but log the error
+        return callback(null, false);
       }
-      const failedAttempts = rows[0]?.count || 0;
+      const failedAttempts = rows && rows[0] ? rows[0].count : 0;
       callback(null, failedAttempts >= maxAttempts);
     }
   );
@@ -511,14 +528,28 @@ const checkAccountLockout = (username, callback) => {
 
 // SECURITY: Record login attempt
 const recordLoginAttempt = (username, ipAddress, success) => {
+  if (!db) {
+    console.error('Database not initialized - cannot record login attempt');
+    return;
+  }
+  
   db.run(
     'INSERT INTO login_attempts (username, ip_address, success) VALUES (?, ?, ?)',
-    [username, ipAddress, success ? 1 : 0]
+    [username, ipAddress, success ? 1 : 0],
+    (err) => {
+      if (err) {
+        console.error('Failed to record login attempt:', err);
+      }
+    }
   );
   
   // Clean up old attempts (older than 24 hours)
   const cleanupTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  db.run('DELETE FROM login_attempts WHERE attempt_time < ?', [cleanupTime]);
+  db.run('DELETE FROM login_attempts WHERE attempt_time < ?', [cleanupTime], (err) => {
+    if (err) {
+      console.error('Failed to clean up old login attempts:', err);
+    }
+  });
 };
 
 // SECURITY: Input validation helpers
@@ -581,88 +612,128 @@ setInterval(cleanExpiredRefreshTokens, 60 * 60 * 1000);
 
 // ==================== AUTHENTICATION ROUTES ====================
 
-app.post('/api/login', authLimiter, (req, res) => {
-  const { username, password } = req.body;
-  const ipAddress = req.ip || req.connection.remoteAddress;
+app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
 
-  // SECURITY: Input validation
-  if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
-    recordLoginAttempt(username || 'unknown', ipAddress, false);
-    return res.status(400).json({ error: 'Username and password are required' });
-  }
-
-  // SECURITY: Check account lockout
-  checkAccountLockout(username, (err, isLocked) => {
-    if (err) {
-      return res.status(500).json({ error: sanitizeError(err) });
-    }
-    if (isLocked) {
-      recordLoginAttempt(username, ipAddress, false);
-      return res.status(429).json({ 
-        error: 'Account temporarily locked due to too many failed login attempts. Please try again after 15 minutes.' 
-      });
+    // SECURITY: Input validation
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+      recordLoginAttempt(username || 'unknown', ipAddress, false);
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
+    // Check if database is ready
+    if (!db) {
+      console.error('Database not initialized');
+      return res.status(500).json({ error: 'Database not initialized. Please try again in a moment.' });
+    }
+
+    // SECURITY: Check account lockout
+    checkAccountLockout(username, (err, isLocked) => {
       if (err) {
-        recordLoginAttempt(username, ipAddress, false);
-        return res.status(500).json({ error: sanitizeError(err) });
+        console.error('Error in checkAccountLockout:', err);
+        // Continue with login attempt even if lockout check fails
       }
-      if (!user) {
+      if (isLocked) {
         recordLoginAttempt(username, ipAddress, false);
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(429).json({ 
+          error: 'Account temporarily locked due to too many failed login attempts. Please try again after 15 minutes.' 
+        });
       }
 
-      bcrypt.compare(password, user.password, (err, match) => {
-        if (err || !match) {
+      db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
+        if (err) {
+          console.error('Database error fetching user:', err);
+          recordLoginAttempt(username, ipAddress, false);
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        if (!user) {
           recordLoginAttempt(username, ipAddress, false);
           return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Successful login
-        recordLoginAttempt(username, ipAddress, true);
-
-        // Generate access token
-        const token = jwt.sign(
-          { id: user.id, username: user.username, role: user.role },
-          JWT_SECRET,
-          { expiresIn: JWT_EXPIRES_IN }
-        );
-
-        // Generate refresh token
-        const refreshToken = generateRefreshToken();
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-        // Store refresh token in database
-        db.run(
-          'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
-          [user.id, refreshToken, expiresAt.toISOString()],
-          (err) => {
-            if (err) {
-              console.error('Failed to store refresh token:', err);
-              // Still return access token even if refresh token storage fails
-            }
+        bcrypt.compare(password, user.password, (err, match) => {
+          if (err) {
+            console.error('Error comparing password:', err);
+            recordLoginAttempt(username, ipAddress, false);
+            return res.status(500).json({ error: sanitizeError(err) });
           }
-        );
+          if (!match) {
+            recordLoginAttempt(username, ipAddress, false);
+            return res.status(401).json({ error: 'Invalid credentials' });
+          }
 
-        // Log successful login
-        logAudit({ user: { id: user.id }, ip: ipAddress, get: () => req.get('user-agent') }, 'LOGIN_SUCCESS', 'user', user.id);
+          // Successful login
+          recordLoginAttempt(username, ipAddress, true);
 
-        res.json({
-          token,
-          refreshToken,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            full_name: user.full_name
+          try {
+            // Generate access token
+            const token = jwt.sign(
+              { id: user.id, username: user.username, role: user.role },
+              JWT_SECRET,
+              { expiresIn: JWT_EXPIRES_IN }
+            );
+
+            // Generate refresh token
+            const refreshToken = generateRefreshToken();
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+
+            // Store refresh token in database
+            db.run(
+              'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+              [user.id, refreshToken, expiresAt.toISOString()],
+              (err) => {
+                if (err) {
+                  console.error('Failed to store refresh token:', err);
+                  // Still return access token even if refresh token storage fails
+                }
+              }
+            );
+
+            // Log successful login (non-blocking)
+            try {
+              const mockReq = {
+                user: { id: user.id },
+                ip: ipAddress,
+                connection: { remoteAddress: ipAddress },
+                get: (header) => {
+                  if (header === 'user-agent') {
+                    return req.get('user-agent') || 'unknown';
+                  }
+                  return null;
+                }
+              };
+              logAudit(mockReq, 'LOGIN_SUCCESS', 'user', user.id);
+            } catch (auditErr) {
+              console.error('Failed to log audit:', auditErr);
+              // Don't fail login if audit logging fails
+            }
+
+            res.json({
+              token,
+              refreshToken,
+              user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                full_name: user.full_name
+              }
+            });
+          } catch (tokenErr) {
+            console.error('Error generating token:', tokenErr);
+            recordLoginAttempt(username, ipAddress, false);
+            return res.status(500).json({ error: sanitizeError(tokenErr) });
           }
         });
       });
     });
-  });
+  } catch (error) {
+    console.error('Unexpected error in login endpoint:', error);
+    return res.status(500).json({ error: sanitizeError(error) });
+  }
 });
 
 // SECURITY: Refresh token endpoint
