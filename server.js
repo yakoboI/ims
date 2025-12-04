@@ -96,6 +96,7 @@ const authLimiter = rateLimit({
   message: 'Too many login attempts, please try again after 15 minutes.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Skip validation since we have trust proxy enabled (app.set('trust proxy', true))
 });
 
 // SECURITY: General API rate limiting
@@ -105,6 +106,7 @@ const apiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Skip validation since we have trust proxy enabled (app.set('trust proxy', true))
 });
 
 // SECURITY: Request size limits
