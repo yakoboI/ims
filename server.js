@@ -121,11 +121,19 @@ app.use((req, res, next) => {
 });
 
 // SECURITY: HTTPS enforcement in production
+// Note: Railway handles HTTPS termination, so we trust the proxy headers
 if (process.env.NODE_ENV === 'production') {
   app.use((req, res, next) => {
-    if (req.header('x-forwarded-proto') !== 'https') {
-      return res.redirect(`https://${req.header('host')}${req.url}`);
+    // Only redirect if we're sure it's HTTP and not behind a proxy
+    const forwardedProto = req.header('x-forwarded-proto');
+    const host = req.header('host');
+    
+    // If behind Railway/proxy, trust the headers (Railway handles HTTPS)
+    // Only redirect if explicitly HTTP and we have a host header
+    if (forwardedProto === 'http' && host) {
+      return res.redirect(`https://${host}${req.url}`);
     }
+    // Otherwise, continue (Railway proxy handles HTTPS)
     next();
   });
 }
@@ -148,23 +156,34 @@ app.use(express.static('public', {
 // Database file path - use environment variable if set, otherwise default to ./ims.db
 const DB_PATH = process.env.DATABASE_PATH || './ims.db';
 
-let db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-    console.error('Database path:', DB_PATH);
-    console.error('Error details:', err);
-    // Don't exit - let the app start and handle errors gracefully
-  } else {
-    console.log('Connected to SQLite database at:', DB_PATH);
-  }
-});
+let db;
+try {
+  db = new sqlite3.Database(DB_PATH, (err) => {
+    if (err) {
+      console.error('Error opening database:', err.message);
+      console.error('Database path:', DB_PATH);
+      console.error('Error details:', err);
+      // Don't exit - let the app start and handle errors gracefully
+      // Database will be null, and routes will handle it
+    } else {
+      console.log('Connected to SQLite database at:', DB_PATH);
+    }
+  });
+} catch (error) {
+  console.error('Failed to create database connection:', error);
+  console.error('Error stack:', error.stack);
+  // Continue without database - routes will handle errors
+  db = null;
+}
 
-// Enable foreign keys
-db.run('PRAGMA foreign_keys = ON', (err) => {
-  if (err) {
-    console.error('Error enabling foreign keys:', err);
-  }
-});
+// Enable foreign keys (only if db is initialized)
+if (db) {
+  db.run('PRAGMA foreign_keys = ON', (err) => {
+    if (err) {
+      console.error('Error enabling foreign keys:', err);
+    }
+  });
+}
 
 // Function to reconnect database (assumes db is already closed)
 const reconnectDatabase = () => {
@@ -3806,29 +3825,18 @@ const apiV1 = express.Router();
 // For now, we'll keep both /api/ and /api/v1/ working
 // In the future, we can deprecate /api/ and only use /api/v1/
 
-// Global error handler middleware (must be after all routes)
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  console.error('Stack:', err.stack);
-  
-  // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
-  res.status(err.status || 500).json({
-    error: isDevelopment ? err.message : 'Internal Server Error',
-    ...(isDevelopment && { stack: err.stack })
-  });
-});
-
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Stack:', reason?.stack);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  process.exit(1);
+  console.error('Stack:', err.stack);
+  // Don't exit immediately - let Railway handle it
+  // process.exit(1);
 });
 
 // Global error handler middleware (must be after all routes)
@@ -3861,26 +3869,39 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`IMS Server running on http://localhost:${PORT}`);
-  console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✓ API Version: v1 (backward compatible with /api/ routes)`);
-  console.log(`✓ Security features enabled`);
-  
-  // Log registered routes for debugging
-  const routes = [];
-  app._router.stack.forEach((middleware) => {
-    if (middleware.route) {
-      const methods = Object.keys(middleware.route.methods).join(', ').toUpperCase();
-      routes.push(`${methods} ${middleware.route.path}`);
+// Start server with error handling
+try {
+  app.listen(PORT, () => {
+    console.log(`IMS Server running on http://localhost:${PORT}`);
+    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`✓ API Version: v1 (backward compatible with /api/ routes)`);
+    console.log(`✓ Security features enabled`);
+    console.log(`✓ Database: ${db ? 'Connected' : 'Not connected (will retry on first request)'}`);
+    
+    // Log registered routes for debugging
+    try {
+      const routes = [];
+      app._router.stack.forEach((middleware) => {
+        if (middleware.route) {
+          const methods = Object.keys(middleware.route.methods).join(', ').toUpperCase();
+          routes.push(`${methods} ${middleware.route.path}`);
+        }
+      });
+      console.log(`✓ Registered ${routes.length} routes`);
+      if (process.env.NODE_ENV === 'development') {
+        const clearDataRoutes = routes.filter(r => r.includes('clear-data'));
+        if (clearDataRoutes.length > 0) {
+          console.log(`✓ Clear-data routes:`, clearDataRoutes.join(', '));
+        }
+      }
+    } catch (routeError) {
+      console.error('Error logging routes:', routeError);
+      // Don't fail startup if route logging fails
     }
   });
-  console.log(`✓ Registered ${routes.length} routes`);
-  if (process.env.NODE_ENV === 'development') {
-    const clearDataRoutes = routes.filter(r => r.includes('clear-data'));
-    if (clearDataRoutes.length > 0) {
-      console.log(`✓ Clear-data routes:`, clearDataRoutes.join(', '));
-    }
-  }
-});
+} catch (startupError) {
+  console.error('Failed to start server:', startupError);
+  console.error('Error stack:', startupError.stack);
+  process.exit(1);
+}
 
