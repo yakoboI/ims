@@ -3871,8 +3871,10 @@ app.get('*', (req, res) => {
 
 // Start server with error handling
 try {
-  app.listen(PORT, () => {
-    console.log(`IMS Server running on http://localhost:${PORT}`);
+  // Listen on 0.0.0.0 to accept connections from Railway's network
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`IMS Server running on port ${PORT}`);
+    console.log(`✓ Listening on 0.0.0.0:${PORT} (Railway compatible)`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ API Version: v1 (backward compatible with /api/ routes)`);
     console.log(`✓ Security features enabled`);
