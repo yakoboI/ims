@@ -649,6 +649,15 @@ setInterval(cleanExpiredRefreshTokens, 60 * 60 * 1000);
 // ==================== AUTHENTICATION ROUTES ====================
 
 app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
+  // Ensure response is only sent once
+  let responseSent = false;
+  const sendResponse = (status, data) => {
+    if (!responseSent) {
+      responseSent = true;
+      return res.status(status).json(data);
+    }
+  };
+
   try {
     const { username, password } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
@@ -656,24 +665,31 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
     // SECURITY: Input validation
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       recordLoginAttempt(username || 'unknown', ipAddress, false);
-      return res.status(400).json({ error: 'Username and password are required' });
+      return sendResponse(400, { error: 'Username and password are required' });
     }
 
     // Check if database is ready
     if (!db) {
       console.error('Database not initialized');
-      return res.status(500).json({ error: 'Database not initialized. Please try again in a moment.' });
+      return sendResponse(500, { error: 'Database not initialized. Please try again in a moment.' });
+    }
+
+    // Check if JWT_SECRET is configured
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not configured');
+      return sendResponse(500, { error: 'Server configuration error. Please contact administrator.' });
     }
 
     // SECURITY: Check account lockout
     checkAccountLockout(username, (err, isLocked) => {
       if (err) {
         console.error('Error in checkAccountLockout:', err);
+        console.error('Error stack:', err.stack);
         // Continue with login attempt even if lockout check fails
       }
       if (isLocked) {
         recordLoginAttempt(username, ipAddress, false);
-        return res.status(429).json({ 
+        return sendResponse(429, { 
           error: 'Account temporarily locked due to too many failed login attempts. Please try again after 15 minutes.' 
         });
       }
@@ -681,23 +697,32 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
       db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], (err, user) => {
         if (err) {
           console.error('Database error fetching user:', err);
+          console.error('Error stack:', err.stack);
           recordLoginAttempt(username, ipAddress, false);
-          return res.status(500).json({ error: sanitizeError(err) });
+          return sendResponse(500, { error: sanitizeError(err) });
         }
         if (!user) {
           recordLoginAttempt(username, ipAddress, false);
-          return res.status(401).json({ error: 'Invalid credentials' });
+          return sendResponse(401, { error: 'Invalid credentials' });
+        }
+
+        // Check if user has a password hash
+        if (!user.password) {
+          console.error('User found but has no password hash:', username);
+          recordLoginAttempt(username, ipAddress, false);
+          return sendResponse(500, { error: 'User account configuration error' });
         }
 
         bcrypt.compare(password, user.password, (err, match) => {
           if (err) {
             console.error('Error comparing password:', err);
+            console.error('Error stack:', err.stack);
             recordLoginAttempt(username, ipAddress, false);
-            return res.status(500).json({ error: sanitizeError(err) });
+            return sendResponse(500, { error: sanitizeError(err) });
           }
           if (!match) {
             recordLoginAttempt(username, ipAddress, false);
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return sendResponse(401, { error: 'Invalid credentials' });
           }
 
           // Successful login
@@ -705,6 +730,10 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
 
           try {
             // Generate access token
+            if (!JWT_SECRET) {
+              throw new Error('JWT_SECRET is not configured');
+            }
+            
             const token = jwt.sign(
               { id: user.id, username: user.username, role: user.role },
               JWT_SECRET,
@@ -723,6 +752,7 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
               (err) => {
                 if (err) {
                   console.error('Failed to store refresh token:', err);
+                  console.error('Error stack:', err.stack);
                   // Still return access token even if refresh token storage fails
                 }
               }
@@ -744,11 +774,12 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
               logAudit(mockReq, 'LOGIN_SUCCESS', 'user', user.id);
             } catch (auditErr) {
               console.error('Failed to log audit:', auditErr);
+              console.error('Error stack:', auditErr.stack);
               // Don't fail login if audit logging fails
             }
 
             // Send response
-            res.json({
+            return sendResponse(200, {
               token,
               refreshToken,
               user: {
@@ -762,8 +793,9 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
           } catch (tokenErr) {
             console.error('Error generating token:', tokenErr);
             console.error('Token error stack:', tokenErr.stack);
+            console.error('JWT_SECRET exists:', !!JWT_SECRET);
             recordLoginAttempt(username, ipAddress, false);
-            return res.status(500).json({ 
+            return sendResponse(500, { 
               error: sanitizeError(tokenErr),
               message: 'Failed to generate authentication token'
             });
@@ -774,7 +806,7 @@ app.post('/api/login', authLimiter, checkDatabaseReady, (req, res) => {
   } catch (error) {
     console.error('Unexpected error in login endpoint:', error);
     console.error('Error stack:', error.stack);
-    return res.status(500).json({ 
+    return sendResponse(500, { 
       error: sanitizeError(error),
       message: 'An unexpected error occurred during login'
     });
