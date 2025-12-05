@@ -148,7 +148,6 @@ html {
     background: var(--card-bg);
     width: 260px;
     height: 100vh;
-    max-height: 100vh;
     position: fixed;
     left: 0;
     top: 0;
@@ -259,7 +258,7 @@ html {
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--card-bg);
-    margin-top: 0;
+    margin-top: auto;
 }
 
 .nav-user {
