@@ -331,7 +331,13 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-function toggleMobileMenu() {
+function toggleMobileMenu(e) {
+    // Prevent event propagation if event is provided
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const body = document.body;
@@ -383,10 +389,18 @@ document.addEventListener('click', (e) => {
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const overlay = document.getElementById('sidebar-overlay');
     
+    // Don't close if clicking the toggle button itself
+    if (menuToggle && (menuToggle.contains(e.target) || e.target.closest('.mobile-menu-toggle'))) {
+        return;
+    }
+    
     if (navbar && navbar.classList.contains('mobile-open')) {
+        // Close if clicking the overlay
         if (overlay && e.target === overlay) {
             toggleMobileMenu();
-        } else if (menuToggle && !navbar.contains(e.target) && !menuToggle.contains(e.target)) {
+        } 
+        // Close if clicking outside both navbar and toggle button
+        else if (!navbar.contains(e.target)) {
             toggleMobileMenu();
         }
     }
@@ -401,6 +415,33 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Add direct event listeners to mobile menu toggle buttons for better reliability
+// This ensures the button works even if onclick fails
+function setupMobileMenuToggle() {
+    const menuToggles = document.querySelectorAll('.mobile-menu-toggle');
+    menuToggles.forEach(toggle => {
+        // Add click event listener (keeps onclick as fallback)
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMobileMenu(e);
+        }, { passive: false, capture: true });
+        
+        // Handle touch events for better mobile support
+        toggle.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMobileMenu(e);
+        }, { passive: false });
+    });
+}
+
+// Setup on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupMobileMenuToggle);
+} else {
+    setupMobileMenuToggle();
+}
 
 async function loadAndApplyRolePermissions(userRole) {
     try {

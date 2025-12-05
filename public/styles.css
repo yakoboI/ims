@@ -193,10 +193,12 @@ html {
     opacity: 0;
     transition: opacity 0.3s ease;
     backdrop-filter: blur(2px);
+    pointer-events: none;
 }
 
 #sidebar-overlay.show {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .nav-brand {
@@ -226,10 +228,13 @@ html {
     position: fixed;
     top: 1rem;
     left: 1rem;
-    z-index: 1001;
+    z-index: 1002;
     background: var(--card-bg);
     border-radius: 0;
     box-shadow: var(--shadow);
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .nav-menu {
