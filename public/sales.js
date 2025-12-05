@@ -458,7 +458,8 @@ async function viewSale(saleId) {
         `;
         
         document.getElementById('saleDetails').innerHTML = details;
-        document.getElementById('viewSaleModal').classList.add('show');
+        // Use openModal to properly set aria-hidden and manage focus
+        openModal('viewSaleModal');
     } catch (error) {
         showNotification(error.message || 'Error loading sale details', 'error');
     }
