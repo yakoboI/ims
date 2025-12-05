@@ -2,6 +2,34 @@ let categories = [];
 let items = [];
 let currentEditingItem = null;
 
+/**
+ * Render barcode on a canvas element
+ * @param {HTMLElement} canvas - Canvas element
+ * @param {string} value - Value to encode (SKU or item ID)
+ */
+function renderBarcode(canvas, value) {
+    if (!canvas || !value || !window.JsBarcode) {
+        return;
+    }
+    
+    try {
+        JsBarcode(canvas, value, {
+            format: "CODE128",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 12,
+            margin: 5,
+            background: "#ffffff",
+            lineColor: "#000000"
+        });
+    } catch (error) {
+        console.error('Error generating barcode:', error);
+        // Fallback: show text if barcode generation fails
+        canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px;">${value}</span>`;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await loadCategories();
     await loadItems();
@@ -57,10 +85,17 @@ function renderItemsTable(itemsList) {
     }
 
     hideEmptyState(tableContainer);
-    tbody.innerHTML = itemsList.map(item => `
+    tbody.innerHTML = itemsList.map(item => {
+        const barcodeValue = item.sku || `ITEM-${item.id}`;
+        const barcodeId = `barcode-${item.id}`;
+        return `
         <tr>
             <td data-label="SKU">${item.sku ? item.sku : `<span style="color: var(--text-secondary); font-style: italic;">N/A</span>`}</td>
-            <td data-label="Barcode">${item.sku ? item.sku : `ITEM-${item.id}`}</td>
+            <td data-label="Barcode">
+                <div class="barcode-container" style="display: flex; align-items: center; justify-content: center; min-height: 60px;">
+                    <canvas id="${barcodeId}" class="barcode-canvas" data-barcode-value="${barcodeValue}" style="max-width: 150px; height: 50px;"></canvas>
+                </div>
+            </td>
             <td data-label="Image">
                 ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : '<span style="color: var(--text-secondary);">-</span>'}
             </td>
@@ -82,7 +117,20 @@ function renderItemsTable(itemsList) {
                 <button class="btn btn-sm btn-info" onclick="openAdjustStockModal(${item.id})">Adjust Stock</button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
+    
+    // Render barcodes after table is created
+    setTimeout(() => {
+        itemsList.forEach(item => {
+            const barcodeValue = item.sku || `ITEM-${item.id}`;
+            const barcodeId = `barcode-${item.id}`;
+            const canvas = document.getElementById(barcodeId);
+            if (canvas) {
+                renderBarcode(canvas, barcodeValue);
+            }
+        });
+    }, 100);
 }
 
 function setupEventListeners() {
