@@ -345,26 +345,39 @@ function toggleMobileMenu() {
             menuToggle.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
         }
         
+        // Prevent body scroll when menu is open
+        if (isOpen) {
+            body.classList.add('menu-open');
+        } else {
+            body.classList.remove('menu-open');
+        }
+        
         // Add/remove overlay
         if (isOpen) {
             let overlay = document.getElementById('sidebar-overlay');
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.id = 'sidebar-overlay';
-                overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; transition: opacity 0.3s ease;';
+                overlay.className = 'show';
                 document.body.appendChild(overlay);
-                setTimeout(() => overlay.style.opacity = '1', 10);
+            } else {
+                overlay.classList.add('show');
             }
         } else {
             const overlay = document.getElementById('sidebar-overlay');
             if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => overlay.remove(), 300);
+                overlay.classList.remove('show');
+                setTimeout(() => {
+                    if (overlay && !overlay.classList.contains('show')) {
+                        overlay.remove();
+                    }
+                }, 300);
             }
         }
     }
 }
 
+// Close mobile menu when clicking outside
 document.addEventListener('click', (e) => {
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
@@ -374,6 +387,16 @@ document.addEventListener('click', (e) => {
         if (overlay && e.target === overlay) {
             toggleMobileMenu();
         } else if (menuToggle && !navbar.contains(e.target) && !menuToggle.contains(e.target)) {
+            toggleMobileMenu();
+        }
+    }
+});
+
+// Close mobile menu on ESC key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const navbar = document.querySelector('.navbar');
+        if (navbar && navbar.classList.contains('mobile-open')) {
             toggleMobileMenu();
         }
     }
