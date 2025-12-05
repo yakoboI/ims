@@ -155,7 +155,7 @@ html {
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -221,9 +221,8 @@ html {
     flex-direction: column;
     gap: 0;
     padding: 0.5rem 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
-    overflow: visible;
 }
 
 .nav-link {
@@ -258,7 +257,6 @@ html {
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--card-bg);
-    margin-top: auto;
 }
 
 .nav-user {
