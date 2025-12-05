@@ -1494,7 +1494,8 @@ body.menu-open {
     }
 
     .navbar.mobile-open {
-        transform: translateX(0);
+        transform: translateX(0) !important;
+        z-index: 1001 !important;
     }
 
     .nav-brand {
@@ -1740,7 +1741,8 @@ body.menu-open {
     }
 
     .navbar.mobile-open {
-        transform: translateX(0);
+        transform: translateX(0) !important;
+        z-index: 1001 !important;
     }
 
     .mobile-menu-toggle {

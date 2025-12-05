@@ -340,6 +340,8 @@ let menuJustToggled = false;
 let menuToggleTimeout = null;
 
 function toggleMobileMenu(e) {
+    console.log('toggleMobileMenu called');
+    
     // Prevent default and stop propagation
     if (e) {
         e.stopPropagation();
@@ -364,10 +366,22 @@ function toggleMobileMenu(e) {
         return;
     }
     
+    console.log('Navbar found, current classes:', navbar.className);
+    
     navbar.classList.toggle('mobile-open');
     const isOpen = navbar.classList.contains('mobile-open');
     
     console.log('Menu toggled, isOpen:', isOpen, 'Navbar classes:', navbar.className);
+    
+    // Force the transform with inline style to ensure it works
+    if (isOpen) {
+        navbar.style.transform = 'translateX(0)';
+        navbar.style.zIndex = '1001';
+        console.log('Forcing navbar to show - transform set to translateX(0)');
+    } else {
+        navbar.style.transform = 'translateX(-100%)';
+        console.log('Forcing navbar to hide - transform set to translateX(-100%)');
+    }
     
     if (menuToggle) {
         menuToggle.setAttribute('aria-expanded', isOpen);
@@ -388,8 +402,11 @@ function toggleMobileMenu(e) {
             overlay = document.createElement('div');
             overlay.id = 'sidebar-overlay';
             document.body.appendChild(overlay);
+            console.log('Overlay created');
         }
         overlay.classList.add('show');
+        overlay.style.zIndex = '1000';
+        console.log('Overlay shown');
     } else {
         if (overlay) {
             overlay.classList.remove('show');
@@ -401,6 +418,14 @@ function toggleMobileMenu(e) {
             }, 300);
         }
     }
+    
+    // Log computed styles for debugging
+    setTimeout(() => {
+        const computedStyle = window.getComputedStyle(navbar);
+        console.log('Navbar computed transform:', computedStyle.transform);
+        console.log('Navbar computed z-index:', computedStyle.zIndex);
+        console.log('Navbar computed display:', computedStyle.display);
+    }, 50);
 }
 
 // Track when menu was just toggled to prevent immediate close
