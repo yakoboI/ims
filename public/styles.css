@@ -292,12 +292,12 @@ html {
 }
 
 .btn-danger {
-    background: var(--danger-color);
-    color: white;
+    background: var(--danger-color) !important;
+    color: white !important;
 }
 
 .btn-danger:hover {
-    background: #dc2626;
+    background: #dc2626 !important;
 }
 
 .btn-warning {
