@@ -155,26 +155,8 @@ html {
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
-}
-
-.navbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.navbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.navbar::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
-}
-
-.navbar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
 }
 
 .nav-brand {
@@ -184,7 +166,7 @@ html {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 1.5rem 1.5rem 1rem;
+    padding: 1.25rem 1.5rem 0.875rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
@@ -213,10 +195,30 @@ html {
 .nav-menu {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 1rem 0;
+    gap: 0.125rem;
+    padding: 0.75rem 0;
     flex: 1;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.nav-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nav-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav-menu::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.nav-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .nav-link {
@@ -224,7 +226,7 @@ html {
     color: var(--text-secondary);
     font-weight: 500;
     transition: all 0.2s;
-    padding: 0.875rem 1.5rem;
+    padding: 0.75rem 1.5rem;
     border-radius: 0;
     white-space: nowrap;
     display: flex;
@@ -248,7 +250,7 @@ html {
 
 .nav-footer {
     margin-top: auto;
-    padding-top: 1rem;
+    padding: 0.75rem 0 0;
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--card-bg);
@@ -256,15 +258,17 @@ html {
 
 .nav-user {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     white-space: nowrap;
-    padding: 0 1.5rem 0.75rem;
+    padding: 0.5rem 1.5rem 0.5rem;
     display: block;
 }
 
 .navbar .btn {
-    margin: 0 1.5rem 1rem;
+    margin: 0 1.5rem 0.75rem;
     width: calc(100% - 3rem);
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
 }
 
 /* Container */
