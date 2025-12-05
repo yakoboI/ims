@@ -1,0 +1,16 @@
+# Nixpacks configuration for Railway
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-9_x"]
+
+[phases.install]
+cmds = [
+  "npm cache clean --force",
+  "npm ci || (npm cache clean --force && npm install --production)"
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"
+
