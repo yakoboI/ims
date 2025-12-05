@@ -13,7 +13,8 @@
     "init-db": "node scripts/init-db.js",
     "build": "echo 'No build step required'",
     "postinstall": "echo 'Installation complete'",
-    "railway:build": "npm cache clean --force && npm ci --omit=dev"
+    "railway:build": "npm cache clean --force && npm ci --omit=dev || (npm cache clean --force && npm install --omit=dev)",
+    "install:retry": "npm ci || npm install"
   },
   "keywords": [
     "inventory",
