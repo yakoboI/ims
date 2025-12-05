@@ -6,11 +6,20 @@ let lastPurchaseBarcodeTime = 0;
 let purchaseBarcodeScanInProgress = false;
 let purchaseItemsCache = new Map();
 
+// Orders management
+let allOrders = [];
+let filteredOrders = [];
+let currentPage = 1;
+let itemsPerPage = 25;
+let currentSort = { column: 'created_on', direction: 'desc' };
+let searchQuery = '';
+
 document.addEventListener('DOMContentLoaded', async () => {
     await loadItems();
     await loadSuppliers();
     await loadPurchases();
     setupEventListeners();
+    setupOrdersControls();
 });
 
 async function loadItems() {
@@ -66,44 +75,224 @@ async function loadPurchases() {
     // Show loading state
     if (tableContainer) {
         hideTableSkeleton(tableContainer);
-        showTableSkeleton(tableContainer, 5, 6);
+        showTableSkeleton(tableContainer, 5, 7);
     }
     if (tbody) tbody.innerHTML = '';
     
     try {
         const purchases = await apiRequest('/purchases');
         if (tableContainer) hideTableSkeleton(tableContainer);
-        renderPurchasesTable(purchases);
+        
+        // Transform purchases to orders format
+        allOrders = purchases.map((purchase, index) => ({
+            id: purchase.id,
+            order_no: `ORDER-${purchase.id}`,
+            supplier_name: purchase.supplier_name || '-',
+            created_on: purchase.purchase_date,
+            delivery_date: purchase.delivery_date || purchase.purchase_date,
+            status: purchase.status || 'received', // Default to 'received'
+            total_amount: purchase.total_amount,
+            created_by_name: purchase.created_by_name || '-',
+            supplier_id: purchase.supplier_id,
+            notes: purchase.notes,
+            items: purchase.items
+        }));
+        
+        applyFiltersAndRender();
     } catch (error) {
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading purchases', 'error');
-        renderPurchasesTable([]);
+        showNotification('Error loading purchase orders', 'error');
+        allOrders = [];
+        filteredOrders = [];
+        renderOrdersTable();
     }
 }
 
-function renderPurchasesTable(purchases) {
+function applyFiltersAndRender() {
+    // Apply search filter
+    if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filteredOrders = allOrders.filter(order => 
+            order.order_no.toLowerCase().includes(query) ||
+            order.supplier_name.toLowerCase().includes(query) ||
+            order.status.toLowerCase().includes(query)
+        );
+    } else {
+        filteredOrders = [...allOrders];
+    }
+    
+    // Apply sorting
+    filteredOrders.sort((a, b) => {
+        let aVal, bVal;
+        
+        if (currentSort.column === 'index') {
+            // Index sorting is handled by pagination, use order_no instead
+            aVal = a.order_no;
+            bVal = b.order_no;
+        } else {
+            aVal = a[currentSort.column];
+            bVal = b[currentSort.column];
+        }
+        
+        if (currentSort.column === 'created_on' || currentSort.column === 'delivery_date') {
+            aVal = new Date(aVal || 0);
+            bVal = new Date(bVal || 0);
+        } else if (typeof aVal === 'string') {
+            aVal = aVal.toLowerCase();
+            bVal = bVal.toLowerCase();
+        }
+        
+        if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    renderOrdersTable();
+}
+
+function renderOrdersTable() {
     const tbody = document.getElementById('purchasesTableBody');
     const tableContainer = document.querySelector('.table-container');
     
-    if (purchases.length === 0) {
-        tbody.innerHTML = '';
-        showEmptyState(tableContainer, EmptyStates.purchases);
+    if (filteredOrders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No orders found</td></tr>';
+        updatePagination(0);
         return;
     }
 
+    // Paginate
+    const paginated = paginateArray(filteredOrders, currentPage, itemsPerPage);
+    
     hideEmptyState(tableContainer);
-    tbody.innerHTML = purchases.map(purchase => `
-        <tr>
-            <td data-label="Purchase ID">#${purchase.id}</td>
-            <td data-label="Date">${formatDate(purchase.purchase_date)}</td>
-            <td data-label="Supplier">${purchase.supplier_name || '-'}</td>
-            <td data-label="Total Amount" class="col-amount numeric"><strong>${formatCurrency(purchase.total_amount)}</strong></td>
-            <td data-label="Created By">${purchase.created_by_name || '-'}</td>
-            <td data-label="Actions">
-                <button class="btn btn-sm btn-secondary" onclick="viewPurchase(${purchase.id})">View</button>
+    tbody.innerHTML = paginated.items.map((order, index) => {
+        const rowIndex = (currentPage - 1) * itemsPerPage + index + 1;
+        // Normalize status: handle spaces, underscores, and ensure proper format
+        let statusClass = order.status.toLowerCase().trim();
+        statusClass = statusClass.replace(/[\s_]+/g, '-'); // Convert spaces and underscores to hyphens
+        
+        // Map common status variations to standard format
+        const statusMap = {
+            'partial': 'partial-delivered',
+            'partialdelivered': 'partial-delivered',
+            'partially-delivered': 'partial-delivered',
+            'completed': 'delivered',
+            'fulfilled': 'delivered',
+            'pending': 'received',
+            'new': 'received'
+        };
+        
+        if (statusMap[statusClass]) {
+            statusClass = statusMap[statusClass];
+        }
+        
+        // Format status label for display
+        const statusLabel = statusClass
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        
+        return `
+        <tr class="status-${statusClass}">
+            <td data-label="#">${rowIndex}</td>
+            <td data-label="Order No">${order.order_no}</td>
+            <td data-label="Supplier Name">${order.supplier_name}</td>
+            <td data-label="Created On">${formatDate(order.created_on)}</td>
+            <td data-label="Delivery Date">${formatDate(order.delivery_date)}</td>
+            <td data-label="Status">
+                <span class="order-status ${statusClass}">${statusLabel}</span>
+            </td>
+            <td data-label="View">
+                <div class="view-actions">
+                    <button class="btn btn-sm btn-view" onclick="viewPurchase(${order.id})" aria-label="View order ${order.order_no}">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <button class="btn btn-sm btn-order" onclick="downloadOrder(${order.id})" aria-label="Download order ${order.order_no}">
+                        <i class="fas fa-download"></i> Order
+                    </button>
+                    <button class="btn btn-sm btn-pi" onclick="downloadPI(${order.id})" aria-label="Download proforma invoice for ${order.order_no}">
+                        <i class="fas fa-download"></i> P.I.
+                    </button>
+                </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
+    
+    updatePagination(paginated.totalItems);
+}
+
+function updatePagination(totalItems) {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+    const endIndex = Math.min(currentPage * itemsPerPage, totalItems);
+    
+    const entriesInfo = document.getElementById('entriesInfo');
+    if (entriesInfo) {
+        entriesInfo.textContent = `Showing ${startIndex} to ${endIndex} of ${totalItems} entries`;
+    }
+    
+    const paginationContainer = document.getElementById('paginationContainer');
+    if (paginationContainer && window.createPagination) {
+        createPagination(paginationContainer, currentPage, totalPages, (page) => {
+            currentPage = page;
+            renderOrdersTable();
+        });
+    }
+}
+
+function setupOrdersControls() {
+    // Entries per page
+    const entriesSelect = document.getElementById('entriesPerPage');
+    if (entriesSelect) {
+        entriesSelect.value = itemsPerPage;
+        entriesSelect.addEventListener('change', (e) => {
+            itemsPerPage = parseInt(e.target.value);
+            currentPage = 1;
+            renderOrdersTable();
+        });
+    }
+    
+    // Search
+    const searchInput = document.getElementById('searchOrders');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchQuery = e.target.value;
+                currentPage = 1;
+                applyFiltersAndRender();
+            }, 300);
+        });
+    }
+    
+    // Sortable columns
+    const sortableHeaders = document.querySelectorAll('.data-table th.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            // Update UI
+            sortableHeaders.forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            header.classList.add(`sort-${currentSort.direction}`);
+            
+            applyFiltersAndRender();
+        });
+    });
+    
+    // Initialize sort indicator
+    const initialSortHeader = document.querySelector(`th[data-sort="${currentSort.column}"]`);
+    if (initialSortHeader) {
+        initialSortHeader.classList.add(`sort-${currentSort.direction}`);
+    }
 }
 
 function setupEventListeners() {
@@ -353,6 +542,9 @@ async function handlePurchaseSubmit(e) {
         return;
     }
     
+    const deliveryDateInput = document.getElementById('purchaseDeliveryDate');
+    const deliveryDate = deliveryDateInput ? deliveryDateInput.value : null;
+    
     const purchaseData = {
         supplier_id: parseInt(supplierId),
         items: purchaseItems.map(item => ({
@@ -360,7 +552,9 @@ async function handlePurchaseSubmit(e) {
             quantity: item.quantity,
             unit_price: item.unit_price
         })),
-        notes: document.getElementById('purchaseNotes').value || null
+        notes: document.getElementById('purchaseNotes').value || null,
+        delivery_date: deliveryDate,
+        status: 'received' // Default status for new orders
     };
     
     try {
@@ -369,7 +563,7 @@ async function handlePurchaseSubmit(e) {
             body: purchaseData
         });
         
-        showNotification('Purchase recorded successfully');
+        showNotification('Purchase order created successfully');
         closeNewPurchaseModal();
         
         // Notify product flow of purchase (affects stock)
@@ -382,7 +576,7 @@ async function handlePurchaseSubmit(e) {
         await loadPurchases();
         await loadItems();
     } catch (error) {
-        showNotification(error.message || 'Error recording purchase', 'error');
+        showNotification(error.message || 'Error creating purchase order', 'error');
     }
 }
 
@@ -438,6 +632,19 @@ async function viewPurchase(purchaseId) {
 
 function closeViewPurchaseModal() {
     closeModal('viewPurchaseModal');
+}
+
+function downloadOrder(orderId) {
+    viewPurchase(orderId);
+    // In a real implementation, this would generate and download a PDF
+    showNotification('Order download feature coming soon', 'info');
+}
+
+function downloadPI(orderId) {
+    // Proforma Invoice download
+    viewPurchase(orderId);
+    // In a real implementation, this would generate and download a Proforma Invoice PDF
+    showNotification('Proforma Invoice download feature coming soon', 'info');
 }
 
 function openSupplierModal() {

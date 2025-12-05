@@ -49,6 +49,9 @@
     
     <!-- Product Flow Management -->
     <script src="product-flow.js"></script>
+    
+    <!-- Pagination -->
+    <script src="pagination.js"></script>
 </head>
 <body>
     <!-- Skip to main content link for accessibility -->
@@ -71,27 +74,56 @@
 
     <main id="main-content" class="container" role="main">
         <header class="page-header">
-            <h1>Purchase Management</h1>
-            <button class="btn btn-primary" onclick="openNewPurchaseModal()" aria-label="Create new purchase">+ New Purchase</button>
+            <h1>List Purchase Orders</h1>
+            <button class="btn btn-primary" onclick="openNewPurchaseModal()" aria-label="Create new purchase order">+ New Purchase Order</button>
         </header>
 
-        <section class="table-container" aria-label="Purchase transactions table">
-            <table class="data-table" role="table" aria-label="Purchase transactions">
+        <!-- Table Controls -->
+        <div class="table-controls">
+            <div class="table-controls-left">
+                <label for="entriesPerPage">Show</label>
+                <select id="entriesPerPage" class="entries-select" aria-label="Number of entries to show">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span>entries</span>
+            </div>
+            <div class="table-controls-right">
+                <label for="searchOrders">Search:</label>
+                <input type="text" id="searchOrders" class="search-input" placeholder="Search orders..." aria-label="Search purchase orders">
+            </div>
+        </div>
+
+        <section class="table-container" aria-label="Purchase orders table">
+            <table class="data-table orders-table" role="table" aria-label="Purchase orders">
                 <thead>
                     <tr>
-                        <th scope="col">Purchase ID</th>
-                        <th scope="col">Date</th>
-                        <th scope="col">Supplier</th>
-                        <th scope="col" class="col-amount">Total Amount</th>
-                        <th scope="col">Created By</th>
-                        <th scope="col">Actions</th>
+                        <th scope="col" class="sortable" data-sort="index">#</th>
+                        <th scope="col" class="sortable" data-sort="order_no">Order No</th>
+                        <th scope="col" class="sortable" data-sort="supplier_name">Supplier Name</th>
+                        <th scope="col" class="sortable" data-sort="created_on">Created On</th>
+                        <th scope="col" class="sortable" data-sort="delivery_date">Delivery Date</th>
+                        <th scope="col" class="sortable" data-sort="status">Status</th>
+                        <th scope="col">View</th>
                     </tr>
                 </thead>
                 <tbody id="purchasesTableBody" role="rowgroup" aria-live="polite">
-                    <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
                 </tbody>
             </table>
         </section>
+
+        <!-- Pagination -->
+        <div class="table-footer">
+            <div class="table-footer-left">
+                <span id="entriesInfo">Showing 0 to 0 of 0 entries</span>
+            </div>
+            <div class="table-footer-right">
+                <div id="paginationContainer" class="pagination-container"></div>
+            </div>
+        </div>
     </main>
 
     <!-- New Purchase Modal -->
@@ -106,6 +138,11 @@
                         <option value="">Select Supplier</option>
                     </select>
                     <button type="button" class="btn btn-sm btn-secondary" onclick="openSupplierModal()" aria-label="Add new supplier">+ Add Supplier</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="purchaseDeliveryDate">Delivery Date</label>
+                    <input type="date" id="purchaseDeliveryDate" aria-label="Expected delivery date">
                 </div>
                 
                 <section class="purchase-items-section" aria-labelledby="purchaseItemsHeading">

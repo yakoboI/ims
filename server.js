@@ -297,13 +297,28 @@ const initDatabase = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       supplier_id INTEGER,
       purchase_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      delivery_date DATETIME,
       total_amount REAL NOT NULL,
-      status TEXT DEFAULT 'completed',
+      status TEXT DEFAULT 'received',
       created_by INTEGER,
       notes TEXT,
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
       FOREIGN KEY (created_by) REFERENCES users(id)
     )`);
+    
+    // Add delivery_date column if it doesn't exist (migration)
+    db.run(`ALTER TABLE purchases ADD COLUMN delivery_date DATETIME`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.log('Note: delivery_date column may already exist');
+      }
+    });
+    
+    // Update status default if needed (migration)
+    db.run(`UPDATE purchases SET status = 'received' WHERE status IS NULL OR status = ''`, (err) => {
+      if (err) {
+        console.log('Note: Could not update status defaults');
+      }
+    });
 
     // Purchase_Items table
     db.run(`CREATE TABLE IF NOT EXISTS purchase_items (
@@ -1506,7 +1521,7 @@ app.get('/api/purchases/:id', authenticateToken, requireRole('admin', 'storekeep
 });
 
 app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
-  const { supplier_id, items, notes } = req.body;
+  const { supplier_id, items, notes, delivery_date, status } = req.body;
   const created_by = req.user.id;
   let total_amount = 0;
 
@@ -1514,9 +1529,12 @@ app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'
     total_amount += item.quantity * item.unit_price;
   });
 
+  const orderStatus = status || 'received';
+  const deliveryDate = delivery_date || null;
+
   db.run(
-    'INSERT INTO purchases (supplier_id, total_amount, created_by, notes) VALUES (?, ?, ?, ?)',
-    [supplier_id, total_amount, created_by, notes],
+    'INSERT INTO purchases (supplier_id, total_amount, created_by, notes, delivery_date, status) VALUES (?, ?, ?, ?, ?, ?)',
+    [supplier_id, total_amount, created_by, notes, deliveryDate, orderStatus],
     function(err) {
       if (err) {
         return res.status(500).json({ error: sanitizeError(err) });

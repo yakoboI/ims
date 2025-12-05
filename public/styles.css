@@ -2443,13 +2443,223 @@ html {
     }
 }
 
+/* Table Controls */
+.table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.table-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.table-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.entries-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    font-size: 0.875rem;
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.search-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    font-size: 0.875rem;
+    min-width: 200px;
+}
+
+.search-input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -1px;
+    border-color: var(--primary-color);
+}
+
+/* Table Footer */
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.table-footer-left {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.table-footer-right {
+    display: flex;
+    align-items: center;
+}
+
+.pagination-container {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.pagination-container .pagination-btn {
+    padding: 0.5rem 0.75rem;
+    min-width: auto;
+    font-size: 0.875rem;
+}
+
+/* Sortable Columns */
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.5rem;
+}
+
+.data-table th.sortable:hover {
+    background-color: #f1f5f9;
+}
+
+.data-table th.sortable::after {
+    content: '↕';
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+.data-table th.sortable.sort-asc::after {
+    content: '↑';
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+.data-table th.sortable.sort-desc::after {
+    content: '↓';
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+/* Order Status Colors */
+.order-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    min-width: 120px;
+}
+
+.order-status.received {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.order-status.partial-delivered {
+    background-color: #fed7aa;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+}
+
+.order-status.delivered {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+/* Order Status Row Colors */
+.orders-table tbody tr.status-received {
+    background-color: #fef2f2 !important;
+}
+
+.orders-table tbody tr.status-received:hover {
+    background-color: #fee2e2 !important;
+}
+
+.orders-table tbody tr.status-partial-delivered {
+    background-color: #fff7ed !important;
+}
+
+.orders-table tbody tr.status-partial-delivered:hover {
+    background-color: #ffedd5 !important;
+}
+
+.orders-table tbody tr.status-delivered {
+    background-color: #f0fdf4 !important;
+}
+
+.orders-table tbody tr.status-delivered:hover {
+    background-color: #dcfce7 !important;
+}
+
+/* View Action Buttons */
+.view-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.view-actions .btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    min-width: auto;
+}
+
+.view-actions .btn-view {
+    background-color: #fbbf24;
+    color: white;
+    border: none;
+}
+
+.view-actions .btn-view:hover {
+    background-color: #f59e0b;
+}
+
+.view-actions .btn-order {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+}
+
+.view-actions .btn-order:hover {
+    background-color: #dc2626;
+}
+
+.view-actions .btn-pi {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+}
+
+.view-actions .btn-pi:hover {
+    background-color: #dc2626;
+}
+
 /* Print styles */
 @media print {
     .navbar,
     .btn,
     .filters,
     .page-header button,
-    .no-print {
+    .no-print,
+    .table-controls,
+    .table-footer {
         display: none !important;
     }
 
