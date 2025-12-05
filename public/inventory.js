@@ -8,7 +8,19 @@ let currentEditingItem = null;
  * @param {string} value - Value to encode (SKU or item ID)
  */
 function renderBarcode(canvas, value) {
-    if (!canvas || !value || !window.JsBarcode) {
+    if (!canvas || !value) {
+        if (canvas && canvas.parentElement) {
+            canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">${value || 'N/A'}</span>`;
+        }
+        return;
+    }
+    
+    // Check if JsBarcode is loaded
+    if (!window.JsBarcode) {
+        console.warn('JsBarcode library not loaded, showing text fallback');
+        if (canvas.parentElement) {
+            canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${value}</span>`;
+        }
         return;
     }
     
@@ -26,8 +38,51 @@ function renderBarcode(canvas, value) {
     } catch (error) {
         console.error('Error generating barcode:', error);
         // Fallback: show text if barcode generation fails
-        canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px;">${value}</span>`;
+        if (canvas.parentElement) {
+            canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${value}</span>`;
+        }
     }
+}
+
+/**
+ * Wait for JsBarcode library to load and then render all barcodes
+ */
+function renderAllBarcodes(itemsList) {
+    const maxAttempts = 10;
+    let attempts = 0;
+    
+    const tryRender = () => {
+        attempts++;
+        
+        if (window.JsBarcode) {
+            // Library is loaded, render all barcodes
+            itemsList.forEach(item => {
+                const barcodeValue = item.sku || `ITEM-${item.id}`;
+                const barcodeId = `barcode-${item.id}`;
+                const canvas = document.getElementById(barcodeId);
+                if (canvas) {
+                    renderBarcode(canvas, barcodeValue);
+                }
+            });
+        } else if (attempts < maxAttempts) {
+            // Library not loaded yet, try again
+            setTimeout(tryRender, 200);
+        } else {
+            // Library failed to load, show text fallback
+            console.warn('JsBarcode library failed to load after multiple attempts');
+            itemsList.forEach(item => {
+                const barcodeValue = item.sku || `ITEM-${item.id}`;
+                const barcodeId = `barcode-${item.id}`;
+                const canvas = document.getElementById(barcodeId);
+                if (canvas && canvas.parentElement) {
+                    canvas.parentElement.innerHTML = `<span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${barcodeValue}</span>`;
+                }
+            });
+        }
+    };
+    
+    // Start trying to render
+    tryRender();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -120,16 +175,9 @@ function renderItemsTable(itemsList) {
     `;
     }).join('');
     
-    // Render barcodes after table is created
+    // Render barcodes after table is created - wait for library to load
     setTimeout(() => {
-        itemsList.forEach(item => {
-            const barcodeValue = item.sku || `ITEM-${item.id}`;
-            const barcodeId = `barcode-${item.id}`;
-            const canvas = document.getElementById(barcodeId);
-            if (canvas) {
-                renderBarcode(canvas, barcodeValue);
-            }
-        });
+        renderAllBarcodes(itemsList);
     }, 100);
 }
 
