@@ -156,7 +156,7 @@ html {
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    overflow-y: scroll;
+    overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -193,6 +193,7 @@ html {
     padding: 1rem 1.5rem 0.75rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+    min-height: fit-content;
 }
 
 .mobile-menu-toggle {
@@ -221,8 +222,9 @@ html {
     flex-direction: column;
     gap: 0;
     padding: 0.5rem 0;
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
+    overflow: visible;
 }
 
 .nav-link {
@@ -253,11 +255,11 @@ html {
 }
 
 .nav-footer {
-    margin-top: auto;
     padding: 0.5rem 0 0;
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--card-bg);
+    margin-top: 0;
 }
 
 .nav-user {
