@@ -155,8 +155,26 @@ html {
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+}
+
+.navbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.navbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.navbar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.navbar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .nav-brand {
@@ -199,27 +217,6 @@ html {
     padding: 0.5rem 0;
     flex: 1;
     min-height: 0;
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-}
-
-.nav-menu::-webkit-scrollbar {
-    width: 6px;
-}
-
-.nav-menu::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.nav-menu::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
-}
-
-.nav-menu::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
 }
 
 .nav-link {
@@ -255,8 +252,6 @@ html {
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
     background: var(--card-bg);
-    position: sticky;
-    bottom: 0;
 }
 
 .nav-user {
