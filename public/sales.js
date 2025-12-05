@@ -438,14 +438,23 @@ async function viewSale(saleId) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map(item => `
+                        ${items.map((item, index) => {
+                            const barcodeValue = item.sku || `ITEM-${item.item_id}`;
+                            const barcodeId = `viewItemBarcode${sale.id}-${index}`;
+                            return `
                             <tr>
-                                <td>${item.item_name}</td>
+                                <td>
+                                    ${item.item_name}
+                                    <div style="margin-top: 5px;">
+                                        <canvas id="${barcodeId}" data-barcode="${barcodeValue}" style="max-width: 120px; height: 35px;"></canvas>
+                                    </div>
+                                </td>
                                 <td>${item.quantity}</td>
                                 <td>${formatCurrency(item.unit_price)}</td>
                                 <td>${formatCurrency(item.total_price)}</td>
                             </tr>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </tbody>
                     <tfoot>
                         <tr>
@@ -458,8 +467,32 @@ async function viewSale(saleId) {
         `;
         
         document.getElementById('saleDetails').innerHTML = details;
-        // Use openModal to properly set aria-hidden and manage focus
         openModal('viewSaleModal');
+        
+        // Render barcodes in the modal after it opens
+        setTimeout(() => {
+            if (window.JsBarcode) {
+                items.forEach((item, index) => {
+                    const barcodeValue = item.sku || `ITEM-${item.item_id}`;
+                    const barcodeId = `viewItemBarcode${sale.id}-${index}`;
+                    const canvas = document.getElementById(barcodeId);
+                    if (canvas) {
+                        try {
+                            JsBarcode(canvas, barcodeValue, {
+                                format: "CODE128",
+                                width: 1.5,
+                                height: 30,
+                                displayValue: true,
+                                fontSize: 10,
+                                margin: 2
+                            });
+                        } catch (error) {
+                            console.error('Error rendering barcode:', error);
+                        }
+                    }
+                });
+            }
+        }, 300);
     } catch (error) {
         showNotification(error.message || 'Error loading sale details', 'error');
     }
@@ -554,6 +587,14 @@ async function printReceipt(saleId) {
                         font-size: 14px;
                         vertical-align: top;
                     }
+                    .item-barcode {
+                        margin-top: 5px;
+                        text-align: center;
+                    }
+                    .item-barcode canvas {
+                        max-width: 120px;
+                        height: 35px;
+                    }
                     .receipt-items tfoot td {
                         border-top: 2px solid #000;
                         font-weight: bold;
@@ -635,6 +676,9 @@ async function printReceipt(saleId) {
                 <div class="receipt-header">
                     <h1>INVENTORY MANAGEMENT SYSTEM</h1>
                     <p>Sales Receipt</p>
+                    <div style="margin-top: 15px;">
+                        <canvas id="receiptBarcode" style="max-width: 200px; height: 50px;"></canvas>
+                    </div>
                 </div>
                 
                 <div class="receipt-info">
@@ -654,13 +698,19 @@ async function printReceipt(saleId) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map(item => {
+                        ${items.map((item, index) => {
                             const calculatedTotal = (item.quantity || 0) * (item.unit_price || 0);
                             const displayTotal = item.total_price || calculatedTotal;
+                            const barcodeValue = item.sku || `ITEM-${item.item_id}`;
                             
                             return `
                             <tr>
-                                <td class="col-item">${item.item_name || '-'}</td>
+                                <td class="col-item">
+                                    ${item.item_name || '-'}
+                                    <div class="item-barcode">
+                                        <canvas id="itemBarcode${index}" data-barcode="${barcodeValue}"></canvas>
+                                    </div>
+                                </td>
                                 <td class="col-qty text-right">${item.quantity || 0}</td>
                                 <td class="col-price text-right">${formatCurrency(item.unit_price || 0)}</td>
                                 <td class="col-total text-right">${formatCurrency(displayTotal)}</td>
@@ -690,11 +740,45 @@ async function printReceipt(saleId) {
                     <button onclick="window.close()" class="btn receipt-close-btn">Close</button>
                 </div>
                 
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
+                        // Generate barcodes for receipt and items
+                        if (window.JsBarcode) {
+                            // Receipt barcode
+                            const receiptBarcode = document.getElementById('receiptBarcode');
+                            if (receiptBarcode) {
+                                JsBarcode(receiptBarcode, 'RECEIPT-${sale.id}', {
+                                    format: "CODE128",
+                                    width: 2,
+                                    height: 40,
+                                    displayValue: true,
+                                    fontSize: 12,
+                                    margin: 5
+                                });
+                            }
+                            
+                            // Item barcodes
+                            ${items.map((item, index) => {
+                                const barcodeValue = item.sku || `ITEM-${item.item_id}`;
+                                return `
+                                const itemBarcode${index} = document.getElementById('itemBarcode${index}');
+                                if (itemBarcode${index}) {
+                                    JsBarcode(itemBarcode${index}, '${barcodeValue}', {
+                                        format: "CODE128",
+                                        width: 1.5,
+                                        height: 30,
+                                        displayValue: true,
+                                        fontSize: 10,
+                                        margin: 2
+                                    });
+                                }`;
+                            }).join('')}
+                        }
+                        
                         setTimeout(function() {
                             window.print();
-                        }, 250);
+                        }, 500);
                     };
                 </script>
             </body>
