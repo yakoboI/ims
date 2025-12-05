@@ -2125,10 +2125,13 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
   `, [], (err, row) => {
     if (!err) {
       const lowStock = row?.low_stock || 0;
-      const totalItems = row?.total_items || 1;
+      const totalItems = row?.total_items || 0; // Fixed: use 0 instead of 1 when no items exist
       const monthlyRevenue = row?.monthly_revenue || 0;
-      const stockHealth = ((totalItems - lowStock) / totalItems) * 100;
+      
+      // Calculate stock health: if no items exist, health is 0
+      const stockHealth = totalItems > 0 ? ((totalItems - lowStock) / totalItems) * 100 : 0;
       const revenueHealth = monthlyRevenue > 0 ? 100 : 50;
+      
       analytics.healthScore = {
         stockHealth: Math.round(stockHealth),
         revenueHealth: Math.round(revenueHealth),
