@@ -2130,7 +2130,8 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       
       // Calculate stock health: if no items exist, health is 0
       const stockHealth = totalItems > 0 ? ((totalItems - lowStock) / totalItems) * 100 : 0;
-      const revenueHealth = monthlyRevenue > 0 ? 100 : 50;
+      // Calculate revenue health: if no revenue, health is 0 (not 50)
+      const revenueHealth = monthlyRevenue > 0 ? 100 : 0;
       
       analytics.healthScore = {
         stockHealth: Math.round(stockHealth),
