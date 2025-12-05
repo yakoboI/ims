@@ -148,6 +148,7 @@ html {
     background: var(--card-bg);
     width: 260px;
     height: 100vh;
+    max-height: 100vh;
     position: fixed;
     left: 0;
     top: 0;
@@ -155,9 +156,11 @@ html {
     display: flex;
     flex-direction: column;
     z-index: 1000;
-    overflow-y: auto;
+    overflow-y: scroll;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
 }
 
 .navbar::-webkit-scrollbar {
@@ -215,7 +218,7 @@ html {
     flex-direction: column;
     gap: 0;
     padding: 0.5rem 0;
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
 }
 
