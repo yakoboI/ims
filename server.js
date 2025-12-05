@@ -92,11 +92,12 @@ app.use(helmet({
 // SECURITY: Rate limiting for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: 15, // Limit each IP to 15 requests per windowMs (increased from 5 for better UX)
   message: 'Too many login attempts, please try again after 15 minutes.',
   standardHeaders: true,
   legacyHeaders: false,
   validate: false, // Skip validation since we have trust proxy enabled (app.set('trust proxy', true))
+  skipSuccessfulRequests: true, // Don't count successful logins against the limit
 });
 
 // SECURITY: General API rate limiting
