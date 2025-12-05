@@ -335,24 +335,39 @@ document.head.appendChild(style);
 let lastTouchTime = 0;
 const TOUCH_DELAY = 350;
 
+// Track when menu was just toggled to prevent immediate close
+let menuJustToggled = false;
+let menuToggleTimeout = null;
+
 function toggleMobileMenu(e) {
     // Prevent default and stop propagation
     if (e) {
         e.stopPropagation();
-        // Only prevent default for touch events, not clicks
-        if (e.type === 'touchend' || e.type === 'touchstart') {
-            e.preventDefault();
-        }
+        e.preventDefault();
     }
+    
+    // Mark that we just toggled to prevent immediate close
+    menuJustToggled = true;
+    if (menuToggleTimeout) {
+        clearTimeout(menuToggleTimeout);
+    }
+    menuToggleTimeout = setTimeout(() => {
+        menuJustToggled = false;
+    }, 100);
     
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const body = document.body;
     
-    if (!navbar) return;
+    if (!navbar) {
+        console.error('Navbar not found!');
+        return;
+    }
     
     navbar.classList.toggle('mobile-open');
     const isOpen = navbar.classList.contains('mobile-open');
+    
+    console.log('Menu toggled, isOpen:', isOpen, 'Navbar classes:', navbar.className);
     
     if (menuToggle) {
         menuToggle.setAttribute('aria-expanded', isOpen);
@@ -388,8 +403,17 @@ function toggleMobileMenu(e) {
     }
 }
 
+// Track when menu was just toggled to prevent immediate close
+let menuJustToggled = false;
+let menuToggleTimeout = null;
+
 // Close mobile menu when clicking/touching outside
 function handleOutsideClick(e) {
+    // Don't process if menu was just toggled (prevent immediate close)
+    if (menuJustToggled) {
+        return;
+    }
+    
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const overlay = document.getElementById('sidebar-overlay');
@@ -429,66 +453,28 @@ function setupMobileMenuToggle() {
         return;
     }
     
+    console.log('Setting up mobile menu toggle, found', menuToggles.length, 'button(s)');
+    
     menuToggles.forEach(toggle => {
-        let touchStarted = false;
-        let lastActionTime = 0;
+        // Remove all existing event listeners by cloning the element
+        const newToggle = toggle.cloneNode(true);
+        toggle.parentNode.replaceChild(newToggle, toggle);
         
-        // Track touch start (don't prevent default here to allow native behavior)
-        toggle.addEventListener('touchstart', (e) => {
-            touchStarted = true;
-            lastActionTime = Date.now();
-        }, { passive: true });
-        
-        // Handle toggle on touch end - primary mobile handler
-        toggle.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            
-            // Prevent rapid double-taps
-            if (now - lastActionTime < TOUCH_DELAY) {
-                return;
-            }
-            
-            lastActionTime = now;
+        // Simple, direct handler - no complex timing logic
+        const handleMenuToggle = (e) => {
+            console.log('Menu toggle clicked/touched, event type:', e.type);
             e.preventDefault();
             e.stopPropagation();
-            
-            touchStarted = true; // Mark that we handled touch
-            toggleMobileMenu(e);
-            
-            // Reset touch flag after delay to allow future clicks
-            setTimeout(() => {
-                touchStarted = false;
-            }, TOUCH_DELAY);
-        }, { passive: false });
-        
-        // Handle click - for desktop and as fallback
-        toggle.addEventListener('click', (e) => {
-            const now = Date.now();
-            
-            // If we just handled a touch, ignore this click
-            if (touchStarted || (now - lastActionTime < TOUCH_DELAY)) {
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-            }
-            
-            lastActionTime = now;
-            e.stopPropagation();
-            toggleMobileMenu(e);
-        }, { passive: false });
-        
-        // Also add direct onclick as ultimate fallback
-        toggle.onclick = function(e) {
-            const now = Date.now();
-            if (now - lastActionTime < TOUCH_DELAY) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-            lastActionTime = now;
             toggleMobileMenu(e);
             return false;
         };
+        
+        // Add all possible event handlers
+        newToggle.addEventListener('click', handleMenuToggle, false);
+        newToggle.addEventListener('touchend', handleMenuToggle, false);
+        newToggle.onclick = handleMenuToggle;
+        
+        console.log('Event listeners added to menu toggle');
     });
     
     // Handle outside clicks
