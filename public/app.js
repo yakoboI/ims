@@ -339,6 +339,17 @@ const TOUCH_DELAY = 350;
 let menuJustToggled = false;
 let menuToggleTimeout = null;
 
+// Global function for mobile menu toggle (can be called from HTML onclick)
+// Defined at top level so it's available immediately
+window.toggleMobileMenuHandler = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    toggleMobileMenu(e);
+    return false;
+};
+
 function toggleMobileMenu(e) {
     console.log('toggleMobileMenu called');
     
@@ -468,16 +479,6 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
-
-// Global function for mobile menu toggle (can be called from HTML onclick)
-window.toggleMobileMenuHandler = function(e) {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    toggleMobileMenu(e);
-    return false;
-};
 
 // Setup mobile menu toggle event listeners
 function setupMobileMenuToggle() {
