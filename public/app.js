@@ -444,6 +444,16 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Global function for mobile menu toggle (can be called from HTML onclick)
+window.toggleMobileMenuHandler = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    toggleMobileMenu(e);
+    return false;
+};
+
 // Setup mobile menu toggle event listeners
 function setupMobileMenuToggle() {
     const menuToggles = document.querySelectorAll('.mobile-menu-toggle');
@@ -456,37 +466,45 @@ function setupMobileMenuToggle() {
     console.log('Setting up mobile menu toggle, found', menuToggles.length, 'button(s)');
     
     menuToggles.forEach(toggle => {
-        // Remove all existing event listeners by cloning the element
-        const newToggle = toggle.cloneNode(true);
-        toggle.parentNode.replaceChild(newToggle, toggle);
+        // Add onclick handler directly
+        toggle.onclick = window.toggleMobileMenuHandler;
         
-        // Simple, direct handler - no complex timing logic
-        const handleMenuToggle = (e) => {
-            console.log('Menu toggle clicked/touched, event type:', e.type);
+        // Add touch event handler
+        toggle.addEventListener('touchend', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleMobileMenu(e);
-            return false;
-        };
+        }, { passive: false });
         
-        // Add all possible event handlers
-        newToggle.addEventListener('click', handleMenuToggle, false);
-        newToggle.addEventListener('touchend', handleMenuToggle, false);
-        newToggle.onclick = handleMenuToggle;
+        // Add click event handler
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMobileMenu(e);
+        }, { passive: false });
         
         console.log('Event listeners added to menu toggle');
     });
     
-    // Handle outside clicks
-    document.addEventListener('click', handleOutsideClick, true);
-    document.addEventListener('touchend', (e) => {
-        const overlay = document.getElementById('sidebar-overlay');
-        const navbar = document.querySelector('.navbar');
-        // Only close if touching the overlay specifically
-        if (overlay && e.target === overlay && navbar && navbar.classList.contains('mobile-open')) {
-            e.preventDefault();
-            toggleMobileMenu();
-        }
+    // Handle outside clicks - use setTimeout to avoid immediate close
+    document.addEventListener('click', function(e) {
+        setTimeout(function() {
+            handleOutsideClick(e);
+        }, 10);
+    }, true);
+    
+    document.addEventListener('touchend', function(e) {
+        setTimeout(function() {
+            const overlay = document.getElementById('sidebar-overlay');
+            const navbar = document.querySelector('.navbar');
+            // Only close if touching the overlay specifically
+            if (overlay && e.target === overlay && navbar && navbar.classList.contains('mobile-open')) {
+                e.preventDefault();
+                toggleMobileMenu();
+            } else {
+                handleOutsideClick(e);
+            }
+        }, 10);
     }, { passive: false });
 }
 
