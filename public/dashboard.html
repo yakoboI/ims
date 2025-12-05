@@ -43,6 +43,32 @@
     
     <!-- Empty States -->
     <script src="empty-states.js"></script>
+    
+    <!-- Mobile Menu Handler - Define early so onclick can use it -->
+    <script>
+        // Define mobile menu handler immediately so HTML onclick can access it
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            // The actual toggleMobileMenu function will be defined in app.js
+            // If it's not loaded yet, try again after a short delay
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                // Wait a bit for app.js to load
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
 </head>
 <body>
     <!-- Skip to main content link for accessibility -->

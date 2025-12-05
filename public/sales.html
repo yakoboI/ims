@@ -52,6 +52,28 @@
     
     <!-- Product Flow Management -->
     <script src="product-flow.js"></script>
+    
+    <!-- Mobile Menu Handler - Define early so onclick can use it -->
+    <script>
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
 </head>
 <body>
     <!-- Skip to main content link for accessibility -->
