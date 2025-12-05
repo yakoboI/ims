@@ -157,6 +157,24 @@ html {
     z-index: 1000;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.navbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.navbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.navbar::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.navbar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .nav-brand {
@@ -168,6 +186,7 @@ html {
     gap: 0.5rem;
     padding: 1.5rem 1.5rem 1rem;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .mobile-menu-toggle {
@@ -197,6 +216,7 @@ html {
     gap: 0.25rem;
     padding: 1rem 0;
     flex: 1;
+    min-height: 0;
 }
 
 .nav-link {
@@ -230,6 +250,8 @@ html {
     margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+    background: var(--card-bg);
 }
 
 .nav-user {
