@@ -72,6 +72,10 @@
     <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
     <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
         <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
         <div class="nav-menu" role="menubar">
             <a href="dashboard.html" class="nav-link" role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
             <a href="inventory.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-warehouse fa-icon-info"></i> Inventory</a>
@@ -79,10 +83,6 @@
             <a href="sales.html" class="nav-link" role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
             <a href="reports.html" class="nav-link" role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
             <a href="users.html" class="nav-link" id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
-        </div>
-        <div class="nav-footer">
-            <span class="nav-user" id="navUser" aria-label="Current user"></span>
-            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </nav>
 
