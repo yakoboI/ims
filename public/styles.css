@@ -201,6 +201,11 @@ html {
     pointer-events: auto;
 }
 
+/* Prevent body scroll when mobile menu is open */
+body.menu-open {
+    overflow: hidden;
+}
+
 .nav-brand {
     font-size: 1.4rem;
     font-weight: bold;
@@ -1489,11 +1494,6 @@ html {
     .navbar.mobile-open {
         transform: translateX(0);
     }
-    
-    /* Prevent body scroll when mobile menu is open */
-    body.menu-open {
-        overflow: hidden;
-    }
 
     .nav-brand {
         font-size: 1.25rem;
@@ -1739,11 +1739,6 @@ html {
 
     .navbar.mobile-open {
         transform: translateX(0);
-    }
-    
-    /* Prevent body scroll when mobile menu is open */
-    body.menu-open {
-        overflow: hidden;
     }
 
     .mobile-menu-toggle {

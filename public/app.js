@@ -359,23 +359,21 @@ function toggleMobileMenu(e) {
         }
         
         // Add/remove overlay
+        let overlay = document.getElementById('sidebar-overlay');
         if (isOpen) {
-            let overlay = document.getElementById('sidebar-overlay');
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.id = 'sidebar-overlay';
-                overlay.className = 'show';
                 document.body.appendChild(overlay);
-            } else {
-                overlay.classList.add('show');
             }
+            overlay.classList.add('show');
         } else {
-            const overlay = document.getElementById('sidebar-overlay');
             if (overlay) {
                 overlay.classList.remove('show');
                 setTimeout(() => {
-                    if (overlay && !overlay.classList.contains('show')) {
-                        overlay.remove();
+                    const existingOverlay = document.getElementById('sidebar-overlay');
+                    if (existingOverlay && !existingOverlay.classList.contains('show')) {
+                        existingOverlay.remove();
                     }
                 }, 300);
             }
@@ -389,20 +387,19 @@ document.addEventListener('click', (e) => {
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const overlay = document.getElementById('sidebar-overlay');
     
-    // Don't close if clicking the toggle button itself
+    // Don't process if menu is closed or clicking the toggle button
+    if (!navbar || !navbar.classList.contains('mobile-open')) {
+        return;
+    }
+    
+    // Don't close if clicking the toggle button itself (it handles its own toggle)
     if (menuToggle && (menuToggle.contains(e.target) || e.target.closest('.mobile-menu-toggle'))) {
         return;
     }
     
-    if (navbar && navbar.classList.contains('mobile-open')) {
-        // Close if clicking the overlay
-        if (overlay && e.target === overlay) {
-            toggleMobileMenu();
-        } 
-        // Close if clicking outside both navbar and toggle button
-        else if (!navbar.contains(e.target)) {
-            toggleMobileMenu();
-        }
+    // Close if clicking the overlay or outside the navbar
+    if ((overlay && e.target === overlay) || !navbar.contains(e.target)) {
+        toggleMobileMenu();
     }
 });
 
@@ -416,16 +413,18 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Add direct event listeners to mobile menu toggle buttons for better reliability
-// This ensures the button works even if onclick fails
+// Setup mobile menu toggle event listeners
 function setupMobileMenuToggle() {
     const menuToggles = document.querySelectorAll('.mobile-menu-toggle');
     menuToggles.forEach(toggle => {
-        // Add click event listener (keeps onclick as fallback)
+        // Remove onclick to prevent double firing, use only event listeners
+        toggle.onclick = null;
+        
+        // Add click event listener
         toggle.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleMobileMenu(e);
-        }, { passive: false, capture: true });
+        }, { passive: false });
         
         // Handle touch events for better mobile support
         toggle.addEventListener('touchend', (e) => {
