@@ -220,26 +220,28 @@ body.menu-open {
 
 .mobile-menu-toggle {
     display: none;
-    background: none;
+    background: var(--card-bg);
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
     color: var(--text-primary);
-    padding: 0.5rem;
-    min-width: 44px;
-    min-height: 44px;
+    padding: 0.75rem;
+    min-width: 48px;
+    min-height: 48px;
     align-items: center;
     justify-content: center;
     position: fixed;
     top: 1rem;
     left: 1rem;
     z-index: 1002;
-    background: var(--card-bg);
     border-radius: 0;
     box-shadow: var(--shadow);
-    pointer-events: auto;
+    pointer-events: auto !important;
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    user-select: none;
+    -webkit-user-select: none;
+    outline: none;
 }
 
 .nav-menu {

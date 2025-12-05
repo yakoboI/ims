@@ -331,56 +331,59 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Track touch events to prevent double-firing on mobile
-let touchHandled = false;
-let touchTimeout = null;
+// Track last touch time to prevent double-firing
+let lastTouchTime = 0;
+const TOUCH_DELAY = 350;
 
 function toggleMobileMenu(e) {
-    // Prevent event propagation if event is provided
+    // Prevent default and stop propagation
     if (e) {
         e.stopPropagation();
-        e.preventDefault();
+        // Only prevent default for touch events, not clicks
+        if (e.type === 'touchend' || e.type === 'touchstart') {
+            e.preventDefault();
+        }
     }
     
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const body = document.body;
     
-    if (navbar) {
-        navbar.classList.toggle('mobile-open');
-        const isOpen = navbar.classList.contains('mobile-open');
-        
-        if (menuToggle) {
-            menuToggle.setAttribute('aria-expanded', isOpen);
-            menuToggle.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+    if (!navbar) return;
+    
+    navbar.classList.toggle('mobile-open');
+    const isOpen = navbar.classList.contains('mobile-open');
+    
+    if (menuToggle) {
+        menuToggle.setAttribute('aria-expanded', isOpen);
+        menuToggle.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+    }
+    
+    // Prevent body scroll when menu is open
+    if (isOpen) {
+        body.classList.add('menu-open');
+    } else {
+        body.classList.remove('menu-open');
+    }
+    
+    // Add/remove overlay
+    let overlay = document.getElementById('sidebar-overlay');
+    if (isOpen) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'sidebar-overlay';
+            document.body.appendChild(overlay);
         }
-        
-        // Prevent body scroll when menu is open
-        if (isOpen) {
-            body.classList.add('menu-open');
-        } else {
-            body.classList.remove('menu-open');
-        }
-        
-        // Add/remove overlay
-        let overlay = document.getElementById('sidebar-overlay');
-        if (isOpen) {
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'sidebar-overlay';
-                document.body.appendChild(overlay);
-            }
-            overlay.classList.add('show');
-        } else {
-            if (overlay) {
-                overlay.classList.remove('show');
-                setTimeout(() => {
-                    const existingOverlay = document.getElementById('sidebar-overlay');
-                    if (existingOverlay && !existingOverlay.classList.contains('show')) {
-                        existingOverlay.remove();
-                    }
-                }, 300);
-            }
+        overlay.classList.add('show');
+    } else {
+        if (overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                const existingOverlay = document.getElementById('sidebar-overlay');
+                if (existingOverlay && !existingOverlay.classList.contains('show')) {
+                    existingOverlay.remove();
+                }
+            }, 300);
         }
     }
 }
@@ -396,13 +399,8 @@ function handleOutsideClick(e) {
         return;
     }
     
-    // Don't close if clicking/touching the toggle button itself (it handles its own toggle)
+    // Don't close if clicking/touching the toggle button itself
     if (menuToggle && (menuToggle.contains(e.target) || e.target.closest('.mobile-menu-toggle'))) {
-        return;
-    }
-    
-    // Don't close if we just handled a touch on the toggle button
-    if (touchHandled && menuToggle && menuToggle.contains(e.target)) {
         return;
     }
     
@@ -411,18 +409,6 @@ function handleOutsideClick(e) {
         toggleMobileMenu();
     }
 }
-
-document.addEventListener('click', handleOutsideClick);
-// Only handle touchend on overlay to close menu
-document.addEventListener('touchend', (e) => {
-    const overlay = document.getElementById('sidebar-overlay');
-    const navbar = document.querySelector('.navbar');
-    // Only close if touching the overlay specifically
-    if (overlay && e.target === overlay && navbar && navbar.classList.contains('mobile-open')) {
-        e.preventDefault();
-        toggleMobileMenu();
-    }
-}, { passive: false });
 
 // Close mobile menu on ESC key
 document.addEventListener('keydown', (e) => {
@@ -437,45 +423,85 @@ document.addEventListener('keydown', (e) => {
 // Setup mobile menu toggle event listeners
 function setupMobileMenuToggle() {
     const menuToggles = document.querySelectorAll('.mobile-menu-toggle');
+    
+    if (menuToggles.length === 0) {
+        console.warn('Mobile menu toggle button not found');
+        return;
+    }
+    
     menuToggles.forEach(toggle => {
-        // Remove onclick to prevent double firing, use only event listeners
-        toggle.onclick = null;
+        let touchStarted = false;
+        let lastActionTime = 0;
         
-        // Handle touch events first (mobile)
+        // Track touch start (don't prevent default here to allow native behavior)
         toggle.addEventListener('touchstart', (e) => {
-            touchHandled = false;
-            // Clear any existing timeout
-            if (touchTimeout) {
-                clearTimeout(touchTimeout);
-            }
+            touchStarted = true;
+            lastActionTime = Date.now();
         }, { passive: true });
         
+        // Handle toggle on touch end - primary mobile handler
         toggle.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            
+            // Prevent rapid double-taps
+            if (now - lastActionTime < TOUCH_DELAY) {
+                return;
+            }
+            
+            lastActionTime = now;
             e.preventDefault();
             e.stopPropagation();
-            touchHandled = true;
+            
+            touchStarted = true; // Mark that we handled touch
             toggleMobileMenu(e);
             
-            // Prevent click event from firing after touchend
-            // Reset after a short delay to allow normal clicks on desktop
-            touchTimeout = setTimeout(() => {
-                touchHandled = false;
-            }, 300);
+            // Reset touch flag after delay to allow future clicks
+            setTimeout(() => {
+                touchStarted = false;
+            }, TOUCH_DELAY);
         }, { passive: false });
         
-        // Add click event listener (desktop and as fallback)
+        // Handle click - for desktop and as fallback
         toggle.addEventListener('click', (e) => {
-            // If we just handled a touch event, ignore this click
-            if (touchHandled) {
+            const now = Date.now();
+            
+            // If we just handled a touch, ignore this click
+            if (touchStarted || (now - lastActionTime < TOUCH_DELAY)) {
                 e.preventDefault();
                 e.stopPropagation();
                 return;
             }
             
+            lastActionTime = now;
             e.stopPropagation();
             toggleMobileMenu(e);
         }, { passive: false });
+        
+        // Also add direct onclick as ultimate fallback
+        toggle.onclick = function(e) {
+            const now = Date.now();
+            if (now - lastActionTime < TOUCH_DELAY) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            lastActionTime = now;
+            toggleMobileMenu(e);
+            return false;
+        };
     });
+    
+    // Handle outside clicks
+    document.addEventListener('click', handleOutsideClick, true);
+    document.addEventListener('touchend', (e) => {
+        const overlay = document.getElementById('sidebar-overlay');
+        const navbar = document.querySelector('.navbar');
+        // Only close if touching the overlay specifically
+        if (overlay && e.target === overlay && navbar && navbar.classList.contains('mobile-open')) {
+            e.preventDefault();
+            toggleMobileMenu();
+        }
+    }, { passive: false });
 }
 
 // Setup on DOM ready
