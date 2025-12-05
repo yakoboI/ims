@@ -59,8 +59,8 @@ function renderItemsTable(itemsList) {
     hideEmptyState(tableContainer);
     tbody.innerHTML = itemsList.map(item => `
         <tr>
-            <td data-label="SKU">${item.sku || `<span style="color: var(--text-secondary); font-style: italic;">N/A</span>`}</td>
-            <td data-label="Barcode">${item.sku || `ITEM-${item.id}`}</td>
+            <td data-label="SKU">${item.sku ? item.sku : `<span style="color: var(--text-secondary); font-style: italic;">N/A</span>`}</td>
+            <td data-label="Barcode">${item.sku ? item.sku : `ITEM-${item.id}`}</td>
             <td data-label="Image">
                 ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : '<span style="color: var(--text-secondary);">-</span>'}
             </td>
