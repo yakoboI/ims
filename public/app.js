@@ -332,17 +332,50 @@ style.textContent = `
 document.head.appendChild(style);
 
 function toggleMobileMenu() {
-    const navMenu = document.querySelector('.nav-menu');
-    if (navMenu) {
-        navMenu.classList.toggle('mobile-open');
+    const navbar = document.querySelector('.navbar');
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const body = document.body;
+    
+    if (navbar) {
+        navbar.classList.toggle('mobile-open');
+        const isOpen = navbar.classList.contains('mobile-open');
+        
+        if (menuToggle) {
+            menuToggle.setAttribute('aria-expanded', isOpen);
+            menuToggle.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+        }
+        
+        // Add/remove overlay
+        if (isOpen) {
+            let overlay = document.getElementById('sidebar-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'sidebar-overlay';
+                overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.5); z-index: 999; opacity: 0; transition: opacity 0.3s ease;';
+                document.body.appendChild(overlay);
+                setTimeout(() => overlay.style.opacity = '1', 10);
+            }
+        } else {
+            const overlay = document.getElementById('sidebar-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 300);
+            }
+        }
     }
 }
 
 document.addEventListener('click', (e) => {
-    const navMenu = document.querySelector('.nav-menu');
+    const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
-    if (navMenu && menuToggle && !navMenu.contains(e.target) && !menuToggle.contains(e.target)) {
-        navMenu.classList.remove('mobile-open');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (navbar && navbar.classList.contains('mobile-open')) {
+        if (overlay && e.target === overlay) {
+            toggleMobileMenu();
+        } else if (menuToggle && !navbar.contains(e.target) && !menuToggle.contains(e.target)) {
+            toggleMobileMenu();
+        }
     }
 });
 
