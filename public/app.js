@@ -331,6 +331,10 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Track touch events to prevent double-firing on mobile
+let touchHandled = false;
+let touchTimeout = null;
+
 function toggleMobileMenu(e) {
     // Prevent event propagation if event is provided
     if (e) {
@@ -381,27 +385,44 @@ function toggleMobileMenu(e) {
     }
 }
 
-// Close mobile menu when clicking outside
-document.addEventListener('click', (e) => {
+// Close mobile menu when clicking/touching outside
+function handleOutsideClick(e) {
     const navbar = document.querySelector('.navbar');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const overlay = document.getElementById('sidebar-overlay');
     
-    // Don't process if menu is closed or clicking the toggle button
+    // Don't process if menu is closed
     if (!navbar || !navbar.classList.contains('mobile-open')) {
         return;
     }
     
-    // Don't close if clicking the toggle button itself (it handles its own toggle)
+    // Don't close if clicking/touching the toggle button itself (it handles its own toggle)
     if (menuToggle && (menuToggle.contains(e.target) || e.target.closest('.mobile-menu-toggle'))) {
         return;
     }
     
-    // Close if clicking the overlay or outside the navbar
+    // Don't close if we just handled a touch on the toggle button
+    if (touchHandled && menuToggle && menuToggle.contains(e.target)) {
+        return;
+    }
+    
+    // Close if clicking/touching the overlay or outside the navbar
     if ((overlay && e.target === overlay) || !navbar.contains(e.target)) {
         toggleMobileMenu();
     }
-});
+}
+
+document.addEventListener('click', handleOutsideClick);
+// Only handle touchend on overlay to close menu
+document.addEventListener('touchend', (e) => {
+    const overlay = document.getElementById('sidebar-overlay');
+    const navbar = document.querySelector('.navbar');
+    // Only close if touching the overlay specifically
+    if (overlay && e.target === overlay && navbar && navbar.classList.contains('mobile-open')) {
+        e.preventDefault();
+        toggleMobileMenu();
+    }
+}, { passive: false });
 
 // Close mobile menu on ESC key
 document.addEventListener('keydown', (e) => {
@@ -420,15 +441,37 @@ function setupMobileMenuToggle() {
         // Remove onclick to prevent double firing, use only event listeners
         toggle.onclick = null;
         
-        // Add click event listener
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleMobileMenu(e);
-        }, { passive: false });
+        // Handle touch events first (mobile)
+        toggle.addEventListener('touchstart', (e) => {
+            touchHandled = false;
+            // Clear any existing timeout
+            if (touchTimeout) {
+                clearTimeout(touchTimeout);
+            }
+        }, { passive: true });
         
-        // Handle touch events for better mobile support
         toggle.addEventListener('touchend', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            touchHandled = true;
+            toggleMobileMenu(e);
+            
+            // Prevent click event from firing after touchend
+            // Reset after a short delay to allow normal clicks on desktop
+            touchTimeout = setTimeout(() => {
+                touchHandled = false;
+            }, 300);
+        }, { passive: false });
+        
+        // Add click event listener (desktop and as fallback)
+        toggle.addEventListener('click', (e) => {
+            // If we just handled a touch event, ignore this click
+            if (touchHandled) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
             e.stopPropagation();
             toggleMobileMenu(e);
         }, { passive: false });
