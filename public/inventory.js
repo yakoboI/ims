@@ -138,10 +138,34 @@ function openItemModal(itemId = null) {
         document.getElementById('itemId').value = '';
     }
     
-    // Reset barcode scanner initialization flag
+    // Initialize barcode scanner on SKU input automatically when modal opens
     const skuInput = document.getElementById('itemSku');
-    if (skuInput) {
-        skuInput.dataset.barcodeScannerInitialized = 'false';
+    if (skuInput && window.BarcodeScanner) {
+        // Only initialize if not already initialized
+        // This prevents duplicate event listeners
+        if (skuInput.dataset.barcodeScannerInitialized !== 'true') {
+            // Initialize barcode scanner on SKU input field
+            window.BarcodeScanner.init(
+            skuInput,
+            async (item, barcode) => {
+                // Item found - ask if user wants to edit existing
+                if (confirm(`Item "${item.name}" already exists with this barcode/SKU. Do you want to edit it?`)) {
+                    closeItemModal();
+                    setTimeout(() => openItemModal(item.id), 100);
+                } else {
+                    // User wants to create new item with this barcode
+                    skuInput.value = barcode;
+                    skuInput.focus();
+                    showNotification('Barcode set. You can continue creating the new item.', 'info');
+                }
+            },
+            async (error, barcode) => {
+                // Item not found - set barcode for new item (this is normal for new items)
+                skuInput.value = barcode;
+                skuInput.focus();
+            }
+            );
+        }
     }
     
     // Use accessible modal function
@@ -161,48 +185,28 @@ async function scanBarcodeForSKU() {
     skuInput.focus();
     skuInput.select();
     
-    showNotification('Scan barcode or type and press Enter', 'info');
+    showNotification('Ready to scan. Scan barcode or type and press Enter', 'info');
     
-    // Use unified barcode scanner if available
-    if (window.BarcodeScanner) {
-        // Track if we've already initialized to avoid duplicate listeners
-        if (skuInput.dataset.barcodeScannerInitialized === 'true') {
-            // Already initialized, just focus
-            return;
-        }
-        
-        // Mark as initialized
-        skuInput.dataset.barcodeScannerInitialized = 'true';
-        
-        // Initialize barcode scanner directly on the SKU input
+    // Scanner is already initialized when modal opens
+    // If for some reason it's not initialized, initialize it now as fallback
+    if (window.BarcodeScanner && skuInput.dataset.barcodeScannerInitialized !== 'true') {
         window.BarcodeScanner.init(
             skuInput,
             async (item, barcode) => {
-                // Item found - ask if user wants to edit existing
                 if (confirm(`Item "${item.name}" already exists with this barcode/SKU. Do you want to edit it?`)) {
                     closeItemModal();
                     setTimeout(() => openItemModal(item.id), 100);
                 } else {
-                    // User wants to create new item with this barcode
                     skuInput.value = barcode;
                     skuInput.focus();
                     showNotification('Barcode set. You can continue creating the new item.', 'info');
                 }
             },
             async (error, barcode) => {
-                // Item not found - set barcode for new item
                 skuInput.value = barcode;
-                showNotification('Barcode set. Creating new item.', 'info');
                 skuInput.focus();
             }
         );
-    } else {
-        // Fallback to prompt
-        const barcode = prompt('Scan or enter barcode/SKU:');
-        if (barcode && barcode.trim()) {
-            skuInput.value = barcode.trim();
-            skuInput.focus();
-        }
     }
 }
 

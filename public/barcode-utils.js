@@ -28,17 +28,22 @@ const BarcodeScanner = {
     init(input, onScanSuccess, onScanError) {
         if (!input) return;
 
+        // Prevent duplicate initialization
+        if (input.dataset.barcodeScannerInitialized === 'true') {
+            return; // Already initialized
+        }
+
         let lastBarcodeTime = 0;
         let scanTimeout = null;
         let scanInProgress = false;
 
-        // Clear input on focus for fresh scan
-        input.addEventListener('focus', () => {
+        // Store handlers for cleanup if needed
+        const focusHandler = () => {
             input.select();
-        });
+        };
 
         // Handle barcode input
-        input.addEventListener('input', (e) => {
+        const inputHandler = (e) => {
             if (scanInProgress) return;
 
             const barcode = e.target.value.trim();
@@ -59,6 +64,7 @@ const BarcodeScanner = {
             if (isLikelyScanner || isCompleteBarcode) {
                 // Barcode scanner detected - process immediately
                 scanTimeout = setTimeout(() => {
+                    scanInProgress = true;
                     this.scanBarcode(barcode, onScanSuccess, onScanError).finally(() => {
                         scanInProgress = false;
                     });
@@ -66,7 +72,8 @@ const BarcodeScanner = {
             } else if (inputLength >= this.config.minBarcodeLength) {
                 // Manual input - wait for user to finish typing
                 scanTimeout = setTimeout(() => {
-                    if (e.target.value.trim() === barcode) {
+                    if (e.target.value.trim() === barcode && !scanInProgress) {
+                        scanInProgress = true;
                         this.scanBarcode(barcode, onScanSuccess, onScanError).finally(() => {
                             scanInProgress = false;
                         });
@@ -75,21 +82,37 @@ const BarcodeScanner = {
             }
 
             lastBarcodeTime = currentTime;
-        });
+        };
 
         // Handle Enter key
-        input.addEventListener('keypress', (e) => {
+        const keypressHandler = (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const barcode = e.target.value.trim();
-                if (barcode.length >= this.config.minBarcodeLength) {
+                if (barcode.length >= this.config.minBarcodeLength && !scanInProgress) {
                     if (scanTimeout) clearTimeout(scanTimeout);
+                    scanInProgress = true;
                     this.scanBarcode(barcode, onScanSuccess, onScanError).finally(() => {
                         scanInProgress = false;
                     });
                 }
             }
-        });
+        };
+
+        // Attach event listeners
+        input.addEventListener('focus', focusHandler);
+        input.addEventListener('input', inputHandler);
+        input.addEventListener('keypress', keypressHandler);
+
+        // Mark as initialized
+        input.dataset.barcodeScannerInitialized = 'true';
+        
+        // Store handlers on the input element for potential cleanup
+        input._barcodeScannerHandlers = {
+            focus: focusHandler,
+            input: inputHandler,
+            keypress: keypressHandler
+        };
     },
 
     /**
