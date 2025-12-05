@@ -102,6 +102,7 @@
                 <thead>
                     <tr>
                         <th scope="col">SKU</th>
+                        <th scope="col">Barcode</th>
                         <th scope="col">Image</th>
                         <th scope="col">Name</th>
                         <th scope="col">Category</th>
@@ -112,7 +113,7 @@
                     </tr>
                 </thead>
                 <tbody id="itemsTableBody" role="rowgroup" aria-live="polite">
-                    <tr><td colspan="8" class="text-center" data-label="">Loading...</td></tr>
+                    <tr><td colspan="9" class="text-center" data-label="">Loading...</td></tr>
                 </tbody>
             </table>
         </section>
@@ -132,12 +133,11 @@
                 <div class="form-group">
                     <label for="itemSku">SKU / Barcode</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="itemSku" style="flex: 1;" aria-label="SKU or barcode" placeholder="Enter SKU or scan barcode" maxlength="50">
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="scanBarcodeForSKU()" aria-label="Scan barcode to fill SKU">📷 Scan</button>
+                        <input type="text" id="itemSku" style="flex: 1;" aria-label="SKU or barcode" placeholder="Enter SKU or barcode" maxlength="50">
                         <button type="button" class="btn btn-sm btn-secondary" onclick="generateSKU()" aria-label="Generate SKU from item name" title="Generate SKU">⚡ Auto</button>
                     </div>
                     <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">
-                        Scan barcode, enter manually, or auto-generate. Format: Letters, numbers, hyphens, underscores, dots only.
+                        Enter manually or auto-generate. Format: Letters, numbers, hyphens, underscores, dots only.
                     </small>
                 </div>
                 <div class="form-group">

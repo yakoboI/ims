@@ -1,8 +1,6 @@
 let categories = [];
 let items = [];
 let currentEditingItem = null;
-let skuManuallyEdited = false; // Track if SKU was manually edited
-let autoGenerateTimeout = null; // Timeout for auto-generation
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadCategories();
@@ -62,6 +60,7 @@ function renderItemsTable(itemsList) {
     tbody.innerHTML = itemsList.map(item => `
         <tr>
             <td data-label="SKU">${item.sku || '-'}</td>
+            <td data-label="Barcode">${item.sku || '-'}</td>
             <td data-label="Image">
                 ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : '<span style="color: var(--text-secondary);">-</span>'}
             </td>
@@ -90,66 +89,6 @@ function setupEventListeners() {
     document.getElementById('itemForm').addEventListener('submit', handleItemSubmit);
     document.getElementById('searchItems').addEventListener('input', filterItems);
     document.getElementById('categoryForm').addEventListener('submit', handleCategorySubmit);
-    
-    // Auto-generate SKU when item name is typed (only for new items)
-    const nameInput = document.getElementById('itemName');
-    const skuInput = document.getElementById('itemSku');
-    
-    if (nameInput && skuInput) {
-        // Track if SKU is manually edited
-        skuInput.addEventListener('input', () => {
-            skuManuallyEdited = true;
-        });
-        
-        skuInput.addEventListener('focus', () => {
-            // If user focuses on SKU field and it has a value, mark as manually edited
-            if (skuInput.value.trim()) {
-                skuManuallyEdited = true;
-            }
-        });
-        
-        // Auto-generate SKU when name changes
-        nameInput.addEventListener('input', (e) => {
-            // Only auto-generate for new items (not editing)
-            if (currentEditingItem !== null) {
-                return;
-            }
-            
-            // Don't auto-generate if SKU was manually edited and has a value
-            if (skuManuallyEdited && skuInput.value.trim()) {
-                return;
-            }
-            
-            const itemName = e.target.value.trim();
-            
-            // Clear previous timeout
-            if (autoGenerateTimeout) {
-                clearTimeout(autoGenerateTimeout);
-            }
-            
-            // Generate immediately if name is long enough, otherwise wait a bit
-            const delay = itemName.length >= 3 ? 200 : 500;
-            
-            autoGenerateTimeout = setTimeout(() => {
-                const currentName = nameInput.value.trim();
-                
-                // Only generate if name is still valid and SKU hasn't been manually edited
-                if (currentName.length >= 2 && window.SKUUtils && 
-                    (!skuManuallyEdited || !skuInput.value.trim())) {
-                    // Generate SKU from name
-                    const suggestedSku = window.SKUUtils.suggest(currentName, items);
-                    
-                    if (suggestedSku) {
-                        // Only update if SKU field is empty or hasn't been manually edited
-                        if (!skuInput.value.trim() || !skuManuallyEdited) {
-                            skuInput.value = suggestedSku;
-                            skuManuallyEdited = false; // Reset flag after auto-generation
-                        }
-                    }
-                }
-            }, delay);
-        });
-    }
 }
 
 function filterItems() {
@@ -198,13 +137,6 @@ function openItemModal(itemId = null) {
         title.textContent = 'Add Item';
         form.reset();
         document.getElementById('itemId').value = '';
-        
-        // Reset SKU auto-generation flags for new item
-        skuManuallyEdited = false;
-        if (autoGenerateTimeout) {
-            clearTimeout(autoGenerateTimeout);
-            autoGenerateTimeout = null;
-        }
     }
     
     // Initialize barcode scanner on SKU input automatically when modal opens
