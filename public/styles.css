@@ -1325,6 +1325,180 @@ body.menu-open {
     margin: 1.5rem 0;
 }
 
+/* Modal Table Improvements for Small Screens */
+@media (max-width: 767.98px) {
+    /* Better table container in modals */
+    .modal .table-container {
+        margin: 0 -0.5rem;
+        padding: 0.5rem;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        overflow: visible;
+    }
+    
+    /* Improved table borders in modals */
+    .modal .data-table tbody tr {
+        border: 1.5px solid var(--border-color);
+        border-radius: 0;
+        margin-bottom: 0.75rem;
+        padding: 1rem;
+        background: var(--card-bg);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    
+    .modal .data-table tbody tr:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+        border-color: var(--primary-color);
+    }
+    
+    .modal .data-table tbody tr:last-of-type {
+        margin-bottom: 0;
+    }
+    
+    /* Better cell borders in modal tables */
+    .modal .data-table td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.75rem 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .modal .data-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    /* Better spacing between cells */
+    .modal .data-table tbody tr:not(:last-of-type) td {
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    /* Improved label styling in modal tables */
+    .modal .data-table td::before {
+        min-width: 100px;
+        font-size: 0.8rem;
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    /* Better tfoot (total row) styling in modals */
+    .modal .data-table tfoot {
+        display: block;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 2px solid var(--border-color);
+    }
+    
+    .modal .data-table tfoot tr {
+        display: block;
+        background: #f1f5f9;
+        padding: 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 0;
+        margin: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .modal .data-table tfoot td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border: none;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+    }
+    
+    .modal .data-table tfoot td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    .modal .data-table tfoot td[data-label=""] {
+        border-bottom: none;
+        padding: 0;
+    }
+    
+    .modal .data-table tfoot td[data-label=""]::before {
+        display: none;
+    }
+    
+    .modal .data-table tfoot td[data-label="Total"]::before {
+        content: attr(data-label) ":";
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1rem;
+    }
+    
+    /* Hide empty tfoot cells on mobile */
+    .modal .data-table tfoot td:empty {
+        display: none;
+    }
+    
+    /* Better action buttons in modal tables */
+    .modal .data-table td[data-label="Actions"] {
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        border-top: 1.5px solid #e2e8f0;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    
+    .modal .data-table td[data-label="Actions"] .btn {
+        width: 100%;
+        margin: 0;
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .modal .data-table td[data-label="Actions"]::before {
+        display: none;
+    }
+    
+    /* Improved modal content padding on small screens */
+    .modal-content {
+        padding: 1rem;
+    }
+    
+    .modal-content.large {
+        padding: 1rem 0.75rem;
+    }
+    
+    /* Better form sections in modals */
+    .modal .sale-items-section,
+    .modal .purchase-items-section {
+        margin: 1rem 0;
+    }
+    
+    .modal .sale-items-section h3,
+    .modal .purchase-items-section h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Better add item row in modals */
+    .modal .add-item-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .modal .add-item-row .item-select,
+    .modal .add-item-row .qty-input {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .modal .add-item-row .btn {
+        width: 100%;
+    }
+}
+
 .add-item-row {
     display: flex;
     gap: 0.5rem;
@@ -1576,6 +1750,37 @@ body.menu-open {
     .sale-items-section,
     .purchase-items-section {
         margin: 1rem 0;
+    }
+    
+    /* Enhanced modal table styling for very small screens */
+    .modal .table-container {
+        margin: 0 -0.25rem;
+        padding: 0.25rem;
+    }
+    
+    .modal .data-table tbody tr {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal .data-table td {
+        padding: 0.625rem 0;
+        min-height: 40px;
+        font-size: 0.875rem;
+    }
+    
+    .modal .data-table td::before {
+        min-width: 80px;
+        font-size: 0.75rem;
+    }
+    
+    .modal .data-table tfoot tr {
+        padding: 0.75rem;
+    }
+    
+    .modal .data-table tfoot td {
+        font-size: 1rem;
+        padding: 0.5rem 0;
     }
 
     .form-actions {
