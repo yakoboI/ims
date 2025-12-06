@@ -505,10 +505,13 @@ async function printReceipt(saleId) {
         const currentDate = new Date();
         
         const printWindow = window.open('', '_blank');
+        // Set base URL to ensure absolute paths work in the dynamically created window
+        const baseUrl = window.location.origin;
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
             <head>
+                <base href="${baseUrl}/">
                 <title>Receipt #${sale.id}</title>
                 <style>
                     @media print {
@@ -740,7 +743,7 @@ async function printReceipt(saleId) {
                     <button onclick="window.close()" class="btn receipt-close-btn">Close</button>
                 </div>
                 
-                <script src="js/JsBarcode.all.min.js"></script>
+                <script src="/js/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         // Generate barcodes for receipt and items
@@ -793,4 +796,3 @@ async function printReceipt(saleId) {
 function closeViewSaleModal() {
     closeModal('viewSaleModal');
 }
-
