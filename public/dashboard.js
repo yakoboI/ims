@@ -1,12 +1,3 @@
-// Dashboard Enhancement Variables
-let dashboardDateRange = {
-    start: null,
-    end: null,
-    preset: 'thisMonth'
-};
-
-let chartInstances = {}; // Store chart instances for cleanup
-
 function getUserRole() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
     return currentUser?.role || 'admin';
@@ -85,9 +76,6 @@ async function refreshDashboard() {
         showButtonLoading(refreshBtn, 'Refreshing...');
     }
     
-    // Show loading skeletons
-    showDashboardSkeletons();
-    
     try {
         const role = getUserRole();
         
@@ -107,479 +95,25 @@ async function refreshDashboard() {
             default:
                 await loadAdminDashboard();
         }
-        
-        // Show refresh indicator
-        showRefreshIndicator();
     } catch (error) {
         showNotification('Error refreshing dashboard', 'error');
     } finally {
         if (refreshBtn) {
             hideButtonLoading(refreshBtn);
         }
-        // Hide loading skeletons
-        hideDashboardSkeletons();
     }
 }
 
 window.refreshDashboard = refreshDashboard;
 
-// ==================== DASHBOARD ENHANCEMENT FUNCTIONS ====================
-
-// Date Range Handling
-function handleDateRangePreset() {
-    const preset = document.getElementById('dateRangePreset').value;
-    const customRange = document.getElementById('customDateRange');
-    
-    if (preset === 'custom') {
-        customRange.style.display = 'flex';
-        dashboardDateRange.preset = 'custom';
-    } else {
-        customRange.style.display = 'none';
-        dashboardDateRange.preset = preset;
-        setDateRangeFromPreset(preset);
-        refreshDashboard();
-    }
-}
-
-function setDateRangeFromPreset(preset) {
-    const today = new Date();
-    const start = new Date();
-    const end = new Date();
-    
-    switch(preset) {
-        case 'today':
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'yesterday':
-            start.setDate(today.getDate() - 1);
-            start.setHours(0, 0, 0, 0);
-            end.setDate(today.getDate() - 1);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'thisWeek':
-            const dayOfWeek = today.getDay();
-            start.setDate(today.getDate() - dayOfWeek);
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'lastWeek':
-            const lastWeekDay = today.getDay();
-            start.setDate(today.getDate() - lastWeekDay - 7);
-            start.setHours(0, 0, 0, 0);
-            end.setDate(today.getDate() - lastWeekDay - 1);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'thisMonth':
-            start.setDate(1);
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'lastMonth':
-            start.setMonth(today.getMonth() - 1, 1);
-            start.setHours(0, 0, 0, 0);
-            end.setMonth(today.getMonth(), 0);
-            end.setHours(23, 59, 59, 999);
-            break;
-        case 'thisYear':
-            start.setMonth(0, 1);
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-            break;
-    }
-    
-    dashboardDateRange.start = start;
-    dashboardDateRange.end = end;
-}
-
-function applyCustomDateRange() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    
-    if (startDate && endDate) {
-        dashboardDateRange.start = new Date(startDate);
-        dashboardDateRange.end = new Date(endDate);
-        dashboardDateRange.end.setHours(23, 59, 59, 999);
-        refreshDashboard();
-    } else {
-        showNotification('Please select both start and end dates', 'warning');
-    }
-}
-
-// Loading Skeletons
-function showDashboardSkeletons() {
-    const statCards = document.querySelectorAll('.stat-card');
-    statCards.forEach(card => {
-        if (!card.querySelector('.skeleton')) {
-            const content = card.querySelector('.stat-content');
-            if (content) {
-                content.innerHTML = `
-                    <div class="skeleton skeleton-title"></div>
-                    <div class="skeleton skeleton-text" style="width: 60%;"></div>
-                `;
-            }
-        }
-    });
-}
-
-function hideDashboardSkeletons() {
-    // Skeletons are replaced when data loads
-}
-
-// Refresh Indicator
-function showRefreshIndicator() {
-    const indicator = document.getElementById('dashboardRefreshIndicator');
-    if (indicator) {
-        indicator.style.display = 'block';
-        setTimeout(() => {
-            indicator.style.display = 'none';
-        }, 3000);
-    }
-}
-
-// Tooltip Helper
-function addTooltip(element, text) {
-    if (!element) return;
-    element.classList.add('tooltip');
-    const tooltipText = document.createElement('span');
-    tooltipText.className = 'tooltiptext';
-    tooltipText.textContent = text;
-    element.appendChild(tooltipText);
-}
-
-// Trend Indicator
-function createTrendIndicator(current, previous, format = 'currency') {
-    if (!previous || previous === 0) {
-        return previous === 0 && current > 0 
-            ? '<span class="trend-indicator trend-up">↑ 100%</span>' 
-            : '<span class="trend-indicator trend-neutral">-</span>';
-    }
-    
-    const change = ((current - previous) / previous) * 100;
-    const isPositive = change >= 0;
-    const arrow = isPositive ? '↑' : '↓';
-    const className = isPositive ? 'trend-up' : 'trend-down';
-    
-    return `<span class="trend-indicator ${className}">${arrow} ${Math.abs(change).toFixed(1)}%</span>`;
-}
-
-// Chart Rendering Functions
-function renderLineChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return null;
-    
-    // Check if Chart.js is available
-    if (typeof Chart === 'undefined') {
-        console.warn('Chart.js is not loaded. Please ensure Chart.js library is available.');
-        // Fallback to simple bar visualization
-        renderSimpleBarChart(canvasId, data);
-        return null;
-    }
-    
-    // Destroy existing chart if it exists
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-    
-    const ctx = canvas.getContext('2d');
-    const defaultOptions = {
-        type: 'line',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: options.showLegend !== false
-                },
-                tooltip: {
-                    enabled: true
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    };
-    
-    const chart = new Chart(ctx, { ...defaultOptions, ...options });
-    chartInstances[canvasId] = chart;
-    return chart;
-}
-
-// Fallback simple bar chart if Chart.js is not available
-function renderSimpleBarChart(canvasId, data) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    
-    const container = canvas.closest('.chart-container');
-    if (!container) return;
-    
-    const maxValue = Math.max(...data.datasets[0].data, 1);
-    const labels = data.labels || [];
-    const values = data.datasets[0].data || [];
-    
-    container.innerHTML = `
-        <div style="margin-top: 1rem;">
-            ${labels.map((label, index) => {
-                const height = ((values[index] || 0) / maxValue) * 100;
-                return `
-                    <div style="margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span><strong>${label}</strong></span>
-                            <span><strong>${formatCurrency(values[index] || 0)}</strong></span>
-                        </div>
-                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
-                            <div style="background: var(--info-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-}
-
-function renderBarChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return null;
-    
-    // Check if Chart.js is available
-    if (typeof Chart === 'undefined') {
-        renderSimpleBarChart(canvasId, data);
-        return null;
-    }
-    
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-    
-    const ctx = canvas.getContext('2d');
-    const defaultOptions = {
-        type: 'bar',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: options.showLegend !== false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    };
-    
-    const chart = new Chart(ctx, { ...defaultOptions, ...options });
-    chartInstances[canvasId] = chart;
-    return chart;
-}
-
-function renderPieChart(canvasId, data, options = {}) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return null;
-    
-    // Check if Chart.js is available
-    if (typeof Chart === 'undefined') {
-        // Fallback to simple list
-        const container = canvas.closest('.chart-container');
-        if (container) {
-            const labels = data.labels || [];
-            const values = data.datasets[0]?.data || [];
-            container.innerHTML = `
-                <div style="margin-top: 1rem;">
-                    ${labels.map((label, index) => `
-                        <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
-                            <span><strong>${label}</strong></span>
-                            <span>${formatCurrency(values[index] || 0)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-        return null;
-    }
-    
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-    
-    const ctx = canvas.getContext('2d');
-    const defaultOptions = {
-        type: 'pie',
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right'
-                }
-            }
-        }
-    };
-    
-    const chart = new Chart(ctx, { ...defaultOptions, ...options });
-    chartInstances[canvasId] = chart;
-    return chart;
-}
-
-// Export Dashboard
-async function exportDashboard() {
-    try {
-        const role = getUserRole();
-        let data = {};
-        
-        // Collect dashboard data based on role
-        switch(role) {
-            case 'admin':
-                data = await apiRequest('/reports/dashboard');
-                break;
-            case 'storekeeper':
-                data = await apiRequest('/reports/storekeeper-analytics');
-                break;
-            case 'sales':
-                data = await apiRequest('/reports/sales-analytics');
-                break;
-            case 'manager':
-                data = await apiRequest('/reports/manager-analytics');
-                break;
-        }
-        
-        // Create CSV content
-        const csvContent = convertToCSV(data);
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `dashboard_export_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        showNotification('Dashboard exported successfully', 'success');
-    } catch (error) {
-        showNotification('Error exporting dashboard', 'error');
-    }
-}
-
-function convertToCSV(data) {
-    // Simple CSV conversion - can be enhanced
-    let csv = 'Metric,Value\n';
-    for (const [key, value] of Object.entries(data)) {
-        if (typeof value === 'object' && value !== null) {
-            for (const [subKey, subValue] of Object.entries(value)) {
-                csv += `${key}_${subKey},"${subValue}"\n`;
-            }
-        } else {
-            csv += `${key},"${value}"\n`;
-        }
-    }
-    return csv;
-}
-
-// Print Dashboard
-function printDashboard() {
-    window.print();
-}
-
-// Drill-down Functionality
-function setupDrillDown(cardId, drillDownFunction) {
-    const card = document.getElementById(cardId);
-    if (card) {
-        card.setAttribute('data-drilldown', 'true');
-        card.addEventListener('click', () => {
-            drillDownFunction();
-        });
-    }
-}
-
-function showDrillDownModal(title, content) {
-    // Create modal for drill-down
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'block';
-    modal.setAttribute('role', 'dialog');
-    modal.innerHTML = `
-        <div class="modal-content drilldown-modal">
-            <button class="close" onclick="this.closest('.modal').remove()">&times;</button>
-            <h2>${title}</h2>
-            <div class="drilldown-content">${content}</div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    
-    // Close on outside click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-// Initialize date range on load
-document.addEventListener('DOMContentLoaded', () => {
-    setDateRangeFromPreset('thisMonth');
-});
-
-// Make functions globally available
-window.handleDateRangePreset = handleDateRangePreset;
-window.applyCustomDateRange = applyCustomDateRange;
-window.exportDashboard = exportDashboard;
-window.printDashboard = printDashboard;
-
 async function loadAdminDashboard() {
     try {
         const data = await apiRequest('/reports/dashboard');
         
-        // Update stat cards with tooltips and drill-down
-        const totalItemsEl = document.getElementById('adminTotalItems');
-        if (totalItemsEl) {
-            totalItemsEl.textContent = data.totalItems?.count || 0;
-            const card = totalItemsEl.closest('.stat-card');
-            if (card) {
-                addTooltip(card, 'Total number of items in inventory');
-                card.setAttribute('data-drilldown', 'true');
-                card.addEventListener('click', () => window.location.href = 'inventory.html');
-            }
-        }
-        
-        const lowStockEl = document.getElementById('adminLowStockItems');
-        if (lowStockEl) {
-            lowStockEl.textContent = data.lowStockItems?.count || 0;
-            const card = lowStockEl.closest('.stat-card');
-            if (card) {
-                addTooltip(card, 'Items below minimum stock level');
-            }
-        }
-        
-        const todaySalesEl = document.getElementById('adminTodaySales');
-        if (todaySalesEl) {
-            todaySalesEl.textContent = formatCurrency(data.totalSales?.total || 0);
-            const card = todaySalesEl.closest('.stat-card');
-            if (card) {
-                addTooltip(card, 'Total sales revenue for today');
-                card.setAttribute('data-drilldown', 'true');
-                card.addEventListener('click', () => window.location.href = 'sales.html');
-            }
-        }
-        
-        const todayPurchasesEl = document.getElementById('adminTodayPurchases');
-        if (todayPurchasesEl) {
-            todayPurchasesEl.textContent = formatCurrency(data.totalPurchases?.total || 0);
-            const card = todayPurchasesEl.closest('.stat-card');
-            if (card) {
-                addTooltip(card, 'Total purchase amount for today');
-                card.setAttribute('data-drilldown', 'true');
-                card.addEventListener('click', () => window.location.href = 'purchases.html');
-            }
-        }
+        document.getElementById('adminTotalItems').textContent = data.totalItems?.count || 0;
+        document.getElementById('adminLowStockItems').textContent = data.lowStockItems?.count || 0;
+        document.getElementById('adminTodaySales').textContent = formatCurrency(data.totalSales?.total || 0);
+        document.getElementById('adminTodayPurchases').textContent = formatCurrency(data.totalPurchases?.total || 0);
         
         await loadAdminLowStockItems();
         await loadAdminRecentSales();
@@ -1012,40 +546,26 @@ function renderStorekeeperPurchaseTrend(trend) {
         return;
     }
     
-    // Create chart container
-    container.innerHTML = '<div class="chart-container"><canvas id="storekeeperPurchaseTrendChart"></canvas></div>';
+    const maxAmount = Math.max(...trend.map(t => t.total_amount || 0), 1);
     
-    // Prepare chart data
-    const labels = trend.map(day => new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
-    const amounts = trend.map(day => day.total_amount || 0);
-    
-    // Render chart
-    setTimeout(() => {
-        renderLineChart('storekeeperPurchaseTrendChart', {
-            labels: labels,
-            datasets: [{
-                label: 'Purchase Amount',
-                data: amounts,
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        }, {
-            options: {
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const day = trend[context.dataIndex];
-                                return `Amount: ${formatCurrency(context.parsed.y)} | Purchases: ${day.purchase_count || 0} | Items: ${day.total_items || 0}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }, 100);
+    container.innerHTML = `
+        <div style="margin-top: 1rem;">
+            ${trend.map(day => {
+                const height = ((day.total_amount || 0) / maxAmount) * 100;
+                return `
+                    <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></span>
+                            <span><strong>${formatCurrency(day.total_amount || 0)}</strong> (${day.purchase_count || 0} purchases, ${day.total_items || 0} items)</span>
+                        </div>
+                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
+                            <div style="background: var(--info-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 async function loadStorekeeperRecentPurchases() {
@@ -1187,40 +707,26 @@ function renderSalesTrend(trend) {
         return;
     }
     
-    // Create chart container
-    container.innerHTML = '<div class="chart-container"><canvas id="salesTrendChart"></canvas></div>';
+    const maxRevenue = Math.max(...trend.map(t => t.total_revenue || 0), 1);
     
-    // Prepare chart data
-    const labels = trend.map(day => new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
-    const revenues = trend.map(day => day.total_revenue || 0);
-    
-    // Render chart
-    setTimeout(() => {
-        renderLineChart('salesTrendChart', {
-            labels: labels,
-            datasets: [{
-                label: 'Sales Revenue',
-                data: revenues,
-                borderColor: 'rgb(16, 185, 129)',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        }, {
-            options: {
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const day = trend[context.dataIndex];
-                                return `Revenue: ${formatCurrency(context.parsed.y)} | Transactions: ${day.transaction_count || 0} | Items: ${day.total_items_sold || 0}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }, 100);
+    container.innerHTML = `
+        <div style="margin-top: 1rem;">
+            ${trend.map(day => {
+                const height = ((day.total_revenue || 0) / maxRevenue) * 100;
+                return `
+                    <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></span>
+                            <span><strong>${formatCurrency(day.total_revenue || 0)}</strong> (${day.transaction_count || 0} transactions, ${day.total_items_sold || 0} items)</span>
+                        </div>
+                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
+                            <div style="background: var(--success-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 function renderSalesRecentSales(sales) {
