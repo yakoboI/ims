@@ -515,11 +515,11 @@ function renderPurchaseItems() {
     
     tbody.innerHTML = purchaseItems.map((item, index) => `
         <tr>
-            <td>${item.item_name}</td>
-            <td class="col-quantity numeric">${item.quantity}</td>
-            <td class="col-price numeric">${formatCurrency(item.unit_price)}</td>
-            <td class="col-total numeric">${formatCurrency(item.total_price)}</td>
-            <td>
+            <td data-label="Item">${item.item_name}</td>
+            <td data-label="Qty" class="col-quantity numeric">${item.quantity}</td>
+            <td data-label="Unit Price" class="col-price numeric">${formatCurrency(item.unit_price)}</td>
+            <td data-label="Total" class="col-total numeric">${formatCurrency(item.total_price)}</td>
+            <td data-label="Actions">
                 <button class="btn btn-sm btn-danger" onclick="removePurchaseItem(${index})">Remove</button>
             </td>
         </tr>
