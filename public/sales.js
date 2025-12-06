@@ -740,7 +740,7 @@ async function printReceipt(saleId) {
                     <button onclick="window.close()" class="btn receipt-close-btn">Close</button>
                 </div>
                 
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="js/JsBarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         // Generate barcodes for receipt and items
