@@ -26,6 +26,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/all.min.css">
     
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <!-- Stylesheet -->
     <link rel="stylesheet" href="styles.css">
     
@@ -93,11 +96,40 @@
     <main id="main-content" class="container" role="main">
         <header class="page-header">
             <h1>Dashboard</h1>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <!-- Date Range Picker -->
+                <div class="dashboard-controls" style="display: flex; gap: 0.5rem; align-items: center; margin-right: 0.5rem;">
+                    <label for="dateRangePreset" class="sr-only">Date range preset</label>
+                    <select id="dateRangePreset" class="filter-select" onchange="handleDateRangePreset()" aria-label="Select date range preset" style="min-width: 150px;">
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="thisWeek">This Week</option>
+                        <option value="lastWeek">Last Week</option>
+                        <option value="thisMonth" selected>This Month</option>
+                        <option value="lastMonth">Last Month</option>
+                        <option value="thisYear">This Year</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <div id="customDateRange" style="display: none; gap: 0.5rem; align-items: center;">
+                        <label for="startDate" class="sr-only">Start date</label>
+                        <input type="date" id="startDate" class="date-input" aria-label="Start date">
+                        <label for="endDate" class="sr-only">End date</label>
+                        <input type="date" id="endDate" class="date-input" aria-label="End date">
+                        <button class="btn btn-sm btn-secondary" onclick="applyCustomDateRange()" aria-label="Apply custom date range">Apply</button>
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <button class="btn btn-secondary" onclick="exportDashboard()" id="exportBtn" aria-label="Export dashboard data"><i class="fas fa-download fa-icon-white"></i> Export</button>
+                <button class="btn btn-secondary" onclick="printDashboard()" id="printBtn" aria-label="Print dashboard"><i class="fas fa-print fa-icon-white"></i> Print</button>
                 <button class="btn btn-primary" onclick="refreshDashboard()" id="refreshBtn" style="display: none;" aria-label="Refresh dashboard data"><i class="fas fa-sync-alt fa-icon-white"></i> Refresh</button>
                 <button class="btn btn-danger" onclick="initiateClearData()" id="initiateClearDataBtn" style="display: none;" aria-label="Initiate clear data process"><i class="fas fa-trash-alt fa-icon-white"></i> Clear Data</button>
             </div>
         </header>
+        
+        <!-- Dashboard Refresh Indicator -->
+        <div id="dashboardRefreshIndicator" class="dashboard-refresh-indicator" style="display: none; position: fixed; top: 80px; right: 20px; background: var(--success-color); color: white; padding: 0.5rem 1rem; border-radius: 4px; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            <i class="fas fa-check-circle"></i> Dashboard updated
+        </div>
         
         <!-- Admin Dashboard -->
         <section id="adminDashboard" class="role-dashboard" style="display: none;" aria-label="Administrator dashboard">
