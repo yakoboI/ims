@@ -110,10 +110,38 @@ async function loadAdminDashboard() {
     try {
         const data = await apiRequest('/reports/dashboard');
         
-        document.getElementById('adminTotalItems').textContent = data.totalItems?.count || 0;
-        document.getElementById('adminLowStockItems').textContent = data.lowStockItems?.count || 0;
-        document.getElementById('adminTodaySales').textContent = formatCurrency(data.totalSales?.total || 0);
-        document.getElementById('adminTodayPurchases').textContent = formatCurrency(data.totalPurchases?.total || 0);
+        // FIXED: Remove old listeners before adding new ones to prevent accumulation
+        const totalItemsEl = document.getElementById('adminTotalItems');
+        if (totalItemsEl) {
+            totalItemsEl.textContent = data.totalItems?.count || 0;
+            const card = totalItemsEl.closest('.stat-card');
+            if (card && typeof setupDrillDown === 'function') {
+                setupDrillDown(card, () => window.location.href = 'inventory.html');
+            }
+        }
+        
+        const lowStockEl = document.getElementById('adminLowStockItems');
+        if (lowStockEl) {
+            lowStockEl.textContent = data.lowStockItems?.count || 0;
+        }
+        
+        const todaySalesEl = document.getElementById('adminTodaySales');
+        if (todaySalesEl) {
+            todaySalesEl.textContent = formatCurrency(data.totalSales?.total || 0);
+            const card = todaySalesEl.closest('.stat-card');
+            if (card && typeof setupDrillDown === 'function') {
+                setupDrillDown(card, () => window.location.href = 'sales.html');
+            }
+        }
+        
+        const todayPurchasesEl = document.getElementById('adminTodayPurchases');
+        if (todayPurchasesEl) {
+            todayPurchasesEl.textContent = formatCurrency(data.totalPurchases?.total || 0);
+            const card = todayPurchasesEl.closest('.stat-card');
+            if (card && typeof setupDrillDown === 'function') {
+                setupDrillDown(card, () => window.location.href = 'purchases.html');
+            }
+        }
         
         await loadAdminLowStockItems();
         await loadAdminRecentSales();
@@ -546,26 +574,62 @@ function renderStorekeeperPurchaseTrend(trend) {
         return;
     }
     
-    const maxAmount = Math.max(...trend.map(t => t.total_amount || 0), 1);
+    // Create chart container
+    container.innerHTML = '<div class="chart-container"><canvas id="storekeeperPurchaseTrendChart"></canvas></div>';
     
-    container.innerHTML = `
-        <div style="margin-top: 1rem;">
-            ${trend.map(day => {
-                const height = ((day.total_amount || 0) / maxAmount) * 100;
-                return `
-                    <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span><strong>${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></span>
-                            <span><strong>${formatCurrency(day.total_amount || 0)}</strong> (${day.purchase_count || 0} purchases, ${day.total_items || 0} items)</span>
-                        </div>
-                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
-                            <div style="background: var(--info-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
+    // Prepare chart data
+    const labels = trend.map(day => new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+    const amounts = trend.map(day => day.total_amount || 0);
+    
+    // Render chart - FIXED: Pass options directly, not wrapped in 'options' property
+    setTimeout(() => {
+        if (typeof renderLineChart === 'function') {
+            renderLineChart('storekeeperPurchaseTrendChart', {
+                labels: labels,
+                datasets: [{
+                    label: 'Purchase Amount',
+                    data: amounts,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            }, {
+                // FIXED: Options are passed directly, not nested
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const day = trend[context.dataIndex];
+                                return `Amount: ${formatCurrency(context.parsed.y)} | Purchases: ${day.purchase_count || 0} | Items: ${day.total_items || 0}`;
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            // Fallback to simple visualization
+            const maxAmount = Math.max(...amounts, 1);
+            container.innerHTML = `
+                <div style="margin-top: 1rem;">
+                    ${trend.map((day, index) => {
+                        const height = ((day.total_amount || 0) / maxAmount) * 100;
+                        return `
+                            <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span><strong>${labels[index]}</strong></span>
+                                    <span><strong>${formatCurrency(day.total_amount || 0)}</strong> (${day.purchase_count || 0} purchases, ${day.total_items || 0} items)</span>
+                                </div>
+                                <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
+                                    <div style="background: var(--info-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+    }, 100);
 }
 
 async function loadStorekeeperRecentPurchases() {
@@ -707,26 +771,62 @@ function renderSalesTrend(trend) {
         return;
     }
     
-    const maxRevenue = Math.max(...trend.map(t => t.total_revenue || 0), 1);
+    // Create chart container
+    container.innerHTML = '<div class="chart-container"><canvas id="salesTrendChart"></canvas></div>';
     
-    container.innerHTML = `
-        <div style="margin-top: 1rem;">
-            ${trend.map(day => {
-                const height = ((day.total_revenue || 0) / maxRevenue) * 100;
-                return `
-                    <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span><strong>${new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</strong></span>
-                            <span><strong>${formatCurrency(day.total_revenue || 0)}</strong> (${day.transaction_count || 0} transactions, ${day.total_items_sold || 0} items)</span>
-                        </div>
-                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
-                            <div style="background: var(--success-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
+    // Prepare chart data
+    const labels = trend.map(day => new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+    const revenues = trend.map(day => day.total_revenue || 0);
+    
+    // Render chart - FIXED: Pass options directly, not wrapped in 'options' property
+    setTimeout(() => {
+        if (typeof renderLineChart === 'function') {
+            renderLineChart('salesTrendChart', {
+                labels: labels,
+                datasets: [{
+                    label: 'Sales Revenue',
+                    data: revenues,
+                    borderColor: 'rgb(16, 185, 129)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            }, {
+                // FIXED: Options are passed directly, not nested
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const day = trend[context.dataIndex];
+                                return `Revenue: ${formatCurrency(context.parsed.y)} | Transactions: ${day.transaction_count || 0} | Items: ${day.total_items_sold || 0}`;
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            // Fallback to simple visualization
+            const maxRevenue = Math.max(...revenues, 1);
+            container.innerHTML = `
+                <div style="margin-top: 1rem;">
+                    ${trend.map((day, index) => {
+                        const height = ((day.total_revenue || 0) / maxRevenue) * 100;
+                        return `
+                            <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span><strong>${labels[index]}</strong></span>
+                                    <span><strong>${formatCurrency(day.total_revenue || 0)}</strong> (${day.transaction_count || 0} transactions, ${day.total_items_sold || 0} items)</span>
+                                </div>
+                                <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
+                                    <div style="background: var(--success-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+    }, 100);
 }
 
 function renderSalesRecentSales(sales) {

@@ -11,6 +11,126 @@ let dashboardDateRange = {
 let chartInstances = {}; // Store chart instances for cleanup
 let statCardListeners = new Map(); // Track event listeners to prevent duplicates
 
+// Chart Rendering Functions - FIXED: Proper options merging
+function renderLineChart(canvasId, data, customOptions = {}) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js is not loaded. Please ensure Chart.js library is available.');
+        // Fallback to simple bar visualization
+        renderSimpleBarChart(canvasId, data);
+        return null;
+    }
+    
+    // Destroy existing chart if it exists
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // FIXED: Merge options properly - customOptions should contain plugins, scales, etc. directly
+    const defaultOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: customOptions.showLegend !== false
+            },
+            tooltip: {
+                enabled: true
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+    
+    // Deep merge custom options with defaults
+    const mergedOptions = {
+        ...defaultOptions,
+        ...customOptions,
+        plugins: {
+            ...defaultOptions.plugins,
+            ...(customOptions.plugins || {})
+        },
+        scales: {
+            ...defaultOptions.scales,
+            ...(customOptions.scales || {})
+        }
+    };
+    
+    const chartConfig = {
+        type: 'line',
+        data: data,
+        options: mergedOptions
+    };
+    
+    const chart = new Chart(ctx, chartConfig);
+    chartInstances[canvasId] = chart;
+    return chart;
+}
+
+// Fallback simple bar chart if Chart.js is not available
+function renderSimpleBarChart(canvasId, data) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    const container = canvas.closest('.chart-container');
+    if (!container) return;
+    
+    const maxValue = Math.max(...data.datasets[0].data, 1);
+    const labels = data.labels || [];
+    const values = data.datasets[0].data || [];
+    
+    container.innerHTML = `
+        <div style="margin-top: 1rem;">
+            ${labels.map((label, index) => {
+                const height = ((values[index] || 0) / maxValue) * 100;
+                return `
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>${label}</strong></span>
+                            <span><strong>${formatCurrency(values[index] || 0)}</strong></span>
+                        </div>
+                        <div style="background: #e2e8f0; height: 20px; border-radius: 0; overflow: hidden;">
+                            <div style="background: var(--info-color); height: 100%; width: ${height}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// Drill-down Functionality - FIXED: Remove old listeners before adding new ones
+function setupDrillDown(cardElement, drillDownFunction) {
+    if (!cardElement) return;
+    
+    // Remove existing listener if any
+    const cardId = cardElement.id || cardElement.getAttribute('data-card-id') || `card-${Math.random().toString(36).substr(2, 9)}`;
+    if (statCardListeners.has(cardId)) {
+        const { element, handler } = statCardListeners.get(cardId);
+        element.removeEventListener('click', handler);
+    }
+    
+    // Create new handler
+    const handler = () => drillDownFunction();
+    cardElement.addEventListener('click', handler);
+    cardElement.setAttribute('data-drilldown', 'true');
+    
+    // Store for future cleanup
+    statCardListeners.set(cardId, { element: cardElement, handler: handler });
+}
+
+// Make chart and drill-down functions globally available
+window.renderLineChart = renderLineChart;
+window.setupDrillDown = setupDrillDown;
+
 // Export Dashboard
 async function exportDashboard() {
     try {
