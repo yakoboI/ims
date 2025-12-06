@@ -439,10 +439,6 @@ function toggleMobileMenu(e) {
     }, 50);
 }
 
-// Track when menu was just toggled to prevent immediate close
-let menuJustToggled = false;
-let menuToggleTimeout = null;
-
 // Close mobile menu when clicking/touching outside
 function handleOutsideClick(e) {
     // Don't process if menu was just toggled (prevent immediate close)
