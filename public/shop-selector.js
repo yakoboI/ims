@@ -4,6 +4,9 @@
 let selectedShopId = null;
 let shopsList = [];
 
+// Expose selectedShopId globally for apiRequest to use
+window.selectedShopId = selectedShopId;
+
 // Initialize shop selector
 async function initShopSelector() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
@@ -53,10 +56,13 @@ async function initShopSelector() {
         const savedShopId = localStorage.getItem('selectedShopId');
         if (savedShopId) {
             selectedShopId = parseInt(savedShopId);
+            window.selectedShopId = selectedShopId; // Update global reference
             const selector = document.getElementById('shopSelector');
             if (selector) {
                 selector.value = savedShopId;
             }
+        } else {
+            window.selectedShopId = null; // Ensure global reference is set
         }
 
         // Store shop list globally for other functions
@@ -70,6 +76,9 @@ async function initShopSelector() {
 function handleShopSelection(event) {
     const shopId = event.target.value;
     selectedShopId = shopId ? parseInt(shopId) : null;
+    
+    // Update global reference
+    window.selectedShopId = selectedShopId;
     
     // Save to localStorage
     if (selectedShopId) {
@@ -85,6 +94,7 @@ function handleShopSelection(event) {
 // Clear shop selection
 function clearShopSelection() {
     selectedShopId = null;
+    window.selectedShopId = null; // Update global reference
     localStorage.removeItem('selectedShopId');
     const selector = document.getElementById('shopSelector');
     if (selector) {
@@ -96,31 +106,84 @@ function clearShopSelection() {
 // Reload page data based on current page
 function reloadPageData() {
     const path = window.location.pathname;
+    const filename = path.split('/').pop() || path;
     
     // Reload data based on current page
-    if (path.includes('dashboard.html')) {
+    if (filename.includes('dashboard.html') || filename === 'dashboard.html') {
         if (typeof refreshDashboard === 'function') {
             refreshDashboard();
         } else if (typeof loadDashboard === 'function') {
             loadDashboard();
         }
-    } else if (path.includes('inventory-items.html') || path.includes('inventory-operations.html') || path.includes('goods-prices.html') || path.includes('stock-manage.html')) {
+    } else if (filename.includes('inventory.html') || filename === 'inventory.html') {
         if (typeof loadItems === 'function') {
             loadItems();
         }
-    } else if (path.includes('sales.html')) {
+    } else if (filename.includes('inventory-items.html') || filename === 'inventory-items.html') {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        }
+    } else if (filename.includes('inventory-operations.html') || filename === 'inventory-operations.html') {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        } else if (typeof loadOperations === 'function') {
+            loadOperations();
+        }
+    } else if (filename.includes('goods-prices.html') || filename === 'goods-prices.html') {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        } else if (typeof loadPrices === 'function') {
+            loadPrices();
+        }
+    } else if (filename.includes('stock-manage.html') || filename === 'stock-manage.html') {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        } else if (typeof loadStock === 'function') {
+            loadStock();
+        }
+    } else if (filename.includes('goods-barcodes.html') || filename === 'goods-barcodes.html') {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        } else if (typeof loadBarcodes === 'function') {
+            loadBarcodes();
+        }
+    } else if (filename.includes('sales.html') || filename === 'sales.html') {
         if (typeof loadSales === 'function') {
             loadSales();
         }
-    } else if (path.includes('purchases.html')) {
+    } else if (filename.includes('purchases.html') || filename === 'purchases.html') {
         if (typeof loadPurchases === 'function') {
             loadPurchases();
         }
-    } else if (path.includes('users.html')) {
+    } else if (filename.includes('users.html') || filename === 'users.html') {
         if (typeof loadUsers === 'function') {
             loadUsers();
         }
-    } else if (path.includes('reports.html')) {
+    } else if (filename.includes('categories.html') || filename === 'categories.html') {
+        if (typeof loadCategories === 'function') {
+            loadCategories();
+        }
+    } else if (filename.includes('customers.html') || filename === 'customers.html') {
+        if (typeof loadCustomers === 'function') {
+            loadCustomers();
+        }
+    } else if (filename.includes('suppliers.html') || filename === 'suppliers.html') {
+        if (typeof loadSuppliers === 'function') {
+            loadSuppliers();
+        }
+    } else if (filename.includes('expenses.html') || filename === 'expenses.html') {
+        if (typeof loadExpenses === 'function') {
+            loadExpenses();
+        }
+    } else if (filename.includes('invoices.html') || filename === 'invoices.html') {
+        if (typeof loadInvoices === 'function') {
+            loadInvoices();
+        }
+    } else if (filename.includes('receipts.html') || filename === 'receipts.html') {
+        if (typeof loadReceipts === 'function') {
+            loadReceipts();
+        }
+    } else if (filename.includes('reports.html') || filename === 'reports.html') {
         if (typeof showReport === 'function') {
             // Get current report type from active tab
             const activeTab = document.querySelector('.tab-btn.active');
@@ -134,13 +197,9 @@ function reloadPageData() {
         } else if (typeof loadReports === 'function') {
             loadReports();
         }
-    } else if (path.includes('inventory.html')) {
-        if (typeof loadItems === 'function') {
-            loadItems();
-        }
-    } else if (path.includes('users.html')) {
-        if (typeof loadUsers === 'function') {
-            loadUsers();
+    } else if (filename.includes('shop-statistics.html') || filename === 'shop-statistics.html') {
+        if (typeof loadShopStatistics === 'function') {
+            loadShopStatistics();
         }
     }
     

@@ -1580,13 +1580,32 @@ app.post('/api/categories', authenticateToken, requireRole('admin', 'storekeeper
 // ==================== ITEMS ROUTES ====================
 
 app.get('/api/items', authenticateToken, (req, res) => {
-  const query = `
+  const shopFilter = getShopFilter(req);
+  let query = `
     SELECT i.*, c.name as category_name,
            CASE WHEN i.stock_quantity <= i.min_stock_level THEN 1 ELSE 0 END as low_stock
     FROM items i
     LEFT JOIN categories c ON i.category_id = c.id
-    ORDER BY i.name
   `;
+  
+  // Filter by shop_id if provided (for superadmin)
+  // Items don't have shop_id directly, but we can filter by checking if item has been used in sales/purchases by users from that shop
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ` WHERE EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
+    )`;
+  }
+  
+  query += ` ORDER BY i.name`;
+  
   db.all(query, (err, items) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
@@ -1812,14 +1831,28 @@ app.post('/api/suppliers', authenticateToken, requireRole('admin', 'storekeeper'
 // ==================== PURCHASES ROUTES ====================
 
 app.get('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
-  const query = `
-    SELECT p.*, s.name as supplier_name, u.username as created_by_name
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT p.*, s.name as supplier_name, u.username as created_by_name, u.shop_id
     FROM purchases p
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     LEFT JOIN users u ON p.created_by = u.id
-    ORDER BY p.purchase_date DESC
   `;
-  db.all(query, (err, purchases) => {
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ` WHERE u.shop_id = ?`;
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see purchases from their shop
+    query += ` WHERE u.shop_id = ?`;
+    params.push(req.user.shop_id);
+  }
+  
+  query += ` ORDER BY p.purchase_date DESC`;
+  
+  db.all(query, params, (err, purchases) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -1905,13 +1938,27 @@ app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'
 // ==================== SALES ROUTES ====================
 
 app.get('/api/sales', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
-  const query = `
-    SELECT s.*, u.username as created_by_name
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT s.*, u.username as created_by_name, u.shop_id
     FROM sales s
     LEFT JOIN users u ON s.created_by = u.id
-    ORDER BY s.sale_date DESC
   `;
-  db.all(query, (err, sales) => {
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ` WHERE u.shop_id = ?`;
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see sales from their shop
+    query += ` WHERE u.shop_id = ?`;
+    params.push(req.user.shop_id);
+  }
+  
+  query += ` ORDER BY s.sale_date DESC`;
+  
+  db.all(query, params, (err, sales) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -2080,13 +2127,31 @@ app.post('/api/stock-adjustments', authenticateToken, requireRole('admin', 'stor
 // ==================== REPORTS ROUTES ====================
 
 app.get('/api/reports/stock', authenticateToken, requireRole('admin', 'manager', 'storekeeper', 'sales'), (req, res) => {
-  const query = `
+  const shopFilter = getShopFilter(req);
+  let query = `
     SELECT i.*, c.name as category_name,
            CASE WHEN i.stock_quantity <= i.min_stock_level THEN 1 ELSE 0 END as low_stock
     FROM items i
     LEFT JOIN categories c ON i.category_id = c.id
-    ORDER BY i.stock_quantity ASC
   `;
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ` WHERE EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
+    )`;
+  }
+  
+  query += ` ORDER BY i.stock_quantity ASC`;
+  
   db.all(query, (err, items) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
@@ -2097,6 +2162,7 @@ app.get('/api/reports/stock', authenticateToken, requireRole('admin', 'manager',
 
 app.get('/api/reports/sales', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
   const { start_date, end_date } = req.query;
+  const shopFilter = getShopFilter(req);
   let query = `
     SELECT DATE(s.sale_date) as date, 
            COUNT(*) as total_sales,
@@ -2104,12 +2170,29 @@ app.get('/api/reports/sales', authenticateToken, requireRole('admin', 'manager')
            SUM(si.quantity) as total_items_sold
     FROM sales s
     LEFT JOIN sales_items si ON s.id = si.sale_id
+    LEFT JOIN users u ON s.created_by = u.id
   `;
   const params = [];
+  const conditions = [];
+  
   if (start_date && end_date) {
-    query += ' WHERE DATE(s.sale_date) BETWEEN ? AND ?';
+    conditions.push('DATE(s.sale_date) BETWEEN ? AND ?');
     params.push(start_date, end_date);
   }
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    conditions.push('u.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    conditions.push('u.shop_id = ?');
+    params.push(req.user.shop_id);
+  }
+  
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  
   query += ' GROUP BY DATE(s.sale_date) ORDER BY date DESC';
   
   db.all(query, params, (err, results) => {
@@ -2122,6 +2205,7 @@ app.get('/api/reports/sales', authenticateToken, requireRole('admin', 'manager')
 
 app.get('/api/reports/purchases', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
   const { start_date, end_date } = req.query;
+  const shopFilter = getShopFilter(req);
   let query = `
     SELECT DATE(p.purchase_date) as date,
            COUNT(*) as total_purchases,
@@ -2129,12 +2213,29 @@ app.get('/api/reports/purchases', authenticateToken, requireRole('admin', 'manag
            SUM(pi.quantity) as total_items_purchased
     FROM purchases p
     LEFT JOIN purchase_items pi ON p.id = pi.purchase_id
+    LEFT JOIN users u ON p.created_by = u.id
   `;
   const params = [];
+  const conditions = [];
+  
   if (start_date && end_date) {
-    query += ' WHERE DATE(p.purchase_date) BETWEEN ? AND ?';
+    conditions.push('DATE(p.purchase_date) BETWEEN ? AND ?');
     params.push(start_date, end_date);
   }
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    conditions.push('u.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    conditions.push('u.shop_id = ?');
+    params.push(req.user.shop_id);
+  }
+  
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  
   query += ' GROUP BY DATE(p.purchase_date) ORDER BY date DESC';
   
   db.all(query, params, (err, results) => {
@@ -2186,12 +2287,73 @@ app.get('/api/reports/slow-moving', authenticateToken, requireRole('admin', 'man
 app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
   // Get today's date in YYYY-MM-DD format for reliable comparison
   const today = new Date().toISOString().split('T')[0];
+  const shopFilter = getShopFilter(req);
+  
+  // Build queries with shop filtering
+  let totalItemsQuery = 'SELECT COUNT(*) as count FROM items';
+  let lowStockItemsQuery = 'SELECT COUNT(*) as count FROM items WHERE stock_quantity <= min_stock_level';
+  let totalSalesQuery = 'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM sales s LEFT JOIN users u ON s.created_by = u.id WHERE DATE(s.sale_date) = ?';
+  let totalPurchasesQuery = 'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM purchases p LEFT JOIN users u ON p.created_by = u.id WHERE DATE(p.purchase_date) = ?';
+  
+  // Add shop filtering for items (check if items have been used in sales/purchases by users from that shop)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    totalItemsQuery += ` WHERE EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+    )`;
+    lowStockItemsQuery += ` AND EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+    )`;
+    totalSalesQuery += ' AND u.shop_id = ?';
+    totalPurchasesQuery += ' AND u.shop_id = ?';
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see their shop's data
+    totalItemsQuery += ` WHERE EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+    )`;
+    lowStockItemsQuery += ` AND EXISTS (
+      SELECT 1 FROM sales_items si
+      JOIN sales s ON si.sale_id = s.id
+      JOIN users u ON s.created_by = u.id
+      WHERE si.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      UNION
+      SELECT 1 FROM purchase_items pi
+      JOIN purchases p ON pi.purchase_id = p.id
+      JOIN users u ON p.created_by = u.id
+      WHERE pi.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+    )`;
+    totalSalesQuery += ' AND u.shop_id = ?';
+    totalPurchasesQuery += ' AND u.shop_id = ?';
+  }
   
   const queries = {
-    totalItems: 'SELECT COUNT(*) as count FROM items',
-    lowStockItems: 'SELECT COUNT(*) as count FROM items WHERE stock_quantity <= min_stock_level',
-    totalSales: 'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM sales WHERE DATE(sale_date) = ?',
-    totalPurchases: 'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM purchases WHERE DATE(purchase_date) = ?'
+    totalItems: totalItemsQuery,
+    lowStockItems: lowStockItemsQuery,
+    totalSales: totalSalesQuery,
+    totalPurchases: totalPurchasesQuery
   };
 
   const results = {};
@@ -2199,8 +2361,14 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
   const total = Object.keys(queries).length;
 
   Object.keys(queries).forEach(key => {
-    // Use today's date for sales and purchases queries
-    const params = (key === 'totalSales' || key === 'totalPurchases') ? [today] : [];
+    // Use today's date and shop_id for sales and purchases queries
+    let params = [];
+    if (key === 'totalSales' || key === 'totalPurchases') {
+      params = [today];
+      if ((shopFilter.shop_id && req.user.role === 'superadmin') || (req.user.role !== 'superadmin' && req.user.shop_id)) {
+        params.push(shopFilter.shop_id || req.user.shop_id);
+      }
+    }
     
     db.get(queries[key], params, (err, row) => {
       if (err) {

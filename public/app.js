@@ -57,7 +57,21 @@ async function refreshAccessToken() {
 }
 
 async function apiRequest(endpoint, options = {}) {
-    const url = API_BASE_URL + endpoint;
+    // Check if superadmin has selected a shop and add shop_id filter
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const shopId = window.selectedShopId || (isSuperadmin ? localStorage.getItem('selectedShopId') : null);
+    
+    let url = API_BASE_URL + endpoint;
+    
+    // Add shop_id to query params for GET requests if superadmin has selected a shop
+    if (isSuperadmin && shopId && (options.method === 'GET' || !options.method)) {
+        const separator = endpoint.includes('?') ? '&' : '?';
+        url = `${API_BASE_URL}${endpoint}${separator}shop_id=${shopId}`;
+    } else {
+        url = API_BASE_URL + endpoint;
+    }
+    
     const config = {
         method: options.method || 'GET',
         headers: {
@@ -68,11 +82,23 @@ async function apiRequest(endpoint, options = {}) {
     };
 
     // Handle body - stringify if it's an object, use as-is if it's already a string
-    if (options.body !== undefined && options.body !== null) {
-        if (typeof options.body === 'object') {
-            config.body = JSON.stringify(options.body);
+    // Add shop_id to body for POST/PUT requests if superadmin has selected a shop
+    let body = options.body;
+    if (isSuperadmin && shopId && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+        if (body !== undefined && body !== null) {
+            if (typeof body === 'object' && !Array.isArray(body)) {
+                body = { ...body, shop_id: parseInt(shopId) };
+            }
         } else {
-            config.body = options.body;
+            body = { shop_id: parseInt(shopId) };
+        }
+    }
+    
+    if (body !== undefined && body !== null) {
+        if (typeof body === 'object') {
+            config.body = JSON.stringify(body);
+        } else {
+            config.body = body;
         }
     }
 
