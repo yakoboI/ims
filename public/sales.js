@@ -202,12 +202,26 @@ function openNewSaleModal() {
     }
     
     // Re-setup camera button listeners in case modal was recreated
+    // Use multiple timeouts to ensure modal is fully rendered on Samsung devices
     setTimeout(() => {
         setupCameraButtonListeners();
     }, 100);
     
+    setTimeout(() => {
+        setupCameraButtonListeners();
+    }, 300);
+    
+    setTimeout(() => {
+        setupCameraButtonListeners();
+    }, 500);
+    
     const barcodeInput = document.getElementById('saleBarcodeInput');
     openModal('newSaleModal', barcodeInput);
+    
+    // Also setup after modal is fully opened
+    setTimeout(() => {
+        setupCameraButtonListeners();
+    }, 700);
 }
 
 // Camera Barcode Scanning Functions
