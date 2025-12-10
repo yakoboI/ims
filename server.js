@@ -579,9 +579,30 @@ const initDatabase = () => {
             VALUES ('admin', 'admin@ims.com', ?, 'admin', 'Admin')`, [defaultPassword], (err) => {
       if (err) {
         console.error('Error creating default admin user:', err);
-      } else {
-        console.log('✓ Database initialization complete');
       }
+    });
+
+    // Create default superadmin user if not exists
+    const superadminUsername = process.env.SUPERADMIN_USERNAME || 'superadmin';
+    const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'superadmin123';
+    const superadminEmail = process.env.SUPERADMIN_EMAIL || 'superadmin@ims.com';
+    const superadminFullName = process.env.SUPERADMIN_FULL_NAME || 'Super Admin';
+    const superadminPasswordHash = bcrypt.hashSync(superadminPassword, 10);
+    
+    db.run(`INSERT OR IGNORE INTO users (username, email, password, role, full_name, shop_id, is_active) 
+            VALUES (?, ?, ?, 'superadmin', ?, NULL, 1)`, 
+            [superadminUsername, superadminEmail, superadminPasswordHash, superadminFullName], (err) => {
+      if (err) {
+        console.error('Error creating default superadmin user:', err);
+      } else {
+        // Check if superadmin was actually created (not ignored due to existing)
+        db.get('SELECT id FROM users WHERE username = ? AND role = ?', [superadminUsername, 'superadmin'], (err, row) => {
+          if (!err && row) {
+            console.log(`✓ Superadmin user ready: ${superadminUsername}`);
+          }
+        });
+      }
+      console.log('✓ Database initialization complete');
     });
   });
 };
