@@ -1,8 +1,30 @@
 // Chart.js configuration and chart rendering functions
 
+// Wait for Chart.js to be available
+function waitForChartJS() {
+    return new Promise((resolve) => {
+        if (typeof Chart !== 'undefined') {
+            resolve();
+        } else {
+            const checkInterval = setInterval(() => {
+                if (typeof Chart !== 'undefined') {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                console.error('Chart.js failed to load');
+                resolve(); // Resolve anyway to prevent hanging
+            }, 5000);
+        }
+    });
+}
+
 // Destroy existing chart if it exists
 function destroyChart(chartId) {
-    if (chartInstances[chartId]) {
+    if (chartInstances && chartInstances[chartId]) {
         chartInstances[chartId].destroy();
         delete chartInstances[chartId];
     }
@@ -38,8 +60,19 @@ const chartConfig = {
 
 // Sales Trends Chart (Line Chart)
 async function loadSalesTrendsChart() {
+    await waitForChartJS();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available');
+        showNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
     const canvas = document.getElementById('salesTrendsChart');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Sales trends chart canvas not found');
+        return;
+    }
     
     destroyChart('salesTrendsChart');
     
@@ -133,8 +166,19 @@ async function loadSalesTrendsChart() {
 
 // Revenue Analysis Chart (Bar Chart)
 async function loadRevenueAnalysisChart() {
+    await waitForChartJS();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available');
+        showNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
     const canvas = document.getElementById('revenueAnalysisChart');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Revenue analysis chart canvas not found');
+        return;
+    }
     
     destroyChart('revenueAnalysisChart');
     
@@ -225,8 +269,19 @@ async function loadRevenueAnalysisChart() {
 
 // Category Performance Chart (Doughnut Chart)
 async function loadCategoryPerformanceChart() {
+    await waitForChartJS();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available');
+        showNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
     const canvas = document.getElementById('categoryPerformanceChart');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Category performance chart canvas not found');
+        return;
+    }
     
     destroyChart('categoryPerformanceChart');
     
@@ -308,8 +363,19 @@ async function loadCategoryPerformanceChart() {
 
 // Monthly Comparison Chart (Bar Chart)
 async function loadMonthlyComparisonChart() {
+    await waitForChartJS();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available');
+        showNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
     const canvas = document.getElementById('monthlyComparisonChart');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Monthly comparison chart canvas not found');
+        return;
+    }
     
     destroyChart('monthlyComparisonChart');
     
@@ -447,8 +513,19 @@ async function loadMonthlyComparisonChart() {
 
 // Profit Analysis Chart (Area Chart)
 async function loadProfitAnalysisChart() {
+    await waitForChartJS();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available');
+        showNotification('Chart library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
     const canvas = document.getElementById('profitAnalysisChart');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Profit analysis chart canvas not found');
+        return;
+    }
     
     destroyChart('profitAnalysisChart');
     
