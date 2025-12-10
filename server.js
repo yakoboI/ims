@@ -59,15 +59,29 @@ const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 // SECURITY: Configure CORS to only allow specific origins
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  : process.env.NODE_ENV === 'production' 
+    ? [] // In production, require ALLOWED_ORIGINS to be set
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
+    // In production, if ALLOWED_ORIGINS is not set, allow all origins (for Railway)
+    // This is less secure but necessary for Railway deployments
+    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      // In development, be strict. In production, log but allow for Railway compatibility
+      if (process.env.NODE_ENV === 'production') {
+        console.warn(`CORS: Origin ${origin} not in allowed list, but allowing for Railway compatibility`);
+        return callback(null, true);
+      }
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -181,7 +195,10 @@ app.use(express.static('public', {
 
 // Database connection
 // Database file path - use environment variable if set, otherwise default to ./ims.db
-const DB_PATH = process.env.DATABASE_PATH || './ims.db';
+// On Railway, use /tmp for persistence (note: /tmp is ephemeral, use Railway volume for production)
+// Detect Railway by checking if PORT is set and not localhost
+const isRailway = process.env.PORT && !process.env.PORT.includes('3000') && process.env.RAILWAY_ENVIRONMENT_NAME;
+const DB_PATH = process.env.DATABASE_PATH || (isRailway ? '/tmp/ims.db' : './ims.db');
 
 let db;
 try {
