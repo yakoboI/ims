@@ -24,9 +24,16 @@ function waitForChartJS() {
 
 // Destroy existing chart if it exists
 function destroyChart(chartId) {
-    if (chartInstances && chartInstances[chartId]) {
-        chartInstances[chartId].destroy();
-        delete chartInstances[chartId];
+    if (!window.chartInstances) {
+        window.chartInstances = {};
+    }
+    if (window.chartInstances[chartId]) {
+        try {
+            window.chartInstances[chartId].destroy();
+        } catch (e) {
+            console.warn('Error destroying chart:', e);
+        }
+        delete window.chartInstances[chartId];
     }
 }
 
