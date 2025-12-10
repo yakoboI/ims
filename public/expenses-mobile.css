@@ -1,0 +1,126 @@
+/* Expenses Page Mobile Optimizations */
+
+/* Expense Form Mobile */
+@media (max-width: 768px) {
+    .expense-modal .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .expense-form .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .expense-form input,
+    .expense-form select,
+    .expense-form textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        width: 100%;
+    }
+    
+    .amount-input-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .amount-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .category-quick-select {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .category-quick-select .btn {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    .expense-form .btn {
+        width: 100%;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+}
+
+/* Expense Cards Mobile */
+@media (max-width: 768px) {
+    .data-table-card {
+        padding: 1rem;
+    }
+    
+    .data-table-card .card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .expense-amount {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--danger-color);
+        margin: 0.5rem 0;
+    }
+    
+    .expense-category {
+        font-size: 0.875rem;
+        margin: 0.25rem 0;
+    }
+    
+    .data-table-card .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .data-table-card .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .expense-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    .category-quick-select {
+        grid-template-columns: 1fr;
+    }
+}
+

@@ -109,7 +109,7 @@ app.use(helmet({
       scriptSrcAttr: ["'unsafe-hashes'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "data:"],
-      connectSrc: ["'self'"], // Allow API connections
+      connectSrc: ["'self'", "https://cdn.jsdelivr.net", "https://unpkg.com"], // Allow API connections and source maps
       mediaSrc: ["'self'", "blob:"], // Allow camera/media access
     },
   },

@@ -1,0 +1,107 @@
+/* Inventory Items Page Mobile Optimizations */
+
+/* Item Form Mobile Layout */
+@media (max-width: 768px) {
+    .item-form-section {
+        padding: 1rem;
+    }
+    
+    .item-modal .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        width: 100%;
+    }
+    
+    .barcode-preview {
+        max-width: 100%;
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .barcode-preview img {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+/* Stock Controls Mobile */
+@media (max-width: 768px) {
+    .quantity-input-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .quantity-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .quantity-stepper {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .quantity-stepper .btn {
+        flex: 1;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    .price-input-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .price-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .item-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+}
+

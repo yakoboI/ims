@@ -1,0 +1,81 @@
+/* Subscription Plans Page Mobile Optimizations */
+
+/* Plan Cards Mobile */
+@media (max-width: 768px) {
+    .plan-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .plan-card {
+        padding: 1.5rem 1rem;
+    }
+    
+    .plan-card-header h3 {
+        font-size: 1.25rem;
+    }
+    
+    .plan-price {
+        font-size: 2rem;
+        margin: 1rem 0;
+    }
+    
+    .plan-features {
+        margin: 1rem 0;
+    }
+    
+    .plan-features li {
+        font-size: 0.875rem;
+        padding: 0.5rem 0;
+    }
+    
+    .plan-cta {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 1rem;
+        touch-action: manipulation;
+    }
+}
+
+/* Plan Comparison Mobile */
+@media (max-width: 768px) {
+    .plan-comparison {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .plan-comparison table {
+        font-size: 0.875rem;
+        min-width: 600px;
+    }
+    
+    .plan-comparison th,
+    .plan-comparison td {
+        padding: 0.5rem;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .plan-card {
+        padding: 1rem 0.75rem;
+    }
+    
+    .plan-price {
+        font-size: 1.75rem;
+    }
+}
+

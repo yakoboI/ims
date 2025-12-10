@@ -51,6 +51,44 @@
     --border-color: #e2e8f0;
     --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    
+    /* Typography System */
+    --font-size-base: 1rem;     /* 16px - base font size */
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-lg: 1.125rem;    /* 18px */
+    --font-size-xl: 1.25rem;    /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+    --font-size-3xl: 2rem;      /* 32px */
+    
+    /* Line Heights */
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.6;
+    --line-height-loose: 1.75;
+    
+    /* Font Weights */
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    
+    /* Font Family */
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+                        "Helvetica Neue", Arial, "Noto Sans", sans-serif, 
+                        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", 
+                        "Noto Color Emoji";
+    
+    --font-family-mono: "SF Mono", Monaco, "Cascadia Code", 
+                        "Roboto Mono", "Courier New", monospace;
+    
+    /* Spacing System */
+    --spacing-xs: 0.25rem;   /* 4px */
+    --spacing-sm: 0.5rem;    /* 8px */
+    --spacing-md: 1rem;      /* 16px */
+    --spacing-lg: 1.5rem;    /* 24px */
+    --spacing-xl: 2rem;      /* 32px */
 }
 
 /* Font Awesome Icon Colors */
@@ -84,12 +122,15 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    font-weight: var(--font-weight-normal);
     background-color: var(--bg-color);
     color: var(--text-primary);
-    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     overflow-x: hidden;
 }
 
@@ -98,6 +139,499 @@ html {
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
+    font-size: 100%; /* Base 16px for rem calculations */
+}
+
+/* Typography System - Headings */
+h1, .h1 {
+    font-size: var(--font-size-3xl);
+    line-height: var(--line-height-tight);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+h2, .h2 {
+    font-size: var(--font-size-2xl);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+h3, .h3 {
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+h4, .h4 {
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+/* Body Text Styles */
+p, .body-text {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-relaxed);
+    font-weight: var(--font-weight-normal);
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+small, .text-sm, .small-text {
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-secondary);
+}
+
+.text-xs, .extra-small {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-normal);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-secondary);
+}
+
+/* Responsive Typography Adjustments */
+@media (max-width: 768px) {
+    h1, .h1 {
+        font-size: var(--font-size-2xl); /* 24px */
+        line-height: 1.25;
+        margin-bottom: 0.75rem;
+    }
+    
+    h2, .h2 {
+        font-size: var(--font-size-xl); /* 20px */
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+    }
+    
+    h3, .h3 {
+        font-size: var(--font-size-lg); /* 18px */
+        line-height: 1.35;
+    }
+    
+    h4, .h4 {
+        font-size: var(--font-size-base); /* 16px */
+        line-height: 1.4;
+    }
+    
+    p, .body-text {
+        font-size: var(--font-size-base);
+        line-height: 1.5;
+        margin-bottom: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    h1, .h1 {
+        font-size: 1.375rem; /* 22px */
+        line-height: 1.3;
+    }
+    
+    h2, .h2 {
+        font-size: 1.125rem; /* 18px */
+        line-height: 1.35;
+    }
+    
+    h3, .h3 {
+        font-size: 1rem; /* 16px */
+        line-height: 1.4;
+    }
+    
+    p {
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 360px) {
+    h1, .h1 {
+        font-size: 1.25rem; /* 20px */
+    }
+    
+    h2, .h2 {
+        font-size: 1rem; /* 16px */
+    }
+    
+    h1, h2, h3, h4 {
+        margin-bottom: 0.5rem;
+    }
+    
+    p {
+        margin-bottom: 0.625rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    body {
+        font-size: 1.0625rem; /* 17px */
+    }
+    
+    h1, .h1 {
+        font-size: 2.25rem; /* 36px */
+    }
+    
+    h2, .h2 {
+        font-size: 1.75rem; /* 28px */
+    }
+}
+
+@media (min-width: 1920px) {
+    body {
+        font-size: 1.125rem; /* 18px */
+    }
+    
+    h1, .h1 {
+        font-size: 2.5rem; /* 40px */
+    }
+    
+    h2, .h2 {
+        font-size: 2rem; /* 32px */
+    }
+}
+
+/* ============================================
+   COMPONENT-SPECIFIC TYPOGRAPHY
+   ============================================ */
+
+/* Buttons Typography */
+.btn {
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base); /* 16px - prevents iOS zoom */
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    letter-spacing: 0.01em;
+    text-align: center;
+}
+
+.btn-sm {
+    font-size: var(--font-size-sm); /* 14px */
+    padding: 0.5rem 0.875rem;
+}
+
+.btn-lg {
+    font-size: 1.125rem; /* 18px */
+    padding: 1rem 1.5rem;
+}
+
+/* Mobile button optimization */
+@media (max-width: 768px) {
+    .btn {
+        font-size: var(--font-size-base); /* Keep at 16px */
+        min-height: 44px; /* Touch target */
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* Form Labels Typography */
+label, .form-label {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Form Inputs Typography - Enhanced */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+input[type="tel"],
+input[type="search"],
+select,
+textarea {
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base); /* 16px - prevents iOS zoom */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+/* Placeholder text */
+::placeholder {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* Mobile input optimization */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="time"],
+    input[type="tel"],
+    input[type="search"],
+    select,
+    textarea {
+        font-size: var(--font-size-base) !important; /* MUST be 16px */
+        min-height: 44px; /* Touch target */
+    }
+    
+    label, .form-label {
+        font-size: var(--font-size-sm);
+        margin-bottom: 0.375rem;
+    }
+}
+
+/* Tables Typography - Enhanced */
+.data-table th {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.data-table td {
+    font-size: var(--font-size-base); /* 16px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+/* Mobile table optimization */
+@media (max-width: 768px) {
+    .data-table td {
+        font-size: var(--font-size-base);
+        line-height: 1.6;
+    }
+    
+    .data-table td[data-label]::before {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+    }
+}
+
+/* Compact table variant */
+.data-table.compact th,
+.data-table.compact td {
+    font-size: var(--font-size-sm); /* 14px */
+    padding: 0.625rem 0.75rem;
+}
+
+/* Cards & Stat Cards Typography */
+.card-title {
+    font-size: var(--font-size-lg); /* 18px */
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+    margin-bottom: 0.25rem;
+}
+
+.card-content {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+/* Stat Numbers - Specific styling for stat cards */
+.stat-content h3 {
+    font-size: 2rem; /* 32px */
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.25rem;
+}
+
+.stat-content p {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+/* Mobile card optimization */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: var(--font-size-base); /* 16px */
+    }
+    
+    .stat-content h3 {
+        font-size: 1.5rem; /* 24px */
+    }
+    
+    .stat-content p {
+        font-size: var(--font-size-xs); /* 12px */
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-content h3 {
+        font-size: 1.25rem; /* 20px */
+    }
+}
+
+/* Navigation Typography - Enhanced */
+.nav-link {
+    font-size: var(--font-size-base); /* 16px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.nav-brand {
+    font-size: 1.25rem; /* 20px */
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+}
+
+/* Mobile navigation */
+@media (max-width: 768px) {
+    .nav-link {
+        font-size: var(--font-size-base);
+        padding: 0.75rem 1rem;
+        min-height: 44px; /* Touch target */
+    }
+    
+    .nav-brand {
+        font-size: 1.125rem; /* 18px */
+    }
+}
+
+/* Badges & Tags Typography */
+.badge {
+    font-size: var(--font-size-xs); /* 12px */
+    font-weight: var(--font-weight-medium);
+    line-height: 1.4;
+    padding: 0.25rem 0.5rem;
+    letter-spacing: 0.02em;
+}
+
+/* Mobile badges */
+@media (max-width: 768px) {
+    .badge {
+        font-size: var(--font-size-xs);
+        padding: 0.375rem 0.625rem;
+    }
+}
+
+/* Alerts & Notifications Typography */
+.alert, .notification {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    padding: 0.75rem 1rem;
+}
+
+.alert-title {
+    font-size: var(--font-size-base); /* 16px */
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.25rem;
+}
+
+/* Breadcrumbs Typography */
+.breadcrumb {
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.breadcrumb-item {
+    font-size: var(--font-size-sm);
+}
+
+.breadcrumb-item.active {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+}
+
+/* Monospace Font Stack (For Code, SKUs, Barcodes) */
+code, .code,
+.sku, .barcode-code,
+.monospace {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Text Truncation Utilities */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+    max-height: 3em; /* 2 lines × 1.5 line-height */
+}
+
+.text-truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+    max-height: 4.5em; /* 3 lines × 1.5 line-height */
+}
+
+/* Readable Width Utilities */
+.readable-width {
+    max-width: 65ch; /* Optimal for reading */
+    margin: 0 auto;
+}
+
+.narrow-content {
+    max-width: 45ch;
+}
+
+.wide-content {
+    max-width: 100%;
+}
+
+/* Letter Spacing Optimizations */
+.uppercase, .text-uppercase {
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.numeric, .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+}
+
+/* Font Weight Utilities */
+.heading-light {
+    font-weight: var(--font-weight-normal); /* 400 */
+}
+
+.heading-medium {
+    font-weight: var(--font-weight-medium); /* 500 */
+}
+
+.heading-bold {
+    font-weight: var(--font-weight-semibold); /* 600 */
+}
+
+.emphasis {
+    font-weight: var(--font-weight-semibold); /* 600 preferred */
+}
+
+.strong-emphasis {
+    font-weight: var(--font-weight-bold); /* 700 - use sparingly */
 }
 
 /* Login Page */
@@ -139,7 +673,7 @@ html {
     padding: 15px;
     background: #f1f5f9;
     border-radius: 0;
-    font-size: 14px;
+    font-size: var(--font-size-sm); /* Use typography system - 14px */
     color: var(--text-secondary);
 }
 
@@ -300,7 +834,7 @@ body.menu-open {
     margin: 0;
     width: 100%;
     padding: 0.5rem 0.875rem;
-    font-size: 0.8rem;
+    font-size: var(--font-size-sm); /* 14px - use typography system */
 }
 
 /* Container */
@@ -409,7 +943,7 @@ body.menu-open {
 }
 
 .page-header h1 {
-    font-size: 2rem;
+    font-size: var(--font-size-3xl); /* Use typography system - 32px */
     color: var(--text-primary);
 }
 
@@ -434,8 +968,8 @@ body.menu-open {
     padding: 0.75rem 1.5rem;
     border: none;
     border-radius: 0;
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: var(--font-size-base); /* Use typography system */
+    font-weight: var(--font-weight-medium);
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
@@ -616,25 +1150,8 @@ body.menu-open {
     min-width: 120px; /* Minimum width for readability */
 }
 
-/* On large screens, form-actions buttons should have equal widths */
-@media (min-width: 768px) {
-    .form-actions {
-        justify-content: flex-end;
-    }
-    
-    .form-actions .btn {
-        min-width: 120px; /* Consistent minimum width */
-        flex: 0 0 auto; /* Don't grow, maintain equal widths */
-    }
-    
-    /* When form-actions has 2 buttons, make them equal width */
-    .form-actions .btn:first-child:nth-last-child(2),
-    .form-actions .btn:last-child:nth-child(2) {
-        flex: 1 1 0; /* Equal width for 2 buttons */
-        min-width: 120px;
-        max-width: 200px; /* Max width to prevent buttons from being too wide */
-    }
-}
+/* Form-actions button rules are handled in the earlier @media (min-width: 768px) block above */
+/* This ensures consistent button sizing across the application */
 
 /* Category select row */
 .category-select-row {
@@ -1224,17 +1741,8 @@ body.menu-open {
     font-size: 2.5rem;
 }
 
-.stat-content h3 {
-    font-size: 2rem;
-    margin-bottom: 0.25rem;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-}
-
-.stat-content p {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
+/* Stat content styles are now defined in typography system above */
+/* This ensures consistency with typography variables */
 
 /* Dashboard Sections */
 .dashboard-sections {
@@ -1320,8 +1828,8 @@ body.menu-open {
 .close {
     color: var(--text-secondary);
     float: right;
-    font-size: 28px;
-    font-weight: bold;
+    font-size: 1.75rem; /* Use relative units - 28px equivalent */
+    font-weight: var(--font-weight-bold);
     cursor: pointer;
     position: absolute;
     right: 1rem;
@@ -1479,11 +1987,11 @@ body.menu-open {
     }
 
     .stat-content h3 {
-        font-size: 1.25rem;
+        font-size: 1.25rem; /* Uses typography system - 20px */
     }
 
     .stat-content p {
-        font-size: 0.8rem;
+        font-size: var(--font-size-xs); /* 12px - use typography system */
     }
 
     .section-card {
@@ -1495,7 +2003,7 @@ body.menu-open {
     }
 
     .data-table {
-        font-size: 0.8rem;
+        font-size: var(--font-size-sm); /* 14px - use typography system */
         width: 100%;
         max-width: 100%;
         table-layout: auto;
@@ -1529,7 +2037,7 @@ body.menu-open {
     .form-group select,
     .form-group textarea {
         padding: 0.625rem;
-        font-size: 0.9rem;
+        font-size: 1rem; /* Keep at 16px to prevent iOS zoom */
     }
 
     .login-box {
@@ -1591,7 +2099,7 @@ body.menu-open {
     }
 
     .close {
-        font-size: 20px;
+        font-size: 1.25rem; /* Use typography system - 20px */
         right: 0.5rem;
         top: 0.5rem;
         min-width: 36px;
@@ -1788,7 +2296,7 @@ body.menu-open {
     }
 
     .stat-content h3 {
-        font-size: 1.5rem;
+        font-size: 1.5rem; /* Uses typography system - 24px */
     }
 
     .dashboard-sections {
@@ -1891,7 +2399,7 @@ body.menu-open {
     }
 
     .close {
-        font-size: 24px;
+        font-size: 1.5rem; /* Use typography system - 24px */
         right: 0.75rem;
         top: 0.75rem;
     }

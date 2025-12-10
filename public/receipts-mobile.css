@@ -1,0 +1,90 @@
+/* Receipts Page Mobile Optimizations */
+
+/* Receipt List Mobile */
+@media (max-width: 768px) {
+    .data-table-card {
+        padding: 1rem;
+    }
+    
+    .data-table-card .card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .receipt-info {
+        font-size: 0.875rem;
+        margin: 0.5rem 0;
+    }
+    
+    .receipt-amount {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+    }
+    
+    .data-table-card .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .data-table-card .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Receipt Preview Mobile */
+@media (max-width: 768px) {
+    .receipt-preview {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .receipt-preview table {
+        font-size: 0.75rem;
+    }
+    
+    .receipt-preview th,
+    .receipt-preview td {
+        padding: 0.375rem;
+    }
+}
+
+/* Print Mobile */
+@media (max-width: 768px) {
+    .print-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .print-controls .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+

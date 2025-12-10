@@ -1,0 +1,66 @@
+/* Categories Page Mobile Optimizations */
+
+/* Category Form Mobile */
+@media (max-width: 768px) {
+    .category-form {
+        padding: 1rem;
+    }
+    
+    .category-form input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .category-form .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .category-form .btn {
+        width: 100%;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+}
+
+/* Category List Mobile */
+@media (max-width: 768px) {
+    .data-table-card {
+        padding: 1rem;
+    }
+    
+    .data-table-card .card-header {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .data-table-card .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .data-table-card .btn {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+

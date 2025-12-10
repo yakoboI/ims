@@ -1,0 +1,113 @@
+/* Inventory Operations Page Mobile Optimizations */
+
+/* Operation Forms Mobile */
+@media (max-width: 768px) {
+    .operation-modal .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .operation-form .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .operation-form input,
+    .operation-form select,
+    .operation-form textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        width: 100%;
+    }
+    
+    .date-time-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .date-input,
+    .time-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .quantity-input-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .quantity-input {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .operation-form .btn {
+        width: 100%;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+}
+
+/* Transfer UI Mobile */
+@media (max-width: 768px) {
+    .transfer-shop-select {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        margin-bottom: 1rem;
+    }
+    
+    .transfer-indicator {
+        font-size: 0.875rem;
+        margin: 0.5rem 0;
+    }
+}
+
+/* Operation History Mobile */
+@media (max-width: 768px) {
+    .operation-history {
+        margin-top: 1rem;
+    }
+    
+    .operation-history-item {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .operation-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+}
+

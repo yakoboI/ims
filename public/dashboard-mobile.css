@@ -1,0 +1,112 @@
+/* Dashboard Mobile Optimizations */
+
+/* Stats Grid Optimization */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1rem 0.75rem;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.25rem;
+    }
+    
+    .stat-content p {
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .stat-card {
+        flex-direction: row;
+        text-align: left;
+        padding: 0.75rem;
+    }
+    
+    .stat-icon {
+        margin-right: 0.75rem;
+        margin-bottom: 0;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.125rem;
+    }
+}
+
+/* Dashboard Sections Mobile Layout */
+@media (max-width: 768px) {
+    .dashboard-sections {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .section-card {
+        padding: 1rem;
+    }
+    
+    .alert-list,
+    .recent-list {
+        max-height: 300px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Shop Selector Mobile Placement */
+@media (max-width: 768px) {
+    .shop-selector-container {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+    
+    .shop-selector {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+}
+
+/* Touch-Friendly Actions */
+@media (max-width: 768px) {
+    .section-card .btn {
+        min-height: 44px;
+        min-width: 44px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+

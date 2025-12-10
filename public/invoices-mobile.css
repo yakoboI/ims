@@ -1,0 +1,106 @@
+/* Invoices Page Mobile Optimizations */
+
+/* Invoice List Mobile */
+@media (max-width: 768px) {
+    .data-table-card {
+        padding: 1rem;
+    }
+    
+    .data-table-card .card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .invoice-info {
+        font-size: 0.875rem;
+        margin: 0.5rem 0;
+    }
+    
+    .invoice-amount {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+    }
+    
+    .data-table-card .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .data-table-card .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Invoice Preview Mobile */
+@media (max-width: 768px) {
+    .invoice-preview {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .invoice-preview table {
+        font-size: 0.75rem;
+    }
+    
+    .invoice-preview th,
+    .invoice-preview td {
+        padding: 0.375rem;
+    }
+    
+    .invoice-preview .invoice-header {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .invoice-preview .invoice-total {
+        font-size: 1rem;
+        margin-top: 1rem;
+    }
+}
+
+/* PDF Mobile */
+@media (max-width: 768px) {
+    .pdf-viewer {
+        width: 100%;
+        height: auto;
+        min-height: 400px;
+    }
+    
+    .pdf-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .pdf-controls .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+

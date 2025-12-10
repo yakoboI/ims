@@ -1,0 +1,105 @@
+/* Shop Statistics Page Mobile Optimizations */
+
+/* Statistics Cards Mobile */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1rem 0.75rem;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.25rem;
+    }
+    
+    .stat-content p {
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .stat-card {
+        flex-direction: row;
+        text-align: left;
+        padding: 0.75rem;
+    }
+    
+    .stat-icon {
+        margin-right: 0.75rem;
+        margin-bottom: 0;
+    }
+}
+
+/* Charts Mobile */
+@media (max-width: 768px) {
+    .chart-container {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .chart-container canvas {
+        max-height: 250px !important;
+    }
+    
+    .chart-container h3 {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container canvas {
+        max-height: 200px !important;
+    }
+}
+
+/* Comparison Tables Mobile */
+@media (max-width: 768px) {
+    .comparison-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .comparison-table table {
+        font-size: 0.875rem;
+        min-width: 600px;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.5rem;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+

@@ -1,0 +1,95 @@
+/* Users Page Mobile Optimizations */
+
+/* User Modal Mobile */
+@media (max-width: 768px) {
+    .user-modal .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .user-modal .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .role-permissions-section {
+        margin-top: 1rem;
+    }
+    
+    .permission-checkboxes {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        width: 100%;
+    }
+}
+
+/* User Table Mobile Cards */
+@media (max-width: 768px) {
+    .data-table-card {
+        padding: 1rem;
+    }
+    
+    .data-table-card .card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .data-table-card .role-badge {
+        display: inline-block;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .data-table-card .card-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .data-table-card .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .user-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+}
+

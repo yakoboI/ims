@@ -1,0 +1,106 @@
+/* Stock Management Page Mobile Optimizations */
+
+/* Stock Cards Mobile */
+@media (max-width: 768px) {
+    .stock-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stock-card-header {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stock-level {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0.5rem 0;
+    }
+    
+    .stock-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .stock-actions .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Adjustment Forms Mobile */
+@media (max-width: 768px) {
+    .adjustment-modal .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+        margin: 0.5rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .adjustment-form .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .adjustment-form input,
+    .adjustment-form select,
+    .adjustment-form textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        width: 100%;
+    }
+    
+    .quantity-stepper {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .quantity-stepper .btn {
+        flex: 1;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    .adjustment-form .btn {
+        width: 100%;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .adjustment-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+}
+

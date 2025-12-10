@@ -1,0 +1,68 @@
+/* Goods Barcodes Page Mobile Optimizations */
+
+/* Barcode Display Mobile */
+@media (max-width: 768px) {
+    .barcode-item {
+        width: 100%;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .barcode-image {
+        max-width: 100%;
+        height: auto;
+        margin: 0.75rem 0;
+    }
+    
+    .barcode-code {
+        font-size: 1rem;
+        font-family: var(--font-family-mono);
+        margin: 0.5rem 0;
+        word-break: break-all;
+    }
+    
+    .barcode-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .barcode-actions .btn {
+        width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Print Mobile */
+@media (max-width: 768px) {
+    .print-options {
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    
+    .print-options .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
+
