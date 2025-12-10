@@ -100,6 +100,16 @@ function renderSalesTable(sales) {
 function setupEventListeners() {
     document.getElementById('newSaleForm').addEventListener('submit', handleSaleSubmit);
     
+    // Camera scan button event listeners
+    const cameraScanBtn = document.getElementById('cameraScanBtn');
+    const stopCameraBtn = document.getElementById('stopCameraBtn');
+    if (cameraScanBtn) {
+        cameraScanBtn.addEventListener('click', startCameraScan);
+    }
+    if (stopCameraBtn) {
+        stopCameraBtn.addEventListener('click', stopCameraScan);
+    }
+    
     // Use unified barcode scanner
     const barcodeInput = document.getElementById('saleBarcodeInput');
     if (barcodeInput && window.BarcodeScanner) {
@@ -148,7 +158,7 @@ function openNewSaleModal() {
 
 // Camera Barcode Scanning Functions
 // Expose functions globally for onclick handlers
-window.startCameraScan = async function startCameraScan() {
+async function startCameraScan() {
     if (cameraScanning) {
         return; // Already scanning
     }
@@ -246,7 +256,7 @@ window.startCameraScan = async function startCameraScan() {
     }
 }
 
-window.stopCameraScan = function stopCameraScan() {
+function stopCameraScan() {
     if (!cameraScanning && !cameraCodeReader) {
         return;
     }
@@ -288,6 +298,10 @@ window.stopCameraScan = function stopCameraScan() {
         console.error('Error stopping camera:', error);
     }
 }
+
+// Explicitly expose functions to global scope for inline onclick handlers
+window.startCameraScan = startCameraScan;
+window.stopCameraScan = stopCameraScan;
 
 function handleBarcodeInput(e) {
     if (barcodeScanInProgress) return;
