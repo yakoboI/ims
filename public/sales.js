@@ -260,21 +260,54 @@ async function startCameraScan() {
                     console.error('Camera scan error:', err);
                 }
             }
+        }).catch(permissionError => {
+            // Handle permission errors specifically
+            console.error('Camera permission error:', permissionError);
+            stopCameraScan();
+            
+            let errorMessage = 'Camera access denied. ';
+            if (permissionError.name === 'NotAllowedError' || permissionError.message?.includes('Permission')) {
+                errorMessage += 'Please allow camera access in your browser settings and try again.';
+            } else {
+                errorMessage += permissionError.message || 'Please check your browser settings.';
+            }
+            
+            cameraStatus.textContent = errorMessage;
+            cameraStatus.style.color = 'var(--danger-color)';
+            cameraBtn.disabled = false;
+            
+            showNotification(errorMessage, 'error');
+            
+            // Reset UI after delay
+            setTimeout(() => {
+                cameraStatus.textContent = '';
+                cameraStatus.style.color = '';
+            }, 8000);
         });
         
     } catch (error) {
         console.error('Camera scan error:', error);
-        cameraStatus.textContent = 'Error: ' + (error.message || 'Failed to start camera');
+        
+        let errorMessage = 'Failed to start camera. ';
+        if (error.name === 'NotAllowedError' || error.message?.includes('Permission')) {
+            errorMessage += 'Camera access was denied. Please allow camera access in your browser settings.';
+        } else if (error.name === 'NotFoundError' || error.message?.includes('No camera')) {
+            errorMessage += 'No camera found. Please connect a camera device.';
+        } else {
+            errorMessage += error.message || 'Please check permissions and try again.';
+        }
+        
+        cameraStatus.textContent = errorMessage;
         cameraStatus.style.color = 'var(--danger-color)';
         cameraBtn.disabled = false;
         
-        showNotification(error.message || 'Failed to start camera. Please check permissions.', 'error');
+        showNotification(errorMessage, 'error');
         
         // Reset UI
         setTimeout(() => {
             cameraStatus.textContent = '';
             cameraStatus.style.color = '';
-        }, 5000);
+        }, 8000);
     }
 }
 
