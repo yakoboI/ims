@@ -152,6 +152,31 @@ function showReport(reportType) {
         case 'slow-moving':
             loadSlowMovingReport();
             break;
+        case 'sales-trends':
+            if (typeof loadSalesTrendsChart === 'function') {
+                loadSalesTrendsChart();
+            }
+            break;
+        case 'revenue-analysis':
+            if (typeof loadRevenueAnalysisChart === 'function') {
+                loadRevenueAnalysisChart();
+            }
+            break;
+        case 'category-performance':
+            if (typeof loadCategoryPerformanceChart === 'function') {
+                loadCategoryPerformanceChart();
+            }
+            break;
+        case 'monthly-comparison':
+            if (typeof loadMonthlyComparisonChart === 'function') {
+                loadMonthlyComparisonChart();
+            }
+            break;
+        case 'profit-analysis':
+            if (typeof loadProfitAnalysisChart === 'function') {
+                loadProfitAnalysisChart();
+            }
+            break;
     }
 }
 
