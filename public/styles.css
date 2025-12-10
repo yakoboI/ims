@@ -340,6 +340,57 @@ body.menu-open {
     justify-content: center;
 }
 
+/* Button group - ensures equal width buttons on large screens */
+.btn-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-group .btn {
+    flex: 1 1 auto; /* Equal width buttons in group */
+    min-width: 120px; /* Minimum width for readability */
+}
+
+/* On large screens, buttons in groups should have equal widths */
+@media (min-width: 768px) {
+    /* Form actions buttons - equal width on large screens */
+    .form-actions .btn {
+        min-width: 120px; /* Consistent minimum width */
+        flex: 0 0 auto; /* Don't grow, maintain size */
+    }
+    
+    /* When form-actions has 2+ buttons, make them equal width */
+    .form-actions:has(.btn:nth-child(2)) .btn {
+        flex: 1 1 0; /* Equal width for 2+ buttons */
+        min-width: 120px;
+        max-width: 200px; /* Max width to prevent buttons from being too wide */
+    }
+    
+    /* Fallback for browsers that don't support :has() */
+    .form-actions.equal-width .btn {
+        flex: 1 1 0;
+        min-width: 120px;
+        max-width: 200px;
+    }
+    
+    .page-header > div .btn {
+        min-width: 120px; /* Consistent minimum width */
+    }
+    
+    /* Equal width for buttons in page header groups (2+ buttons) */
+    .page-header > div {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .page-header > div .btn:not(:only-child) {
+        flex: 0 0 auto;
+        min-width: 120px;
+        max-width: 200px;
+    }
+}
+
 @media (max-width: 575.98px) {
     .page-header {
         flex-direction: column;
@@ -551,6 +602,38 @@ body.menu-open {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+/* Button group - ensures equal width buttons on large screens */
+.btn-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-group .btn {
+    flex: 1 1 auto; /* Equal width buttons in group */
+    min-width: 120px; /* Minimum width for readability */
+}
+
+/* On large screens, form-actions buttons should have equal widths */
+@media (min-width: 768px) {
+    .form-actions {
+        justify-content: flex-end;
+    }
+    
+    .form-actions .btn {
+        min-width: 120px; /* Consistent minimum width */
+        flex: 0 0 auto; /* Don't grow, maintain equal widths */
+    }
+    
+    /* When form-actions has 2 buttons, make them equal width */
+    .form-actions .btn:first-child:nth-last-child(2),
+    .form-actions .btn:last-child:nth-child(2) {
+        flex: 1 1 0; /* Equal width for 2 buttons */
+        min-width: 120px;
+        max-width: 200px; /* Max width to prevent buttons from being too wide */
+    }
 }
 
 /* Category select row */
@@ -1587,6 +1670,7 @@ body.menu-open {
     .form-actions .btn {
         flex: 1;
         min-width: 0;
+        width: 100%; /* Equal width on small screens */
     }
 
     .category-select-row {
@@ -1791,6 +1875,7 @@ body.menu-open {
     .form-actions .btn {
         flex: 1;
         min-width: 0;
+        width: 100%; /* Equal width on small screens */
     }
 
     .modal-content {
