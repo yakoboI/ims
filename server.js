@@ -4277,16 +4277,65 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Graceful shutdown handler
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} signal received: starting graceful shutdown...`);
+  
+  // Stop accepting new connections
+  if (server) {
+    server.close(() => {
+      console.log('✓ HTTP server closed');
+      
+      // Close database connection
+      if (db) {
+        db.close((err) => {
+          if (err) {
+            console.error('Error closing database:', err);
+          } else {
+            console.log('✓ Database connection closed');
+          }
+          console.log('✓ Graceful shutdown complete');
+          process.exit(0);
+        });
+      } else {
+        console.log('✓ Graceful shutdown complete');
+        process.exit(0);
+      }
+    });
+    
+    // Force close after 10 seconds
+    setTimeout(() => {
+      console.error('⚠ Forced shutdown after timeout');
+      if (db) {
+        db.close();
+      }
+      process.exit(1);
+    }, 10000);
+  } else {
+    // Server not started yet, just exit
+    if (db) {
+      db.close();
+    }
+    process.exit(0);
+  }
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // Start server with error handling
+let server;
 try {
   // Listen on 0.0.0.0 to accept connections from Railway's network
-  app.listen(PORT, '0.0.0.0', () => {
+  server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`IMS Server running on port ${PORT}`);
     console.log(`✓ Listening on 0.0.0.0:${PORT} (Railway compatible)`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`✓ API Version: v1 (backward compatible with /api/ routes)`);
     console.log(`✓ Security features enabled`);
     console.log(`✓ Database: ${db ? 'Connected' : 'Not connected (will retry on first request)'}`);
+    console.log(`✓ Graceful shutdown enabled (SIGTERM/SIGINT)`);
     
     // Log registered routes for debugging
     try {
