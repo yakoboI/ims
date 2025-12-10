@@ -94,7 +94,12 @@ function showReport(reportType) {
         'sales': 'salesReport',
         'purchases': 'purchasesReport',
         'fast-moving': 'fastMovingReport',
-        'slow-moving': 'slowMovingReport'
+        'slow-moving': 'slowMovingReport',
+        'sales-trends': 'salesTrendsReport',
+        'revenue-analysis': 'revenueAnalysisReport',
+        'category-performance': 'categoryPerformanceReport',
+        'monthly-comparison': 'monthlyComparisonReport',
+        'profit-analysis': 'profitAnalysisReport'
     };
     
     const reportId = idMap[reportType] || (reportType + 'Report');
