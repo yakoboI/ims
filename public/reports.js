@@ -167,23 +167,67 @@ function showReport(reportType) {
             }
             break;
         case 'revenue-analysis':
+            console.log('Loading revenue analysis chart...');
             if (typeof loadRevenueAnalysisChart === 'function') {
-                loadRevenueAnalysisChart();
+                loadRevenueAnalysisChart().catch(err => {
+                    console.error('Error loading revenue analysis chart:', err);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Error loading revenue analysis chart', 'error');
+                    }
+                });
+            } else {
+                console.error('loadRevenueAnalysisChart function not found');
+                if (typeof showNotification === 'function') {
+                    showNotification('Chart function not available. Please refresh the page.', 'error');
+                }
             }
             break;
         case 'category-performance':
+            console.log('Loading category performance chart...');
             if (typeof loadCategoryPerformanceChart === 'function') {
-                loadCategoryPerformanceChart();
+                loadCategoryPerformanceChart().catch(err => {
+                    console.error('Error loading category performance chart:', err);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Error loading category performance chart', 'error');
+                    }
+                });
+            } else {
+                console.error('loadCategoryPerformanceChart function not found');
+                if (typeof showNotification === 'function') {
+                    showNotification('Chart function not available. Please refresh the page.', 'error');
+                }
             }
             break;
         case 'monthly-comparison':
+            console.log('Loading monthly comparison chart...');
             if (typeof loadMonthlyComparisonChart === 'function') {
-                loadMonthlyComparisonChart();
+                loadMonthlyComparisonChart().catch(err => {
+                    console.error('Error loading monthly comparison chart:', err);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Error loading monthly comparison chart', 'error');
+                    }
+                });
+            } else {
+                console.error('loadMonthlyComparisonChart function not found');
+                if (typeof showNotification === 'function') {
+                    showNotification('Chart function not available. Please refresh the page.', 'error');
+                }
             }
             break;
         case 'profit-analysis':
+            console.log('Loading profit analysis chart...');
             if (typeof loadProfitAnalysisChart === 'function') {
-                loadProfitAnalysisChart();
+                loadProfitAnalysisChart().catch(err => {
+                    console.error('Error loading profit analysis chart:', err);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Error loading profit analysis chart', 'error');
+                    }
+                });
+            } else {
+                console.error('loadProfitAnalysisChart function not found');
+                if (typeof showNotification === 'function') {
+                    showNotification('Chart function not available. Please refresh the page.', 'error');
+                }
             }
             break;
     }
