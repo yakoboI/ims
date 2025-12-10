@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadStockReport();
     await loadAnalyticsOverview();
     
+    // Setup mobile sidebar toggle
+    setupMobileSidebar();
+    
     // Setup tab button event listeners (replaces inline onclick handlers)
     const tabButtons = document.querySelectorAll('.tab-btn');
     tabButtons.forEach(btn => {

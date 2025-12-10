@@ -28,6 +28,8 @@
     
     <!-- Stylesheet -->
     <link rel="stylesheet" href="styles.css">
+    <!-- Reports Mobile Styles -->
+    <link rel="stylesheet" href="reports-mobile.css">
     
     <!-- Browser Compatibility -->
     <script src="browser-compat.js"></script>
@@ -109,9 +111,14 @@
             <h1>Reports & Analytics</h1>
         </header>
 
-        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <div class="reports-layout-wrapper">
+            <!-- Mobile Sidebar Toggle Button -->
+            <button class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-label="Toggle analytics sidebar" style="display: none;">
+                <i class="fas fa-chart-bar"></i> Analytics
+            </button>
+            
             <!-- Analytics Sidebar -->
-            <aside class="analytics-sidebar" style="flex: 0 0 300px; min-width: 280px;">
+            <aside class="analytics-sidebar" id="analyticsSidebar">
                 <h2 style="margin-bottom: 1rem; font-size: 1.25rem;">Analytics Overview</h2>
                 
                 <!-- Quick Stats Cards -->
@@ -173,8 +180,8 @@
             </aside>
 
             <!-- Main Reports Content -->
-            <div class="reports-content" style="flex: 1; min-width: 0;">
-                <nav class="reports-tabs" role="tablist" aria-label="Report types">
+            <div class="reports-content">
+                <nav class="reports-tabs" role="tablist" aria-label="Report types" id="reportsTabsNav">
                     <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="stockReport" id="tab-stock">Stock Report</button>
                     <button class="tab-btn" role="tab" aria-selected="false" aria-controls="salesReport" id="tab-sales">Sales Report</button>
                     <button class="tab-btn" role="tab" aria-selected="false" aria-controls="purchasesReport" id="tab-purchases">Purchase Report</button>
