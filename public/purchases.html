@@ -177,7 +177,6 @@
                     <select id="purchaseSupplier" required aria-required="true" aria-label="Select supplier">
                         <option value="">Select Supplier</option>
                     </select>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="openSupplierModal()" aria-label="Add new supplier">+ Add Supplier</button>
                 </div>
                 
                 <div class="form-group">
@@ -187,11 +186,6 @@
                 
                 <section class="purchase-items-section" aria-labelledby="purchaseItemsHeading">
                     <h3 id="purchaseItemsHeading">Items</h3>
-                    <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="purchaseBarcodeInput">Scan Barcode (or select item below)</label>
-                        <input type="text" id="purchaseBarcodeInput" placeholder="Scan barcode here..." autocomplete="off" style="font-size: 1.1rem; padding: 0.75rem;" aria-label="Scan barcode to add item">
-                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Barcode scanner will auto-add items</small>
-                    </div>
                     <div class="add-item-row">
                         <label for="purchaseItemSelect" class="sr-only">Select item</label>
                         <select id="purchaseItemSelect" class="item-select" aria-label="Select item to add">

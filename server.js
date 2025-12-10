@@ -343,6 +343,44 @@ const initDatabase = () => {
       // Ignore error if column already exists
     });
 
+    // Add expiration_date column if it doesn't exist (migration for existing databases)
+    db.run(`ALTER TABLE items ADD COLUMN expiration_date DATE`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Add shop_id column to items if it doesn't exist (migration for existing databases)
+    db.run(`ALTER TABLE items ADD COLUMN shop_id INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Add is_archived column to items if it doesn't exist (migration for existing databases)
+    db.run(`ALTER TABLE items ADD COLUMN is_archived INTEGER DEFAULT 0`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Item Templates table
+    db.run(`CREATE TABLE IF NOT EXISTS item_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      item_data TEXT NOT NULL,
+      shop_id INTEGER,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (shop_id) REFERENCES shops(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
+
+    // Add shop_id column if it doesn't exist (migration for existing databases)
+    db.run(`ALTER TABLE item_templates ADD COLUMN shop_id INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Add created_by column if it doesn't exist (migration for existing databases)
+    db.run(`ALTER TABLE item_templates ADD COLUMN created_by INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+
     // Suppliers table
     db.run(`CREATE TABLE IF NOT EXISTS suppliers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -427,6 +465,19 @@ const initDatabase = () => {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
+
+    // Expenses table
+    db.run(`CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      expense_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      category TEXT NOT NULL,
+      description TEXT,
+      amount REAL NOT NULL,
+      payment_method TEXT,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (created_by) REFERENCES users(id)
     )`);
 
@@ -691,7 +742,13 @@ const getShopFilter = (req) => {
   // Superadmin can filter by shop_id from query params or body
   if (user.role === 'superadmin') {
     const shopId = req.query.shop_id || req.body.shop_id;
-    return shopId ? { shop_id: parseInt(shopId) } : {};
+    if (shopId) {
+      const parsedShopId = parseInt(shopId);
+      if (!isNaN(parsedShopId)) {
+        return { shop_id: parsedShopId };
+      }
+    }
+    return {};
   }
   
   // Other users are limited to their shop
@@ -1588,25 +1645,40 @@ app.get('/api/items', authenticateToken, (req, res) => {
     LEFT JOIN categories c ON i.category_id = c.id
   `;
   
-  // Filter by shop_id if provided (for superadmin)
-  // Items don't have shop_id directly, but we can filter by checking if item has been used in sales/purchases by users from that shop
+  const params = [];
+  const conditions = [];
+  
+  // Filter by shop_id
   if (shopFilter.shop_id && req.user.role === 'superadmin') {
-    query += ` WHERE EXISTS (
-      SELECT 1 FROM sales_items si
-      JOIN sales s ON si.sale_id = s.id
-      JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
-      UNION
-      SELECT 1 FROM purchase_items pi
-      JOIN purchases p ON pi.purchase_id = p.id
-      JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
-    )`;
+    // Superadmin with shop filter: show items for that shop
+    conditions.push('i.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role === 'superadmin' && !shopFilter.shop_id) {
+    // Superadmin without shop filter: show all items (no filter)
+  } else if (req.user.role !== 'superadmin') {
+    // Non-superadmin: show items for their shop only
+    if (req.user.shop_id) {
+      conditions.push('i.shop_id = ?');
+      params.push(req.user.shop_id);
+    } else {
+      // User without shop_id sees no items
+      conditions.push('1=0');
+    }
+  }
+  
+  // Filter out archived items unless includeArchived=true
+  const includeArchived = req.query.includeArchived === 'true';
+  if (!includeArchived) {
+    conditions.push('(i.is_archived IS NULL OR i.is_archived = 0)');
+  }
+  
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
   }
   
   query += ` ORDER BY i.name`;
   
-  db.all(query, (err, items) => {
+  db.all(query, params, (err, items) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -1616,7 +1688,33 @@ app.get('/api/items', authenticateToken, (req, res) => {
 
 app.get('/api/items/:id', authenticateToken, (req, res) => {
   const id = req.params.id;
-  db.get('SELECT * FROM items WHERE id = ?', [id], (err, item) => {
+  
+  // Validate ID
+  if (!id || isNaN(parseInt(id))) {
+    return res.status(400).json({ error: 'Invalid item ID' });
+  }
+  
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM items WHERE id = ?';
+  const params = [id];
+  
+  // Apply shop filtering
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    // Superadmin with shop filter: only show item if it belongs to that shop
+    query += ' AND shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin') {
+    // Non-superadmin: only show items from their shop
+    if (req.user.shop_id) {
+      query += ' AND shop_id = ?';
+      params.push(req.user.shop_id);
+    } else {
+      // User without shop_id sees no items
+      query += ' AND 1=0';
+    }
+  }
+  
+  db.get(query, params, (err, item) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -1674,7 +1772,8 @@ app.get('/api/items/barcode/:barcode', authenticateToken, (req, res) => {
 });
 
 app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
-  const { name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url } = req.body;
+  const { name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url, expiration_date, shop_id } = req.body;
+  const shopFilter = getShopFilter(req);
   
   // SECURITY: Input validation
   if (!name || typeof name !== 'string' || name.trim().length < 1) {
@@ -1706,9 +1805,23 @@ app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), (
     return res.status(400).json({ error: 'Valid unit price is required' });
   }
   
+  // Determine shop_id: use from body if provided, otherwise from shopFilter (for superadmin), or user's shop_id
+  let itemShopId = null;
+  if (shop_id !== undefined && shop_id !== null) {
+    itemShopId = shop_id;
+  } else if (req.user.role === 'superadmin') {
+    itemShopId = shopFilter.shop_id || null;
+    // For superadmin, shop_id is required when creating items
+    if (!itemShopId) {
+      return res.status(400).json({ error: 'shop_id is required for superadmin when creating items' });
+    }
+  } else {
+    itemShopId = req.user.shop_id || null;
+  }
+  
   db.run(
-    'INSERT INTO items (name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [name.trim(), sku ? sku.trim() : null, description ? description.trim() : null, category_id || null, unit_price, cost_price || null, stock_quantity || 0, min_stock_level || 10, unit || 'pcs', image_url || null],
+    'INSERT INTO items (name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url, expiration_date, shop_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [name.trim(), sku ? sku.trim() : null, description ? description.trim() : null, category_id || null, unit_price, cost_price || null, stock_quantity || 0, min_stock_level || 10, unit || 'pcs', image_url || null, expiration_date || null, itemShopId],
     function(err) {
       if (err) {
         if (err.message && err.message.includes('UNIQUE constraint')) {
@@ -1726,71 +1839,166 @@ app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), (
 });
 
 app.put('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
-  const { name, sku, description, category_id, unit_price, cost_price, min_stock_level, unit, image_url } = req.body;
+  const { name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url, expiration_date } = req.body;
   const id = req.params.id;
   
-  // SECURITY: Input validation
-  if (!name || typeof name !== 'string' || name.trim().length < 1) {
-    return res.status(400).json({ error: 'Item name is required' });
+  // Validate ID
+  if (!id || isNaN(parseInt(id))) {
+    return res.status(400).json({ error: 'Invalid item ID' });
   }
   
-  // SKU validation (optional but if provided, must be valid)
-  if (sku && typeof sku === 'string' && sku.trim().length > 0) {
-    const trimmedSku = sku.trim();
-    
-    // Length validation
-    if (trimmedSku.length < 2 || trimmedSku.length > 50) {
-      return res.status(400).json({ error: 'SKU must be between 2 and 50 characters' });
+  // Check if request body has any fields (partial update support)
+  const hasFields = Object.keys(req.body).length > 0;
+  if (!hasFields) {
+    return res.status(400).json({ error: 'At least one field must be provided for update' });
+  }
+  
+  // First, fetch the existing item to check permissions and get current values
+  const shopFilter = getShopFilter(req);
+  let checkQuery = 'SELECT * FROM items WHERE id = ?';
+  const checkParams = [id];
+  
+  // Apply shop filtering to ensure user can only update items they have access to
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    checkQuery += ' AND shop_id = ?';
+    checkParams.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin') {
+    if (req.user.shop_id) {
+      checkQuery += ' AND shop_id = ?';
+      checkParams.push(req.user.shop_id);
+    } else {
+      checkQuery += ' AND 1=0';
+    }
+  }
+  
+  db.get(checkQuery, checkParams, (err, existingItem) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
     }
     
-    // Format validation: alphanumeric, hyphens, underscores, dots only
-    if (!/^[A-Za-z0-9\-_.]+$/.test(trimmedSku)) {
-      return res.status(400).json({ error: 'SKU can only contain letters, numbers, hyphens, underscores, and dots' });
-    }
+    // Use existing values for fields not provided (partial update support)
+    const finalName = name !== undefined ? name : existingItem.name;
+    const finalSku = sku !== undefined ? sku : existingItem.sku;
+    const finalDescription = description !== undefined ? description : existingItem.description;
+    const finalCategoryId = category_id !== undefined ? category_id : existingItem.category_id;
+    const finalUnitPrice = unit_price !== undefined ? unit_price : existingItem.unit_price;
+    const finalCostPrice = cost_price !== undefined ? cost_price : existingItem.cost_price;
+    const finalStockQuantity = stock_quantity !== undefined ? stock_quantity : existingItem.stock_quantity;
+    const finalMinStockLevel = min_stock_level !== undefined ? min_stock_level : existingItem.min_stock_level;
+    const finalUnit = unit !== undefined ? unit : existingItem.unit;
+    const finalImageUrl = image_url !== undefined ? image_url : existingItem.image_url;
+    const finalExpirationDate = expiration_date !== undefined ? expiration_date : existingItem.expiration_date;
     
-    // Must start with alphanumeric
-    if (!/^[A-Za-z0-9]/.test(trimmedSku)) {
-      return res.status(400).json({ error: 'SKU must start with a letter or number' });
-    }
-    
-    // Check uniqueness (excluding current item)
-    db.get('SELECT id FROM items WHERE sku = ? AND id != ?', [trimmedSku, id], (err, existing) => {
-      if (err) {
-        return res.status(500).json({ error: sanitizeError(err) });
+    // SECURITY: Input validation - only validate if name is being updated
+    // Check if 'name' property exists in request body (not just undefined)
+    if ('name' in req.body) {
+      if (!name || typeof name !== 'string' || name.trim().length < 1) {
+        return res.status(400).json({ error: 'Item name is required' });
       }
-      if (existing) {
-        return res.status(409).json({ error: 'SKU already exists' });
+    }
+    
+    // Validate unit_price if being updated
+    if (unit_price !== undefined) {
+      const parsedPrice = parseFloat(unit_price);
+      if (isNaN(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({ error: 'Valid unit price is required (must be a non-negative number)' });
+      }
+    }
+    
+    // Validate cost_price if being updated (optional, but if provided must be valid)
+    if (cost_price !== undefined && cost_price !== null) {
+      const parsedCost = parseFloat(cost_price);
+      if (isNaN(parsedCost) || parsedCost < 0) {
+        return res.status(400).json({ error: 'Valid cost price is required (must be a non-negative number)' });
+      }
+    }
+    
+    // Validate stock_quantity if being updated
+    if (stock_quantity !== undefined && stock_quantity !== null) {
+      const parsedStock = parseInt(stock_quantity);
+      if (isNaN(parsedStock) || parsedStock < 0) {
+        return res.status(400).json({ error: 'Valid stock quantity is required (must be a non-negative integer)' });
+      }
+    }
+    
+    // SKU validation (only if SKU is being updated)
+    if (sku !== undefined && sku !== null && typeof sku === 'string' && sku.trim().length > 0) {
+      const trimmedSku = sku.trim();
+      
+      // Length validation
+      if (trimmedSku.length < 2 || trimmedSku.length > 50) {
+        return res.status(400).json({ error: 'SKU must be between 2 and 50 characters' });
       }
       
-      // Continue with update
-      performUpdate();
-    });
-    
-    return; // Exit early, update will happen in callback
-  }
-  
-  // No SKU validation needed, proceed with update
-  performUpdate();
-  
-  function performUpdate() {
-    db.run(
-      'UPDATE items SET name = ?, sku = ?, description = ?, category_id = ?, unit_price = ?, cost_price = ?, min_stock_level = ?, unit = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name.trim(), sku ? sku.trim() : null, description ? description.trim() : null, category_id || null, unit_price, cost_price || null, min_stock_level || 10, unit || 'pcs', image_url || null, id],
-      function(err) {
+      // Format validation: alphanumeric, hyphens, underscores, dots only
+      if (!/^[A-Za-z0-9\-_.]+$/.test(trimmedSku)) {
+        return res.status(400).json({ error: 'SKU can only contain letters, numbers, hyphens, underscores, and dots' });
+      }
+      
+      // Must start with alphanumeric
+      if (!/^[A-Za-z0-9]/.test(trimmedSku)) {
+        return res.status(400).json({ error: 'SKU must start with a letter or number' });
+      }
+      
+      // Check uniqueness (excluding current item)
+      db.get('SELECT id FROM items WHERE sku = ? AND id != ?', [trimmedSku, id], (err, existing) => {
         if (err) {
-          if (err.message && err.message.includes('UNIQUE constraint')) {
-            return res.status(409).json({ error: 'SKU already exists' });
-          }
           return res.status(500).json({ error: sanitizeError(err) });
         }
+        if (existing) {
+          return res.status(409).json({ error: 'SKU already exists' });
+        }
         
-        // SECURITY: Log item update
-        logAudit(req, 'ITEM_UPDATED', 'item', parseInt(id), { name: name.trim() });
-        
-        res.json({ message: 'Item updated successfully' });
-      }
-    );
-  }
+        // Continue with update
+        performUpdate();
+      });
+      
+      return; // Exit early, update will happen in callback
+    }
+    
+    // No SKU validation needed, proceed with update
+    performUpdate();
+    
+    function performUpdate() {
+      db.run(
+        'UPDATE items SET name = ?, sku = ?, description = ?, category_id = ?, unit_price = ?, cost_price = ?, stock_quantity = ?, min_stock_level = ?, unit = ?, image_url = ?, expiration_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [
+          finalName && typeof finalName === 'string' ? finalName.trim() : (finalName || null),
+          finalSku && typeof finalSku === 'string' ? finalSku.trim() : (finalSku || null),
+          finalDescription && typeof finalDescription === 'string' ? finalDescription.trim() : (finalDescription || null),
+          finalCategoryId || null,
+          finalUnitPrice !== undefined && finalUnitPrice !== null ? parseFloat(finalUnitPrice) : existingItem.unit_price,
+          finalCostPrice !== undefined && finalCostPrice !== null ? parseFloat(finalCostPrice) : (finalCostPrice === null ? null : existingItem.cost_price),
+          finalStockQuantity !== undefined && finalStockQuantity !== null ? parseInt(finalStockQuantity) : existingItem.stock_quantity,
+          finalMinStockLevel !== undefined && finalMinStockLevel !== null ? finalMinStockLevel : existingItem.min_stock_level,
+          finalUnit || existingItem.unit || 'pcs',
+          finalImageUrl || null,
+          finalExpirationDate || null,
+          id
+        ],
+        function(err) {
+          if (err) {
+            if (err.message && err.message.includes('UNIQUE constraint')) {
+              return res.status(409).json({ error: 'SKU already exists' });
+            }
+            return res.status(500).json({ error: sanitizeError(err) });
+          }
+          
+          // SECURITY: Log item update
+          const updateFields = {};
+          if (name !== undefined) updateFields.name = finalName.trim();
+          if (unit_price !== undefined) updateFields.unit_price = finalUnitPrice;
+          if (cost_price !== undefined) updateFields.cost_price = finalCostPrice;
+          logAudit(req, 'ITEM_UPDATED', 'item', parseInt(id), updateFields);
+          
+          res.json({ message: 'Item updated successfully' });
+        }
+      );
+    }
+  });
 });
 
 app.delete('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
@@ -1800,6 +2008,293 @@ app.delete('/api/items/:id', authenticateToken, requireRole('admin', 'storekeepe
       return res.status(500).json({ error: sanitizeError(err) });
     }
     res.json({ message: 'Item deactivated successfully' });
+  });
+});
+
+// Item archive endpoint
+app.post('/api/items/:id/archive', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  // Check if item exists and user has permission
+  db.get('SELECT * FROM items WHERE id = ?', [id], (err, item) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    // Check permissions
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && item.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (item.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    db.run('UPDATE items SET is_archived = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // Log archive action
+      logAudit(req, 'ITEM_ARCHIVED', 'item', parseInt(id), { name: item.name });
+      
+      res.json({ message: 'Item archived successfully' });
+    });
+  });
+});
+
+// Item unarchive endpoint
+app.post('/api/items/:id/unarchive', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  // Check if item exists and user has permission
+  db.get('SELECT * FROM items WHERE id = ?', [id], (err, item) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    // Check permissions
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && item.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (item.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    db.run('UPDATE items SET is_archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // Log unarchive action
+      logAudit(req, 'ITEM_UNARCHIVED', 'item', parseInt(id), { name: item.name });
+      
+      res.json({ message: 'Item unarchived successfully' });
+    });
+  });
+});
+
+// Item history endpoint
+app.get('/api/items/:id/history', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  // First check if item exists and user has permission
+  db.get('SELECT * FROM items WHERE id = ?', [id], (err, item) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    // Check permissions
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && item.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (item.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    // Get audit logs for this item
+    const query = `
+      SELECT 
+        al.created_at,
+        al.action,
+        al.details,
+        u.full_name as changed_by_name,
+        u.username as changed_by_username
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.id
+      WHERE al.resource_type = 'item' AND al.resource_id = ?
+      ORDER BY al.created_at DESC
+      LIMIT 100
+    `;
+    
+    db.all(query, [id], (err, logs) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // Format history entries
+      const history = logs.map(log => {
+        let changeType = 'update';
+        let fieldName = 'general';
+        let oldValue = null;
+        let newValue = null;
+        
+        // Parse action type
+        if (log.action === 'ITEM_CREATED') {
+          changeType = 'create';
+          fieldName = 'item';
+          newValue = 'Created';
+        } else if (log.action === 'ITEM_ARCHIVED') {
+          changeType = 'archive';
+          fieldName = 'archived';
+          newValue = 'true';
+        } else if (log.action === 'ITEM_UNARCHIVED') {
+          changeType = 'unarchive';
+          fieldName = 'archived';
+          oldValue = 'true';
+          newValue = 'false';
+        } else if (log.action === 'ITEM_UPDATED') {
+          changeType = 'update';
+          // Try to parse details if available
+          try {
+            const details = log.details ? JSON.parse(log.details) : {};
+            if (details.field) {
+              fieldName = details.field;
+              oldValue = details.old_value || null;
+              newValue = details.new_value || null;
+            }
+          } catch (e) {
+            // Details not in expected format, use defaults
+          }
+        }
+        
+        return {
+          created_at: log.created_at,
+          field_name: fieldName,
+          old_value: oldValue,
+          new_value: newValue,
+          changed_by_name: log.changed_by_name || log.changed_by_username || 'System',
+          change_type: changeType
+        };
+      });
+      
+      res.json(history);
+    });
+  });
+});
+
+// ==================== ITEM TEMPLATES ROUTES ====================
+
+app.get('/api/item-templates', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM item_templates WHERE 1=1';
+  const params = [];
+
+  // Filter by shop_id if provided (for superadmin) or use user's shop_id
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' AND shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    query += ' AND shop_id = ?';
+    params.push(req.user.shop_id);
+  } else if (req.user.role === 'superadmin' && !shopFilter.shop_id) {
+    // Superadmin without shop filter sees all templates
+  } else {
+    // Non-superadmin without shop_id sees no templates
+    query += ' AND 1=0';
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  db.all(query, params, (err, templates) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    // Parse item_data JSON for each template
+    const parsedTemplates = templates.map(template => ({
+      ...template,
+      item_data: template.item_data ? JSON.parse(template.item_data) : null
+    }));
+    res.json(parsedTemplates);
+  });
+});
+
+app.post('/api/item-templates', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { name, description, item_data } = req.body;
+  const shopFilter = getShopFilter(req);
+
+  // SECURITY: Input validation
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'Template name is required' });
+  }
+
+  if (!item_data || typeof item_data !== 'object') {
+    return res.status(400).json({ error: 'Item data is required' });
+  }
+
+  // Determine shop_id
+  let shopId = null;
+  if (req.user.role === 'superadmin') {
+    shopId = shopFilter.shop_id || null;
+  } else {
+    shopId = req.user.shop_id || null;
+  }
+
+  // For superadmin, shop_id is required
+  if (req.user.role === 'superadmin' && !shopId) {
+    return res.status(400).json({ error: 'shop_id is required for superadmin' });
+  }
+
+  db.run(
+    'INSERT INTO item_templates (name, description, item_data, shop_id, created_by) VALUES (?, ?, ?, ?, ?)',
+    [name.trim(), description ? description.trim() : null, JSON.stringify(item_data), shopId, req.user.id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // SECURITY: Log template creation
+      logAudit(req, 'ITEM_TEMPLATE_CREATED', 'item_template', this.lastID, { name: name.trim() });
+      
+      res.json({ id: this.lastID, message: 'Template created successfully' });
+    }
+  );
+});
+
+app.delete('/api/item-templates/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+
+  // First check if template exists and user has permission
+  db.get('SELECT * FROM item_templates WHERE id = ?', [id], (err, template) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    // Check permissions: superadmin can delete any, others can only delete from their shop
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && template.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (template.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    db.run('DELETE FROM item_templates WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // SECURITY: Log template deletion
+      logAudit(req, 'ITEM_TEMPLATE_DELETED', 'item_template', parseInt(id), { name: template.name });
+      
+      res.json({ message: 'Template deleted successfully' });
+    });
   });
 });
 
@@ -2124,6 +2619,202 @@ app.post('/api/stock-adjustments', authenticateToken, requireRole('admin', 'stor
   });
 });
 
+// ==================== EXPENSES ROUTES ====================
+
+app.get('/api/expenses', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const shopFilter = getShopFilter(req);
+  
+  let query = `
+    SELECT e.*, u.username as created_by_name, u.shop_id
+    FROM expenses e
+    LEFT JOIN users u ON e.created_by = u.id
+  `;
+  const params = [];
+  const conditions = [];
+  
+  // For non-superadmin users, ALWAYS show expenses they created
+  // This ensures users always see their own expenses regardless of shop_id filter
+  if (req.user.role !== 'superadmin') {
+    const userId = parseInt(req.user.id);
+    // Use CAST to ensure type matching
+    conditions.push(`CAST(e.created_by AS INTEGER) = ?`);
+    params.push(userId);
+  } else if (req.user.role === 'superadmin') {
+    // Superadmin: if shop_id filter is provided, show expenses from that shop OR expenses they created
+    if (shopFilter.shop_id) {
+      const userId = parseInt(req.user.id);
+      const shopId = parseInt(shopFilter.shop_id);
+      // Show expenses from the selected shop OR expenses created by superadmin
+      conditions.push(`(u.shop_id = ? OR e.created_by = ?)`);
+      params.push(shopId, userId);
+    }
+    // If no shop filter, superadmin sees all expenses (no WHERE clause added)
+  }
+  
+  if (conditions.length > 0) {
+    query += ` WHERE ` + conditions.join(' AND ');
+  }
+  
+  query += ` ORDER BY e.expense_date DESC`;
+  
+  db.all(query, params, (err, expenses) => {
+    if (err) {
+      console.error('Expenses query error:', err);
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(expenses || []);
+  });
+});
+
+app.get('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT e.*, u.username as created_by_name, u.shop_id
+    FROM expenses e
+    LEFT JOIN users u ON e.created_by = u.id
+    WHERE e.id = ?
+  `;
+  const params = [id];
+  
+  // Apply shop filtering
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ` AND u.shop_id = ?`;
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    query += ` AND u.shop_id = ?`;
+    params.push(req.user.shop_id);
+  }
+  
+  db.get(query, params, (err, expense) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!expense) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    res.json(expense);
+  });
+});
+
+app.post('/api/expenses', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const { expense_date, category, description, amount, payment_method } = req.body;
+  const created_by = parseInt(req.user.id);
+  
+  // Validation
+  if (!category || !amount || amount <= 0) {
+    return res.status(400).json({ error: 'Category and amount are required. Amount must be greater than 0.' });
+  }
+  
+  db.run(
+    'INSERT INTO expenses (expense_date, category, description, amount, payment_method, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+    [expense_date || new Date().toISOString(), category, description || null, amount, payment_method || null, created_by],
+    function(err) {
+      if (err) {
+        console.error('Error creating expense:', err);
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      logAudit(req, 'EXPENSE_CREATED', 'expense', this.lastID, { category, amount });
+      res.json({ id: this.lastID, message: 'Expense created successfully' });
+    }
+  );
+});
+
+app.put('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const id = req.params.id;
+  const { expense_date, category, description, amount, payment_method } = req.body;
+  const shopFilter = getShopFilter(req);
+  
+  // Validation
+  if (amount !== undefined && amount <= 0) {
+    return res.status(400).json({ error: 'Amount must be greater than 0' });
+  }
+  
+  // First check if expense exists and user has access
+  let checkQuery = `
+    SELECT e.*, u.shop_id
+    FROM expenses e
+    LEFT JOIN users u ON e.created_by = u.id
+    WHERE e.id = ?
+  `;
+  const checkParams = [id];
+  
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    checkQuery += ` AND u.shop_id = ?`;
+    checkParams.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    checkQuery += ` AND u.shop_id = ?`;
+    checkParams.push(req.user.shop_id);
+  }
+  
+  db.get(checkQuery, checkParams, (err, existingExpense) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!existingExpense) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    
+    // Use existing values for fields not provided
+    const finalExpenseDate = expense_date !== undefined ? expense_date : existingExpense.expense_date;
+    const finalCategory = category !== undefined ? category : existingExpense.category;
+    const finalDescription = description !== undefined ? description : existingExpense.description;
+    const finalAmount = amount !== undefined ? amount : existingExpense.amount;
+    const finalPaymentMethod = payment_method !== undefined ? payment_method : existingExpense.payment_method;
+    
+    db.run(
+      'UPDATE expenses SET expense_date = ?, category = ?, description = ?, amount = ?, payment_method = ? WHERE id = ?',
+      [finalExpenseDate, finalCategory, finalDescription, finalAmount, finalPaymentMethod, id],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        logAudit(req, 'EXPENSE_UPDATED', 'expense', parseInt(id), { category: finalCategory, amount: finalAmount });
+        res.json({ message: 'Expense updated successfully' });
+      }
+    );
+  });
+});
+
+app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  // First check if expense exists and user has access
+  let checkQuery = `
+    SELECT e.*, u.shop_id
+    FROM expenses e
+    LEFT JOIN users u ON e.created_by = u.id
+    WHERE e.id = ?
+  `;
+  const checkParams = [id];
+  
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    checkQuery += ` AND u.shop_id = ?`;
+    checkParams.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    checkQuery += ` AND u.shop_id = ?`;
+    checkParams.push(req.user.shop_id);
+  }
+  
+  db.get(checkQuery, checkParams, (err, expense) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!expense) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    
+    db.run('DELETE FROM expenses WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      logAudit(req, 'EXPENSE_DELETED', 'expense', parseInt(id), { category: expense.category, amount: expense.amount });
+      res.json({ message: 'Expense deleted successfully' });
+    });
+  });
+});
+
 // ==================== REPORTS ROUTES ====================
 
 app.get('/api/reports/stock', authenticateToken, requireRole('admin', 'manager', 'storekeeper', 'sales'), (req, res) => {
@@ -2289,6 +2980,11 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const shopFilter = getShopFilter(req);
   
+  // Debug logging (remove in production)
+  if (req.user.role === 'superadmin') {
+    console.log('[DASHBOARD] Shop filter:', shopFilter, 'Query shop_id:', req.query.shop_id);
+  }
+  
   // Build queries with shop filtering
   let totalItemsQuery = 'SELECT COUNT(*) as count FROM items';
   let lowStockItemsQuery = 'SELECT COUNT(*) as count FROM items WHERE stock_quantity <= min_stock_level';
@@ -2297,53 +2993,55 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
   
   // Add shop filtering for items (check if items have been used in sales/purchases by users from that shop)
   if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    const shopId = shopFilter.shop_id;
     totalItemsQuery += ` WHERE EXISTS (
       SELECT 1 FROM sales_items si
       JOIN sales s ON si.sale_id = s.id
       JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      WHERE si.item_id = items.id AND u.shop_id = ${shopId}
       UNION
       SELECT 1 FROM purchase_items pi
       JOIN purchases p ON pi.purchase_id = p.id
       JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopId}
     )`;
-    lowStockItemsQuery += ` AND EXISTS (
+    lowStockItemsQuery = `SELECT COUNT(*) as count FROM items WHERE stock_quantity <= min_stock_level AND EXISTS (
       SELECT 1 FROM sales_items si
       JOIN sales s ON si.sale_id = s.id
       JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      WHERE si.item_id = items.id AND u.shop_id = ${shopId}
       UNION
       SELECT 1 FROM purchase_items pi
       JOIN purchases p ON pi.purchase_id = p.id
       JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = items.id AND u.shop_id = ${shopFilter.shop_id}
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopId}
     )`;
     totalSalesQuery += ' AND u.shop_id = ?';
     totalPurchasesQuery += ' AND u.shop_id = ?';
   } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
     // Non-superadmin users only see their shop's data
+    const shopId = req.user.shop_id;
     totalItemsQuery += ` WHERE EXISTS (
       SELECT 1 FROM sales_items si
       JOIN sales s ON si.sale_id = s.id
       JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      WHERE si.item_id = items.id AND u.shop_id = ${shopId}
       UNION
       SELECT 1 FROM purchase_items pi
       JOIN purchases p ON pi.purchase_id = p.id
       JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopId}
     )`;
-    lowStockItemsQuery += ` AND EXISTS (
+    lowStockItemsQuery = `SELECT COUNT(*) as count FROM items WHERE stock_quantity <= min_stock_level AND EXISTS (
       SELECT 1 FROM sales_items si
       JOIN sales s ON si.sale_id = s.id
       JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      WHERE si.item_id = items.id AND u.shop_id = ${shopId}
       UNION
       SELECT 1 FROM purchase_items pi
       JOIN purchases p ON pi.purchase_id = p.id
       JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = items.id AND u.shop_id = ${req.user.shop_id}
+      WHERE pi.item_id = items.id AND u.shop_id = ${shopId}
     )`;
     totalSalesQuery += ' AND u.shop_id = ?';
     totalPurchasesQuery += ' AND u.shop_id = ?';

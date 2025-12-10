@@ -60,7 +60,13 @@ async function apiRequest(endpoint, options = {}) {
     // Check if superadmin has selected a shop and add shop_id filter
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
     const isSuperadmin = currentUser && currentUser.role === 'superadmin';
-    const shopId = window.selectedShopId || (isSuperadmin ? localStorage.getItem('selectedShopId') : null);
+    // Get shopId from window.selectedShopId first (most up-to-date), then localStorage, then null
+    let shopId = null;
+    if (isSuperadmin) {
+        shopId = window.selectedShopId !== undefined && window.selectedShopId !== null 
+            ? window.selectedShopId 
+            : (localStorage.getItem('selectedShopId') ? parseInt(localStorage.getItem('selectedShopId')) : null);
+    }
     
     let url = API_BASE_URL + endpoint;
     

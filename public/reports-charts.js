@@ -299,29 +299,54 @@ async function loadCategoryPerformanceChart() {
     destroyChart('categoryPerformanceChart');
     
     try {
-        // Get sales data with category information
-        const salesData = await apiRequest('/reports/sales');
-        const itemsData = await apiRequest('/reports/stock');
+        // Get all sales data and items data
+        const [salesData, itemsData] = await Promise.all([
+            apiRequest('/sales').catch(() => []),
+            apiRequest('/items').catch(() => [])
+        ]);
+        
+        // Create a map of item_id to category_name
+        const itemCategoryMap = new Map();
+        itemsData.forEach(item => {
+            itemCategoryMap.set(item.id, item.category_name || 'Uncategorized');
+        });
         
         // Group sales by category
         const categoryMap = new Map();
         
-        // Get category sales from items
-        const fastMoving = await apiRequest('/reports/fast-moving').catch(() => []);
-        
-        fastMoving.forEach(item => {
-            const category = item.category_name || 'Uncategorized';
-            const revenue = item.total_revenue || 0;
-            
-            if (categoryMap.has(category)) {
-                categoryMap.set(category, categoryMap.get(category) + revenue);
-            } else {
-                categoryMap.set(category, revenue);
+        // Process each sale and its items
+        salesData.forEach(sale => {
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(saleItem => {
+                    // Get category from item map or from saleItem
+                    const category = saleItem.category_name || 
+                                   itemCategoryMap.get(saleItem.item_id) || 
+                                   'Uncategorized';
+                    const revenue = (saleItem.total_price || 
+                                   saleItem.quantity * (saleItem.unit_price || 0)) || 0;
+                    
+                    if (categoryMap.has(category)) {
+                        categoryMap.set(category, categoryMap.get(category) + revenue);
+                    } else {
+                        categoryMap.set(category, revenue);
+                    }
+                });
             }
         });
         
         const labels = Array.from(categoryMap.keys());
         const data = Array.from(categoryMap.values());
+        
+        // If no data, show message
+        if (labels.length === 0 || data.every(d => d === 0)) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No sales data available by category', canvas.width / 2, canvas.height / 2);
+            return;
+        }
         
         // Generate colors
         const colors = [
@@ -332,7 +357,9 @@ async function loadCategoryPerformanceChart() {
             'rgba(168, 85, 247, 0.8)',
             'rgba(236, 72, 153, 0.8)',
             'rgba(20, 184, 166, 0.8)',
-            'rgba(249, 115, 22, 0.8)'
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(99, 102, 241, 0.8)',
+            'rgba(14, 165, 233, 0.8)'
         ];
         
         const ctx = canvas.getContext('2d');
@@ -363,7 +390,7 @@ async function loadCategoryPerformanceChart() {
                                 const label = context.label || '';
                                 const value = context.parsed || 0;
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                 return `${label}: ${formatCurrency(value)} (${percentage}%)`;
                             }
                         }
@@ -373,7 +400,7 @@ async function loadCategoryPerformanceChart() {
         });
     } catch (error) {
         console.error('Error loading category performance chart:', error);
-        showNotification('Error loading category performance chart', 'error');
+        showNotification('Error loading category performance chart: ' + (error.message || 'Unknown error'), 'error');
     }
 }
 

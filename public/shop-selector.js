@@ -208,7 +208,7 @@ function reloadPageData() {
         ? shopsList.find(s => s.id === selectedShopId)?.shop_name || 'Selected Shop'
         : 'All Shops';
     if (typeof showNotification === 'function') {
-        showNotification(`Viewing data for: ${shopName}`, 'info');
+        showNotification(`Viewing data for: ${shopName}`, 'success');
     } else {
         console.log(`Viewing data for: ${shopName}`);
     }

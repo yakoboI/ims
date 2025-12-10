@@ -1,9 +1,6 @@
 let allItems = [];
 let suppliers = [];
 let purchaseItems = [];
-let purchaseBarcodeScanTimeout = null;
-let lastPurchaseBarcodeTime = 0;
-let purchaseBarcodeScanInProgress = false;
 let purchaseItemsCache = new Map();
 
 // Orders management
@@ -31,14 +28,6 @@ async function loadItems() {
         allItems.forEach(item => {
             if (item.sku) {
                 purchaseItemsCache.set(item.sku.toLowerCase(), item);
-                
-                // Also update barcode scanner cache
-                if (window.BarcodeScanner) {
-                    window.BarcodeScanner.barcodeCache.set(item.sku.toLowerCase(), {
-                        item: item,
-                        timestamp: Date.now()
-                    });
-                }
             }
         });
         
@@ -299,32 +288,12 @@ function setupEventListeners() {
     document.getElementById('newPurchaseForm').addEventListener('submit', handlePurchaseSubmit);
     document.getElementById('supplierForm').addEventListener('submit', handleSupplierSubmit);
     
-    // Use unified barcode scanner
-    const barcodeInput = document.getElementById('purchaseBarcodeInput');
-    if (barcodeInput && window.BarcodeScanner) {
-        window.BarcodeScanner.init(
-            barcodeInput,
-            (item, barcode) => {
-                // Success - item found
-                handlePurchaseBarcodeScanSuccess(item, barcode);
-            },
-            (error, barcode) => {
-                // Error - item not found
-                showNotification(error.message || `Item not found with barcode: ${barcode}`, 'error');
-                barcodeInput.value = '';
-                setTimeout(() => barcodeInput.focus(), 50);
-            }
-        );
-    }
-    
     // Listen for product updates
     if (window.ProductFlow) {
         window.ProductFlow.onProductUpdate((data) => {
             if (data.type === 'product_invalidated') {
-                // Reload items if barcode was invalidated
-                if (data.barcode) {
-                    loadItems();
-                }
+                // Reload items if product was invalidated
+                loadItems();
             }
         });
     }
@@ -336,123 +305,8 @@ function openNewPurchaseModal() {
     document.getElementById('purchaseTotal').textContent = '0.00';
     document.getElementById('newPurchaseForm').reset();
     
-    const barcodeInput = document.getElementById('purchaseBarcodeInput');
-    openModal('newPurchaseModal', barcodeInput);
-}
-
-function handlePurchaseBarcodeInput(e) {
-    if (purchaseBarcodeScanInProgress) return;
-    
-    const barcode = e.target.value.trim();
-    const currentTime = Date.now();
-    const timeSinceLastChar = currentTime - lastPurchaseBarcodeTime;
-    const inputLength = barcode.length;
-    
-    if (purchaseBarcodeScanTimeout) {
-        clearTimeout(purchaseBarcodeScanTimeout);
-    }
-    
-    const isLikelyScanner = timeSinceLastChar < 50 && inputLength > 5;
-    const isCompleteBarcode = inputLength >= 8 && inputLength <= 20;
-    
-    if (isLikelyScanner || isCompleteBarcode) {
-        purchaseBarcodeScanTimeout = setTimeout(() => {
-            handlePurchaseBarcodeScan(barcode);
-        }, 20);
-    } else if (inputLength >= 3) {
-        purchaseBarcodeScanTimeout = setTimeout(() => {
-            if (e.target.value.trim() === barcode) {
-                handlePurchaseBarcodeScan(barcode);
-            }
-        }, 300);
-    }
-    
-    lastPurchaseBarcodeTime = currentTime;
-}
-
-async function handlePurchaseBarcodeScan(barcode) {
-    if (!barcode || barcode.length < 1 || purchaseBarcodeScanInProgress) return;
-    
-    purchaseBarcodeScanInProgress = true;
-    const barcodeInput = document.getElementById('purchaseBarcodeInput');
-    const barcodeLower = barcode.toLowerCase();
-    
-    let item = purchaseItemsCache.get(barcodeLower);
-    
-    if (!item) {
-        try {
-            const apiCall = apiRequest(`/items/barcode/${encodeURIComponent(barcode)}`);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Request timeout')), 2000)
-            );
-            
-            item = await Promise.race([apiCall, timeoutPromise]);
-            
-            if (item && item.sku) {
-                purchaseItemsCache.set(item.sku.toLowerCase(), item);
-            }
-        } catch (error) {
-            purchaseBarcodeScanInProgress = false;
-            showNotification(error.message || `Item not found with barcode: ${barcode}`, 'error');
-            if (barcodeInput) {
-                barcodeInput.value = '';
-                setTimeout(() => barcodeInput.focus(), 50);
-            }
-            return;
-        }
-    }
-    
-    if (!item) {
-        purchaseBarcodeScanInProgress = false;
-        showNotification(`Item not found with barcode: ${barcode}`, 'error');
-        if (barcodeInput) {
-            barcodeInput.value = '';
-            setTimeout(() => barcodeInput.focus(), 50);
-        }
-        return;
-    }
-    
-    const quantity = parseInt(document.getElementById('purchaseQuantity').value) || 1;
-    const unitPriceInput = document.getElementById('purchaseUnitPrice');
-    const unitPrice = parseFloat(unitPriceInput.value) || item.cost_price || item.unit_price;
-    const existingIndex = purchaseItems.findIndex(pi => pi.item_id === item.id);
-    
-    if (existingIndex >= 0) {
-        purchaseItems[existingIndex].quantity += quantity;
-        purchaseItems[existingIndex].unit_price = unitPrice;
-        purchaseItems[existingIndex].total_price = purchaseItems[existingIndex].quantity * unitPrice;
-    } else {
-        purchaseItems.push({
-            item_id: item.id,
-            item_name: item.name,
-            quantity: quantity,
-            unit_price: unitPrice,
-            total_price: quantity * unitPrice
-        });
-    }
-    
-    requestAnimationFrame(() => {
-        renderPurchaseItems();
-        
-        const itemSelect = document.getElementById('purchaseItemSelect');
-        if (itemSelect) {
-            itemSelect.value = item.id;
-        }
-        
-        if (unitPriceInput && !unitPriceInput.value) {
-            unitPriceInput.value = item.cost_price || item.unit_price || '';
-        }
-        
-        if (barcodeInput) {
-            barcodeInput.value = '';
-            requestAnimationFrame(() => {
-                barcodeInput.focus();
-                purchaseBarcodeScanInProgress = false;
-            });
-        } else {
-            purchaseBarcodeScanInProgress = false;
-        }
-    });
+    const itemSelect = document.getElementById('purchaseItemSelect');
+    openModal('newPurchaseModal', itemSelect);
 }
 
 function closeNewPurchaseModal() {

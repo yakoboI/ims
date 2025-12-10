@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadCategories() {
     try {
+        // apiRequest automatically handles shop_id for superadmins, same as categories.html
         categories = await apiRequest('/categories');
+        
         const categoryFilter = document.getElementById('categoryPriceFilter');
         if (categoryFilter) {
             const options = categories.map(cat => 
@@ -22,6 +24,7 @@ async function loadCategories() {
         }
     } catch (error) {
         console.error('Error loading categories:', error);
+        // Don't show error notification here as it's called on page load
     }
 }
 
@@ -173,19 +176,51 @@ function sortPriceTable(column) {
 
 async function openPriceUpdateModal(itemId) {
     currentEditingItem = itemId;
-    const item = items.find(i => i.id === itemId);
-    if (!item) {
-        showNotification('Item not found', 'error');
-        return;
+    
+    try {
+        // Fetch the item directly from inventory to get the latest name
+        const item = await apiRequest(`/items/${itemId}`);
+        if (!item) {
+            showNotification('Item not found', 'error');
+            return;
+        }
+        
+        // Try to refresh categories from the same source as categories.html
+        // If it fails, use existing categories array (non-blocking)
+        try {
+            categories = await apiRequest('/categories');
+        } catch (catError) {
+            console.warn('Failed to refresh categories, using existing list:', catError);
+            // Continue with existing categories array if refresh fails
+        }
+        
+        // Populate category dropdown with categories from localhost:3000/categories.html
+        const categorySelect = document.getElementById('updateCategory');
+        if (categorySelect) {
+            if (categories && categories.length > 0) {
+                const options = categories.map(cat => 
+                    `<option value="${cat.id}">${cat.name}</option>`
+                ).join('');
+                categorySelect.innerHTML = '<option value="">No Category</option>' + options;
+                categorySelect.value = item.category_id || '';
+            } else {
+                // If no categories available, show empty dropdown
+                categorySelect.innerHTML = '<option value="">No Category</option>';
+                categorySelect.value = item.category_id || '';
+            }
+        }
+        
+        document.getElementById('priceItemId').value = item.id;
+        document.getElementById('itemNameDisplay').value = item.name || '';
+        document.getElementById('updateUnitPrice').value = item.unit_price || 0;
+        document.getElementById('updateCostPrice').value = item.cost_price || '';
+        
+        const firstInput = document.getElementById('updateUnitPrice');
+        openModal('priceUpdateModal', firstInput);
+    } catch (error) {
+        showNotification('Error loading item details: ' + (error.message || 'Unknown error'), 'error');
+        console.error('Error fetching item:', error);
     }
-    
-    document.getElementById('priceItemId').value = item.id;
-    document.getElementById('itemNameDisplay').value = item.name || '';
-    document.getElementById('updateUnitPrice').value = item.unit_price || 0;
-    document.getElementById('updateCostPrice').value = item.cost_price || '';
-    
-    const firstInput = document.getElementById('updateUnitPrice');
-    openModal('priceUpdateModal', firstInput);
 }
 
 function closePriceUpdateModal() {
@@ -201,6 +236,7 @@ async function handlePriceUpdate(e) {
     const itemId = document.getElementById('priceItemId').value;
     const unitPrice = parseFloat(document.getElementById('updateUnitPrice').value);
     const costPrice = document.getElementById('updateCostPrice').value ? parseFloat(document.getElementById('updateCostPrice').value) : null;
+    const categoryId = document.getElementById('updateCategory').value || null;
     
     if (!itemId || isNaN(unitPrice)) {
         showNotification('Please fill in required fields', 'error');
@@ -208,12 +244,22 @@ async function handlePriceUpdate(e) {
     }
     
     try {
+        const updateData = {
+            unit_price: unitPrice,
+            cost_price: costPrice
+        };
+        
+        // Include category_id only if a category is selected
+        if (categoryId) {
+            updateData.category_id = parseInt(categoryId);
+        } else {
+            // If "No Category" is selected, set category_id to null
+            updateData.category_id = null;
+        }
+        
         await apiRequest(`/items/${itemId}`, {
             method: 'PUT',
-            body: {
-                unit_price: unitPrice,
-                cost_price: costPrice
-            }
+            body: updateData
         });
         
         showNotification('Prices updated successfully', 'success');

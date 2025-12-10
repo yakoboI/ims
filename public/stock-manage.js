@@ -256,6 +256,8 @@ async function handleStockUpdate(e) {
         showNotification('Stock updated successfully', 'success');
         closeStockUpdateModal();
         await loadItems();
+        // Reapply filters if any are active
+        performStockFiltering();
     } catch (error) {
         showNotification(error.message || 'Error updating stock', 'error');
     }
@@ -327,6 +329,8 @@ async function handleBulkStockUpdate(e) {
         showNotification(`Updated stock for ${updated} item(s)`, 'success');
         closeBulkStockUpdateModal();
         await loadItems();
+        // Reapply filters if any are active
+        performStockFiltering();
     } catch (error) {
         showNotification(error.message || 'Error updating stock', 'error');
     }

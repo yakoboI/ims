@@ -220,6 +220,10 @@ async function loadItems() {
             url += url.includes('?') ? `&shop_id=${shopFilter.shop_id}` : `?shop_id=${shopFilter.shop_id}`;
         }
         items = await apiRequest(url);
+        
+        // Automatically generate SKUs for items that don't have one
+        await autoGenerateMissingSKUs(items);
+        
         hideTableSkeleton(tableContainer);
         renderItemsTable(items);
         await loadReorderSuggestions();
@@ -229,6 +233,73 @@ async function loadItems() {
         if (items.length === 0) {
             showEmptyState(tableContainer, EmptyStates.items);
         }
+    }
+}
+
+// Automatically generate SKUs for items that don't have one
+async function autoGenerateMissingSKUs(itemsList) {
+    if (!window.SKUUtils) {
+        console.warn('SKUUtils not available, skipping auto-generation');
+        return;
+    }
+    
+    const itemsWithoutSKU = itemsList.filter(item => !item.sku || item.sku.trim() === '' || item.sku === 'N/A' || item.sku === 'n/a');
+    
+    if (itemsWithoutSKU.length === 0) {
+        return; // All items have SKUs
+    }
+    
+    // Generate and save SKUs for items without them
+    const updatePromises = itemsWithoutSKU.map(async (item) => {
+        try {
+            // Generate SKU from item name
+            const generatedSKU = window.SKUUtils.suggest(item.name, itemsList, {
+                length: 12,
+                prefix: ''
+            });
+            
+            if (generatedSKU && generatedSKU.trim() !== '') {
+                // Update item with generated SKU
+                await apiRequest(`/items/${item.id}`, {
+                    method: 'PUT',
+                    body: {
+                        name: item.name,
+                        sku: generatedSKU,
+                        description: item.description,
+                        category_id: item.category_id,
+                        unit_price: item.unit_price,
+                        cost_price: item.cost_price,
+                        min_stock_level: item.min_stock_level,
+                        unit: item.unit,
+                        image_url: item.image_url,
+                        expiration_date: item.expiration_date
+                    }
+                });
+                
+                // Update local item object
+                item.sku = generatedSKU;
+                
+                return { success: true, itemId: item.id, sku: generatedSKU };
+            }
+        } catch (error) {
+            console.error(`Error generating SKU for item ${item.id}:`, error);
+            return { success: false, itemId: item.id, error: error.message };
+        }
+    });
+    
+    // Wait for all updates to complete
+    const results = await Promise.allSettled(updatePromises);
+    const successful = results.filter(r => r.status === 'fulfilled' && r.value && r.value.success).length;
+    
+    if (successful > 0) {
+        console.log(`Auto-generated SKUs for ${successful} item(s)`);
+        // Reload items to get updated data
+        const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
+        let url = showArchivedItems ? '/items?includeArchived=true' : '/items';
+        if (shopFilter.shop_id) {
+            url += url.includes('?') ? `&shop_id=${shopFilter.shop_id}` : `?shop_id=${shopFilter.shop_id}`;
+        }
+        items = await apiRequest(url);
     }
 }
 
@@ -1031,8 +1102,27 @@ async function handleItemSubmit(e) {
     
     // For new items, include required fields with defaults
     // For updates, only send the fields we're editing
+    const itemName = document.getElementById('itemName').value.trim();
+    let itemSku = document.getElementById('itemSku') ? document.getElementById('itemSku').value.trim() : '';
+    
+    // Auto-generate SKU if missing for new items
+    if (!itemId && (!itemSku || itemSku === '')) {
+        if (window.SKUUtils) {
+            itemSku = window.SKUUtils.suggest(itemName, items, {
+                length: 12,
+                prefix: ''
+            });
+            // Update the input field if it exists
+            const skuInput = document.getElementById('itemSku');
+            if (skuInput && itemSku) {
+                skuInput.value = itemSku;
+            }
+        }
+    }
+    
     const itemData = {
-        name: document.getElementById('itemName').value.trim(),
+        name: itemName,
+        sku: itemSku || null,
         description: document.getElementById('itemDescription').value.trim() || null,
         unit: document.getElementById('itemUnit').value || 'pcs',
         image_url: imageUrl,

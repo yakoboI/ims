@@ -600,7 +600,24 @@ function renderItemsTable(itemsList) {
         const safeUnit = escapeHtml(item.unit || 'pcs');
         const safeDescription = escapeHtml(item.description || '-');
         const safeImageUrl = item.image_url ? escapeHtml(item.image_url) : '';
-        const safeExpirationDate = item.expiration_date || '-';
+        // Format expiration date if it exists, otherwise show dash - ALWAYS include year
+        let safeExpirationDate = '-';
+        if (item.expiration_date) {
+            try {
+                const date = new Date(item.expiration_date);
+                if (!isNaN(date.getTime())) {
+                    // Always format with year included
+                    safeExpirationDate = date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                }
+            } catch (e) {
+                // If parsing fails, just show the raw value
+                safeExpirationDate = item.expiration_date;
+            }
+        }
         const safeItemId = item.id;
         
         tr.innerHTML = `
@@ -624,6 +641,9 @@ function renderItemsTable(itemsList) {
     // Clear and append fragment (single DOM operation)
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
+    
+    // Ensure all required columns are visible
+    visibleColumns = new Set(['name', 'image', 'unit', 'description', 'expiration_date']);
     
     // Update column visibility in header
     updateColumnVisibility();

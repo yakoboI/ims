@@ -318,11 +318,11 @@ function renderBarcodeCanvases() {
             try {
                 JsBarcode(canvas, item.barcode, {
                     format: "CODE128",
-                    width: 2,
-                    height: 60,
+                    width: 2.5,
+                    height: 70,
                     displayValue: true,
-                    fontSize: 12,
-                    margin: 5,
+                    fontSize: 13,
+                    margin: 6,
                     background: "#ffffff",
                     lineColor: "#000000"
                 });
@@ -522,79 +522,157 @@ function printAllBarcodes() {
     const printWindow = window.open('', '_blank');
     const uniqueBarcodes = Array.from(new Set(filteredBarcodes.map(b => b.barcode)));
     
+    // Calculate grid layout for A4 paper
+    // A4 dimensions: 210mm x 297mm (8.27" x 11.69")
+    // With margins: approximately 190mm x 277mm usable area
+    // Barcode size: ~60mm width x ~40mm height (including name and barcode)
+    // Grid: 3 columns x 6 rows = 18 barcodes per page
+    const barcodesPerPage = 18;
+    const columnsPerPage = 3;
+    const rowsPerPage = 6;
+    
+    // Split barcodes into pages
+    const pages = [];
+    for (let i = 0; i < uniqueBarcodes.length; i += barcodesPerPage) {
+        pages.push(uniqueBarcodes.slice(i, i + barcodesPerPage));
+    }
+    
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
             <title>All Barcodes</title>
             <style>
+                @page {
+                    size: A4;
+                    margin: 10mm;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
                 body {
                     font-family: Arial, sans-serif;
-                    padding: 1rem;
+                    background: white;
                 }
                 .barcode-page {
+                    width: 190mm;
+                    height: 277mm;
                     page-break-after: always;
+                    display: grid;
+                    grid-template-columns: repeat(${columnsPerPage}, 1fr);
+                    grid-template-rows: repeat(${rowsPerPage}, 1fr);
+                    gap: 6mm 8mm; /* row-gap column-gap */
+                    padding: 8mm 5mm;
+                    direction: rtl; /* Start from right - makes grid flow right-to-left */
+                    align-content: start; /* Align grid content to top */
+                    justify-content: start; /* Align grid content to start (right in RTL) */
+                }
+                .barcode-item {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    min-height: 100vh;
-                    padding: 2rem;
-                }
-                .barcode-container {
-                    text-align: center;
-                    padding: 2rem;
-                    border: 2px solid #000;
-                    border-radius: 8px;
+                    justify-content: flex-start;
+                    padding: 4mm 3mm;
+                    border: 1px solid #ddd;
                     background: white;
-                    margin: 1rem;
+                    text-align: center;
+                    direction: ltr; /* Reset direction for content */
+                    break-inside: avoid;
+                    min-height: 0; /* Allow grid items to shrink */
+                    overflow: hidden;
+                }
+                .barcode-item canvas {
+                    width: 100% !important;
+                    max-width: 55mm;
+                    height: auto !important;
                 }
                 .item-name {
-                    font-size: 1.2rem;
+                    font-size: 9pt;
                     font-weight: bold;
-                    margin-bottom: 0.5rem;
+                    margin-bottom: 2mm;
+                    line-height: 1.2;
+                    max-width: 100%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
                 .barcode-value {
                     font-family: monospace;
-                    font-size: 1rem;
-                    margin-top: 0.5rem;
+                    font-size: 8pt;
+                    margin-top: 2mm;
                     font-weight: 600;
+                    word-break: break-all;
+                }
+                canvas {
+                    max-width: 100%;
+                    height: auto !important;
+                    image-rendering: -webkit-optimize-contrast;
+                    image-rendering: crisp-edges;
+                    image-rendering: pixelated;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
                 @media print {
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
                     .barcode-page {
                         page-break-after: always;
+                        page-break-inside: avoid;
+                    }
+                    .barcode-item {
+                        page-break-inside: avoid;
                     }
                 }
             </style>
         </head>
         <body>
-            ${uniqueBarcodes.map((barcodeValue, index) => {
-                const item = allBarcodes.find(b => b.barcode === barcodeValue);
-                const safeName = escapeHtml(item?.name || 'Unknown Item');
-                const safeBarcode = escapeHtml(barcodeValue);
+            ${pages.map((pageBarcodes, pageIndex) => {
+                // Reverse the order so items start from top-right
+                const reversedBarcodes = [...pageBarcodes].reverse();
                 return `
-                    <div class="barcode-page">
-                        <div class="barcode-container">
-                            <div class="item-name">${safeName}</div>
-                            <canvas id="printBarcode${index}"></canvas>
-                            <div class="barcode-value">${safeBarcode}</div>
-                        </div>
-                    </div>
-                `;
+                <div class="barcode-page">
+                    ${reversedBarcodes.map((barcodeValue, itemIndex) => {
+                        const item = allBarcodes.find(b => b.barcode === barcodeValue);
+                        const safeName = escapeHtml(item?.name || 'Unknown Item');
+                        const safeBarcode = escapeHtml(barcodeValue);
+                        const globalIndex = pageIndex * barcodesPerPage + (pageBarcodes.length - 1 - itemIndex);
+                        return `
+                            <div class="barcode-item">
+                                <div class="item-name">${safeName}</div>
+                                <canvas id="printBarcode${globalIndex}"></canvas>
+                                <div class="barcode-value">${safeBarcode}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
             }).join('')}
             <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <script>
                 ${uniqueBarcodes.map((barcodeValue, index) => `
-                    JsBarcode("#printBarcode${index}", "${escapeHtml(barcodeValue)}", {
-                        format: "CODE128",
-                        width: 3,
-                        height: 100,
-                        displayValue: false,
-                        fontSize: 16,
-                        margin: 15,
-                        background: "#ffffff",
-                        lineColor: "#000000"
-                    });
+                    (function() {
+                        const canvas = document.getElementById("printBarcode${index}");
+                        if (canvas) {
+                            try {
+                                JsBarcode(canvas, "${escapeHtml(barcodeValue)}", {
+                                    format: "CODE128",
+                                    width: 2.5,
+                                    height: 50,
+                                    displayValue: false,
+                                    fontSize: 10,
+                                    margin: 2,
+                                    background: "#ffffff",
+                                    lineColor: "#000000"
+                                });
+                            } catch (e) {
+                                console.error("Error rendering barcode ${index}:", e);
+                            }
+                        }
+                    })();
                 `).join('')}
                 window.onload = function() {
                     setTimeout(function() {

@@ -110,6 +110,32 @@
     }
 }
 
+/* Filters Mobile */
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .filters input[type="date"],
+    .filters select {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: unset !important;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        padding: 0.75rem;
+    }
+    
+    .filters .btn {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important;
+        touch-action: manipulation;
+    }
+}
+
 /* Very Small Screens */
 @media (max-width: 480px) {
     .expense-modal .modal-content {
@@ -121,6 +147,10 @@
     
     .category-quick-select {
         grid-template-columns: 1fr;
+    }
+    
+    .filters {
+        gap: 0.5rem;
     }
 }
 

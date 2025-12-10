@@ -17,10 +17,14 @@ function showRoleDashboard(role) {
     if (role === 'manager') {
         if (refreshBtn) refreshBtn.style.display = 'none';
         if (clearDataBtn) clearDataBtn.style.display = 'none';
-    } else if (isAdminOrSuperadmin) {
-        // Admin and superadmin have identical UI - same buttons visible
+    } else if (role === 'admin') {
+        // Admin only - show both refresh and clear data buttons
         if (refreshBtn) refreshBtn.style.display = 'inline-block';
         if (clearDataBtn) clearDataBtn.style.display = 'inline-block';
+    } else if (role === 'superadmin') {
+        // Superadmin - show refresh button but NOT clear data button
+        if (refreshBtn) refreshBtn.style.display = 'inline-block';
+        if (clearDataBtn) clearDataBtn.style.display = 'none';
     } else {
         if (refreshBtn) refreshBtn.style.display = 'inline-block';
         if (clearDataBtn) clearDataBtn.style.display = 'none';
@@ -43,10 +47,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Superadmin gets the same functionality as admin (same buttons, same features)
     const isAdminOrSuperadmin = role === 'admin' || role === 'superadmin';
     
-    // Load clear data status (admin and superadmin both get this)
-    if (isAdminOrSuperadmin) {
-        await loadAdminClearDataStatus();
-    } else if (role === 'manager') {
+    // Note: loadAdminClearDataStatus() is already called inside loadAdminDashboard()
+    // so we don't need to call it here to avoid duplicate calls
+    if (role === 'manager') {
         await checkManagerPendingRequests();
         // Check every 10 seconds for new requests
         setInterval(checkManagerPendingRequests, 10000);
@@ -59,9 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('visibilitychange', async () => {
         if (!document.hidden) {
             await refreshDashboard();
-            if (isAdminOrSuperadmin) {
-                await loadAdminClearDataStatus();
-            } else if (role === 'manager') {
+            // Note: loadAdminClearDataStatus() is already called inside loadAdminDashboard()
+            // via refreshDashboard(), so no need to call it again here
+            if (role === 'manager') {
                 await checkManagerPendingRequests();
             }
         }
@@ -69,9 +72,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     window.addEventListener('focus', async () => {
         await refreshDashboard();
-        if (isAdminOrSuperadmin) {
-            await loadAdminClearDataStatus();
-        } else if (role === 'manager') {
+        // Note: loadAdminClearDataStatus() is already called inside loadAdminDashboard()
+        // via refreshDashboard(), so no need to call it again here
+        if (role === 'manager') {
             await checkManagerPendingRequests();
         }
     });
@@ -131,8 +134,9 @@ async function loadAdminDashboard() {
         await loadAdminRecentSales();
         await loadAdminRecentPurchases();
         
-        // Load clear data status
-        if (typeof loadAdminClearDataStatus === 'function') {
+        // Load clear data status - ONLY for admin, NOT for superadmin
+        const role = getUserRole();
+        if (role === 'admin' && typeof loadAdminClearDataStatus === 'function') {
             await loadAdminClearDataStatus();
         }
     } catch (error) {

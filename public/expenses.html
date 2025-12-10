@@ -89,10 +89,10 @@
         </header>
 
         <!-- Filters -->
-        <div class="filters" style="margin-bottom: 1.5rem;">
-            <input type="date" id="expenseDateFrom" class="form-control" style="max-width: 200px;" aria-label="Filter expenses from date">
-            <input type="date" id="expenseDateTo" class="form-control" style="max-width: 200px;" aria-label="Filter expenses to date">
-            <select id="expenseCategoryFilter" class="form-control" style="max-width: 200px;" aria-label="Filter by category">
+        <div class="filters">
+            <input type="date" id="expenseDateFrom" class="form-control date-input" aria-label="Filter expenses from date">
+            <input type="date" id="expenseDateTo" class="form-control date-input" aria-label="Filter expenses to date">
+            <select id="expenseCategoryFilter" class="form-control filter-select" aria-label="Filter by category">
                 <option value="">All Categories</option>
             </select>
             <button class="btn btn-secondary" onclick="applyExpenseFilters()" aria-label="Apply filters"><i class="fas fa-filter"></i> Filter</button>

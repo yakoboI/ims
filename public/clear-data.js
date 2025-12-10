@@ -92,6 +92,7 @@ async function confirmInitiateClearData() {
 
 // Admin: Load clear data status
 async function loadAdminClearDataStatus() {
+    // Only allow admin, NOT superadmin
     if (getUserRole() !== 'admin') return;
 
     try {

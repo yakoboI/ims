@@ -38,21 +38,82 @@ async function loadExpenses() {
         // Get shop filter if superadmin has selected a shop
         const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
         const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        expenses = await apiRequest(`/expenses${queryParams}`);
         
-        if (tableContainer) hideTableSkeleton(tableContainer);
-        renderExpensesTable(expenses);
+        const response = await apiRequest(`/expenses${queryParams}`);
+        
+        // Ensure expenses is an array
+        expenses = Array.isArray(response) ? response : [];
+        
+        // Aggressively remove skeleton and ensure table is visible
+        if (tableContainer) {
+            hideTableSkeleton(tableContainer);
+            // Remove any skeleton elements that might still be there
+            const skeletons = tableContainer.querySelectorAll('.table-skeleton, .skeleton-table, .skeleton-row');
+            skeletons.forEach(s => s.remove());
+            // Ensure table is visible
+            const table = tableContainer.querySelector('.data-table');
+            if (table) {
+                table.style.display = 'table';
+                table.style.visibility = 'visible';
+                table.style.opacity = '1';
+            }
+        }
+        
+        if (expenses.length === 0) {
+            tbody.innerHTML = '';
+            if (tableContainer) {
+                showEmptyState(tableContainer, EmptyStates.expenses || {
+                    icon: '<i class="fas fa-receipt fa-icon-warning" style="font-size: 4rem;"></i>',
+                    title: 'No Expenses',
+                    message: 'No expenses have been recorded yet.',
+                    actionLabel: 'Add Expense',
+                    actionCallback: () => openExpenseModal()
+                });
+            }
+        } else {
+            renderExpensesTable(expenses);
+        }
+        
         updateExpenseSummary();
         
         // Populate category filter
         populateCategoryFilter();
     } catch (error) {
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading expenses', 'error');
+        showNotification('Error loading expenses: ' + (error.message || 'Unknown error'), 'error');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Error loading expenses</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Error loading expenses: ' + escapeHtml(error.message || 'Unknown error') + '</td></tr>';
         }
-        if (expenses.length === 0 && tableContainer) {
+        expenses = [];
+        if (tableContainer) {
+            showEmptyState(tableContainer, EmptyStates.expenses || {
+                icon: '<i class="fas fa-receipt fa-icon-warning" style="font-size: 4rem;"></i>',
+                title: 'Error Loading Expenses',
+                message: error.message || 'Failed to load expenses. Please try again.',
+                actionLabel: 'Retry',
+                actionCallback: () => loadExpenses()
+            });
+        }
+    }
+}
+
+function renderExpensesTable(expensesList) {
+    const tbody = document.getElementById('expensesTableBody');
+    const tableContainer = document.querySelector('.table-container') || document.querySelector('.section-card');
+    
+    if (!tbody) {
+        return;
+    }
+    
+    // Ensure expensesList is an array
+    if (!Array.isArray(expensesList)) {
+        console.error('expensesList is not an array:', expensesList);
+        expensesList = [];
+    }
+    
+    if (expensesList.length === 0) {
+        tbody.innerHTML = '';
+        if (tableContainer) {
             showEmptyState(tableContainer, EmptyStates.expenses || {
                 icon: '<i class="fas fa-receipt fa-icon-warning" style="font-size: 4rem;"></i>',
                 title: 'No Expenses',
@@ -61,45 +122,137 @@ async function loadExpenses() {
                 actionCallback: () => openExpenseModal()
             });
         }
-    }
-}
-
-function renderExpensesTable(expensesList) {
-    const tbody = document.getElementById('expensesTableBody');
-    const tableContainer = document.querySelector('.table-container');
-    
-    if (!tbody) return;
-    
-    if (expensesList.length === 0) {
-        tbody.innerHTML = '';
-        if (tableContainer) showEmptyState(tableContainer, EmptyStates.expenses || {
-            icon: '<i class="fas fa-receipt fa-icon-warning" style="font-size: 4rem;"></i>',
-            title: 'No Expenses',
-            message: 'No expenses have been recorded yet.',
-            actionLabel: 'Add Expense',
-            actionCallback: () => openExpenseModal()
-        });
         return;
     }
 
-    if (tableContainer) hideEmptyState(tableContainer);
-    tbody.innerHTML = expensesList.map(expense => `
+    // Hide empty state and ensure table is visible
+    if (tableContainer) {
+        hideEmptyState(tableContainer);
+        // Also remove any empty-state-small elements
+        const emptyStates = tableContainer.querySelectorAll('.empty-state, .empty-state-small');
+        emptyStates.forEach(el => el.remove());
+        
+        // Remove any skeleton loaders
+        const skeletons = tableContainer.querySelectorAll('.table-skeleton, .skeleton-table, .skeleton-row');
+        skeletons.forEach(s => s.remove());
+        
+        // Ensure table container is visible
+        const sectionCard = tableContainer.closest('.section-card');
+        if (sectionCard) {
+            sectionCard.style.display = 'block';
+            sectionCard.style.visibility = 'visible';
+            sectionCard.style.opacity = '1';
+        }
+        tableContainer.style.display = 'block';
+        tableContainer.style.visibility = 'visible';
+        tableContainer.style.opacity = '1';
+        const table = tableContainer.querySelector('.data-table');
+        if (table) {
+            table.style.display = 'table';
+            table.style.visibility = 'visible';
+            table.style.opacity = '1';
+            table.style.position = 'relative';
+            table.style.zIndex = '1';
+        }
+    }
+    
+    // Sort expenses by date (newest first)
+    const sortedExpenses = [...expensesList].sort((a, b) => {
+        const dateA = new Date(a.expense_date || 0);
+        const dateB = new Date(b.expense_date || 0);
+        return dateB - dateA; // Descending order (newest first)
+    });
+    
+    // Check if formatCurrency exists, if not define a simple one
+    const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    };
+    
+    const html = sortedExpenses.map(expense => {
+        return `
         <tr>
             <td data-label="Date">${formatDate(expense.expense_date)}</td>
             <td data-label="Category"><span class="badge badge-info">${escapeHtml(expense.category || '-')}</span></td>
             <td data-label="Description">${escapeHtml(expense.description || '-')}</td>
-            <td data-label="Amount"><strong>${formatCurrency(expense.amount || 0)}</strong></td>
+            <td data-label="Amount"><strong>${formatCurrencyFunc(expense.amount || 0)}</strong></td>
             <td data-label="Payment Method">${escapeHtml(expense.payment_method || '-')}</td>
-            <td data-label="Created By">${escapeHtml(expense.created_by_name || '-')}</td>
+            <td data-label="Created By">${escapeHtml(expense.created_by_name || expense.created_by || '-')}</td>
             <td data-label="Actions">
                 <button class="btn btn-sm btn-secondary" onclick="editExpense(${expense.id})" aria-label="Edit expense ${expense.id}">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteExpense(${expense.id})" aria-label="Delete expense ${expense.id}">Delete</button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
+    
+    tbody.innerHTML = html;
+    
+    // Force visibility and proper styling
+    tbody.style.display = '';
+    const table = tbody.closest('table');
+    if (table) {
+        table.style.display = 'table';
+        table.style.visibility = 'visible';
+        table.style.height = 'auto';
+        table.style.minHeight = 'auto';
+        table.style.maxHeight = 'none';
+        // Ensure table has proper width
+        table.style.width = '100%';
+        table.style.tableLayout = 'auto';
+    }
+    
+    // Ensure table container is properly sized
+    const containerEl = tbody.closest('.table-container');
+    if (containerEl) {
+        containerEl.style.height = 'auto';
+        containerEl.style.minHeight = 'auto';
+        containerEl.style.maxHeight = 'none';
+        containerEl.style.overflowX = 'auto';
+        containerEl.style.overflowY = 'visible';
+    }
+    
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach((row) => {
+        row.style.display = '';
+        row.style.visibility = 'visible';
+        // Force normal row height
+        row.style.height = 'auto';
+        row.style.minHeight = 'auto';
+        row.style.maxHeight = 'none';
+        
+        // Fix excessive cell heights if needed
+        const cells = row.querySelectorAll('td');
+        cells.forEach((cell) => {
+            cell.style.height = 'auto';
+            cell.style.minHeight = 'auto';
+            cell.style.maxHeight = 'none';
+            cell.style.overflow = 'visible';
+        });
+    });
+    
+    // Scroll table into view if it exists
+    setTimeout(() => {
+        const finalTable = document.querySelector('#expensesTableBody')?.closest('table');
+        const sectionCard = document.querySelector('.section-card');
+        
+        if (finalTable) {
+            // First, try scrolling the section card into view
+            if (sectionCard) {
+                sectionCard.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+            }
+            // Then scroll the table
+            setTimeout(() => {
+                finalTable.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+            }, 100);
+        }
+    }, 100);
 }
 
 function updateExpenseSummary() {
+    if (!expenses || expenses.length === 0) {
+        expenses = [];
+    }
+    
     const today = new Date().toISOString().split('T')[0];
     const thisMonth = new Date().toISOString().slice(0, 7);
     
@@ -113,13 +266,18 @@ function updateExpenseSummary() {
     
     const total = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     
+    // Check if formatCurrency exists, if not define a simple one
+    const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    };
+    
     const todayExpensesEl = document.getElementById('todayExpenses');
     const monthExpensesEl = document.getElementById('monthExpenses');
     const totalExpensesEl = document.getElementById('totalExpenses');
     
-    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrency(todayTotal);
-    if (monthExpensesEl) monthExpensesEl.textContent = formatCurrency(monthTotal);
-    if (totalExpensesEl) totalExpensesEl.textContent = formatCurrency(total);
+    if (todayExpensesEl) todayExpensesEl.textContent = formatCurrencyFunc(todayTotal);
+    if (monthExpensesEl) monthExpensesEl.textContent = formatCurrencyFunc(monthTotal);
+    if (totalExpensesEl) totalExpensesEl.textContent = formatCurrencyFunc(total);
 }
 
 function populateCategoryFilter() {
@@ -218,16 +376,25 @@ async function handleExpenseSubmit(e) {
     
     const expenseId = expenseIdEl.value;
     
-    // Validate form
-    const validationRules = {
-        expenseDate: { required: true },
-        expenseCategory: { required: true },
-        expenseDescription: { required: true, minLength: 3 },
-        expenseAmount: { required: true, min: 0.01 },
-        expensePaymentMethod: { required: true }
-    };
-    
-    if (!validateForm(form, validationRules)) {
+    // Basic validation
+    if (!expenseDateEl.value) {
+        showNotification('Date is required', 'error');
+        return;
+    }
+    if (!expenseCategoryEl.value) {
+        showNotification('Category is required', 'error');
+        return;
+    }
+    if (!expenseDescriptionEl.value || expenseDescriptionEl.value.trim().length < 3) {
+        showNotification('Description is required and must be at least 3 characters', 'error');
+        return;
+    }
+    if (!expenseAmountEl.value || parseFloat(expenseAmountEl.value) <= 0) {
+        showNotification('Amount is required and must be greater than 0', 'error');
+        return;
+    }
+    if (!expensePaymentMethodEl.value) {
+        showNotification('Payment method is required', 'error');
         return;
     }
     
@@ -239,8 +406,7 @@ async function handleExpenseSubmit(e) {
         category: expenseCategoryEl.value,
         description: expenseDescriptionEl.value.trim(),
         amount: parseFloat(expenseAmountEl.value),
-        payment_method: expensePaymentMethodEl.value,
-        receipt_number: expenseReceiptEl ? expenseReceiptEl.value.trim() || null : null
+        payment_method: expensePaymentMethodEl.value
     };
     
     try {
@@ -259,7 +425,27 @@ async function handleExpenseSubmit(e) {
         }
         
         closeExpenseModal();
-        await loadExpenses();
+        // Clear any filters before reloading
+        const dateFrom = document.getElementById('expenseDateFrom');
+        const dateTo = document.getElementById('expenseDateTo');
+        const category = document.getElementById('expenseCategoryFilter');
+        if (dateFrom) dateFrom.value = '';
+        if (dateTo) dateTo.value = '';
+        if (category) category.value = '';
+        
+        // Force clear the expenses array to ensure fresh data
+        expenses = [];
+        
+        // Small delay to ensure API has processed the request
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload expenses to show the new one
+        try {
+            await loadExpenses();
+        } catch (error) {
+            console.error('Error reloading expenses:', error);
+            showNotification('Expense added but failed to refresh list. Please refresh the page.', 'warning');
+        }
     } catch (error) {
         showNotification(error.message || 'Error saving expense', 'error');
     } finally {
@@ -361,5 +547,17 @@ window.clearExpenseFilters = clearExpenseFilters;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadExpenses();
     setupEventListeners();
+    
+    // Ensure button click handler works
+    const addExpenseBtn = document.querySelector('button[onclick="openExpenseModal()"]');
+    if (addExpenseBtn) {
+        addExpenseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof openExpenseModal === 'function') {
+                openExpenseModal();
+            }
+        });
+    }
 });
 
