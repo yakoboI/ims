@@ -1,5 +1,9 @@
 let currentReport = 'stock';
-let chartInstances = {}; // Store chart instances for cleanup
+// Chart instances stored globally for cleanup
+if (typeof window.chartInstances === 'undefined') {
+    window.chartInstances = {};
+}
+let chartInstances = window.chartInstances; // Reference to global chartInstances
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadStockReport();

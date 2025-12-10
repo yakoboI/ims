@@ -93,7 +93,8 @@ async function loadSalesTrendsChart() {
         const itemsSoldData = salesData.map(sale => sale.total_items_sold || 0);
         
         const ctx = canvas.getContext('2d');
-        chartInstances['salesTrendsChart'] = new Chart(ctx, {
+        const instances = window.chartInstances || chartInstances || {};
+        instances['salesTrendsChart'] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
@@ -199,7 +200,8 @@ async function loadRevenueAnalysisChart() {
         const salesCountData = salesData.map(sale => sale.total_sales || 0);
         
         const ctx = canvas.getContext('2d');
-        chartInstances['revenueAnalysisChart'] = new Chart(ctx, {
+        const instances = window.chartInstances || chartInstances || {};
+        instances['revenueAnalysisChart'] = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -323,7 +325,8 @@ async function loadCategoryPerformanceChart() {
         ];
         
         const ctx = canvas.getContext('2d');
-        chartInstances['categoryPerformanceChart'] = new Chart(ctx, {
+        const instances = window.chartInstances || chartInstances || {};
+        instances['categoryPerformanceChart'] = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -435,7 +438,8 @@ async function loadMonthlyComparisonChart() {
         const purchasesSpent = sortedMonths.map(key => monthlyPurchases[key]?.spent || 0);
         
         const ctx = canvas.getContext('2d');
-        chartInstances['monthlyComparisonChart'] = new Chart(ctx, {
+        const instances = window.chartInstances || chartInstances || {};
+        instances['monthlyComparisonChart'] = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -572,7 +576,8 @@ async function loadProfitAnalysisChart() {
         const profitData = sortedDates.map(date => dateMap.get(date).revenue - dateMap.get(date).expenses);
         
         const ctx = canvas.getContext('2d');
-        chartInstances['profitAnalysisChart'] = new Chart(ctx, {
+        const instances = window.chartInstances || chartInstances || {};
+        instances['profitAnalysisChart'] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
