@@ -195,13 +195,25 @@ app.use(express.static('public', {
 
 // Database connection
 // Database file path - use environment variable if set, otherwise default to ./ims.db
-// On Railway, use /tmp for persistence (note: /tmp is ephemeral, use Railway volume for production)
-// Detect Railway by checking if PORT is set and not localhost
-const isRailway = process.env.PORT && !process.env.PORT.includes('3000') && process.env.RAILWAY_ENVIRONMENT_NAME;
-const DB_PATH = process.env.DATABASE_PATH || (isRailway ? '/tmp/ims.db' : './ims.db');
+// On Railway, use mounted volume at /data for persistent storage
+// Railway volumes should be mounted at /data (or set DATABASE_PATH env var)
+const isRailway = process.env.PORT && process.env.RAILWAY_ENVIRONMENT_NAME;
+const DB_PATH = process.env.DATABASE_PATH || (isRailway ? '/data/ims.db' : './ims.db');
 
 let db;
 try {
+  // Ensure directory exists for database file (especially important for Railway volumes)
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    try {
+      fs.mkdirSync(dbDir, { recursive: true });
+      console.log('Created database directory:', dbDir);
+    } catch (mkdirErr) {
+      console.warn('Could not create database directory:', dbDir, mkdirErr.message);
+      // Continue anyway - SQLite will create parent directories in some cases
+    }
+  }
+  
   db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
       console.error('Error opening database:', err.message);
