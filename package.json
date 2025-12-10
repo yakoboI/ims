@@ -11,6 +11,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "init-db": "node scripts/init-db.js",
+    "create-superadmin": "node create-superadmin-railway.js",
     "build": "echo 'No build step required'",
     "postinstall": "echo 'Installation complete'",
     "railway:build": "npm cache clean --force && npm ci --omit=dev || (npm cache clean --force && npm install --omit=dev)",
