@@ -134,6 +134,14 @@ function reloadPageData() {
         } else if (typeof loadReports === 'function') {
             loadReports();
         }
+    } else if (path.includes('inventory.html')) {
+        if (typeof loadItems === 'function') {
+            loadItems();
+        }
+    } else if (path.includes('users.html')) {
+        if (typeof loadUsers === 'function') {
+            loadUsers();
+        }
     }
     
     // Show notification
