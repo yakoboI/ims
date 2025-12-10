@@ -1,4 +1,5 @@
 let currentReport = 'stock';
+let chartInstances = {}; // Store chart instances for cleanup
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadStockReport();

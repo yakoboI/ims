@@ -44,6 +44,9 @@
     <!-- Empty States -->
     <script src="empty-states.js"></script>
     
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <!-- Mobile Menu Handler - Define early so onclick can use it -->
     <script>
         window.toggleMobileMenuHandler = function(e) {
@@ -283,12 +286,81 @@
                 </table>
             </div>
         </section>
+
+        <!-- Sales Trends Chart -->
+        <section id="salesTrendsReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-sales-trends" aria-hidden="true">
+            <div class="report-filters" aria-label="Sales trends filters">
+                <label for="salesTrendsStartDate" class="sr-only">Start date</label>
+                <input type="date" id="salesTrendsStartDate" class="date-input" aria-label="Sales trends start date">
+                <label for="salesTrendsEndDate" class="sr-only">End date</label>
+                <input type="date" id="salesTrendsEndDate" class="date-input" aria-label="Sales trends end date">
+                <button class="btn btn-primary" id="salesTrendsFilterBtn" aria-label="Load sales trends chart">Update Chart</button>
+            </div>
+            <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
+                <h3 style="margin-bottom: 1rem;">Sales Trends Over Time</h3>
+                <canvas id="salesTrendsChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- Revenue Analysis Chart -->
+        <section id="revenueAnalysisReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-revenue-analysis" aria-hidden="true">
+            <div class="report-filters" aria-label="Revenue analysis filters">
+                <label for="revenueStartDate" class="sr-only">Start date</label>
+                <input type="date" id="revenueStartDate" class="date-input" aria-label="Revenue analysis start date">
+                <label for="revenueEndDate" class="sr-only">End date</label>
+                <input type="date" id="revenueEndDate" class="date-input" aria-label="Revenue analysis end date">
+                <button class="btn btn-primary" id="revenueFilterBtn" aria-label="Load revenue analysis chart">Update Chart</button>
+            </div>
+            <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
+                <h3 style="margin-bottom: 1rem;">Revenue Analysis</h3>
+                <canvas id="revenueAnalysisChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- Category Performance Chart -->
+        <section id="categoryPerformanceReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-category-performance" aria-hidden="true">
+            <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
+                <h3 style="margin-bottom: 1rem;">Sales by Category</h3>
+                <canvas id="categoryPerformanceChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- Monthly Comparison Chart -->
+        <section id="monthlyComparisonReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-monthly-comparison" aria-hidden="true">
+            <div class="report-filters" aria-label="Monthly comparison filters">
+                <label for="monthlyYear" class="sr-only">Year</label>
+                <select id="monthlyYear" class="date-input" aria-label="Select year for monthly comparison">
+                    <option value="">All Years</option>
+                </select>
+                <button class="btn btn-primary" id="monthlyFilterBtn" aria-label="Load monthly comparison chart">Update Chart</button>
+            </div>
+            <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
+                <h3 style="margin-bottom: 1rem;">Monthly Sales & Purchases Comparison</h3>
+                <canvas id="monthlyComparisonChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- Profit Analysis Chart -->
+        <section id="profitAnalysisReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-profit-analysis" aria-hidden="true">
+            <div class="report-filters" aria-label="Profit analysis filters">
+                <label for="profitStartDate" class="sr-only">Start date</label>
+                <input type="date" id="profitStartDate" class="date-input" aria-label="Profit analysis start date">
+                <label for="profitEndDate" class="sr-only">End date</label>
+                <input type="date" id="profitEndDate" class="date-input" aria-label="Profit analysis end date">
+                <button class="btn btn-primary" id="profitFilterBtn" aria-label="Load profit analysis chart">Update Chart</button>
+            </div>
+            <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
+                <h3 style="margin-bottom: 1rem;">Profit Analysis (Revenue vs Expenses)</h3>
+                <canvas id="profitAnalysisChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
             </div>
         </div>
     </main>
 
     <script src="app.js"></script>
     <script src="reports.js"></script>
+    <script src="reports-charts.js"></script>
 </body>
 </html>
 
