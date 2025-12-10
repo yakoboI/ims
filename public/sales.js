@@ -147,7 +147,8 @@ function openNewSaleModal() {
 }
 
 // Camera Barcode Scanning Functions
-async function startCameraScan() {
+// Expose functions globally for onclick handlers
+window.startCameraScan = async function startCameraScan() {
     if (cameraScanning) {
         return; // Already scanning
     }
@@ -245,7 +246,7 @@ async function startCameraScan() {
     }
 }
 
-function stopCameraScan() {
+window.stopCameraScan = function stopCameraScan() {
     if (!cameraScanning && !cameraCodeReader) {
         return;
     }

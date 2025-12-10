@@ -94,10 +94,17 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "https://cdn.jsdelivr.net",
+        "https://unpkg.com"
+      ],
       scriptSrcAttr: ["'unsafe-hashes'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "data:"],
+      connectSrc: ["'self'"], // Allow API connections
+      mediaSrc: ["'self'", "blob:"], // Allow camera/media access
     },
   },
   crossOriginEmbedderPolicy: false
