@@ -106,13 +106,78 @@
             <h1>Reports & Analytics</h1>
         </header>
 
-        <nav class="reports-tabs" role="tablist" aria-label="Report types">
-            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="stockReport" id="tab-stock">Stock Report</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="salesReport" id="tab-sales">Sales Report</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="purchasesReport" id="tab-purchases">Purchase Report</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="fastMovingReport" id="tab-fast-moving">Fast Moving Items</button>
-            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="slowMovingReport" id="tab-slow-moving">Slow Moving Items</button>
-        </nav>
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <!-- Analytics Sidebar -->
+            <aside class="analytics-sidebar" style="flex: 0 0 300px; min-width: 280px;">
+                <h2 style="margin-bottom: 1rem; font-size: 1.25rem;">Analytics Overview</h2>
+                
+                <!-- Quick Stats Cards -->
+                <div class="analytics-stats" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="stat-card" id="totalSalesCard">
+                        <div class="stat-icon" style="background: var(--success-color);">💰</div>
+                        <div class="stat-content">
+                            <h3 id="totalSalesAmount">-</h3>
+                            <p>Total Sales</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card" id="totalPurchasesCard">
+                        <div class="stat-icon" style="background: var(--info-color);">🛒</div>
+                        <div class="stat-content">
+                            <h3 id="totalPurchasesAmount">-</h3>
+                            <p>Total Purchases</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card" id="totalItemsCard">
+                        <div class="stat-icon" style="background: var(--primary-color);">📦</div>
+                        <div class="stat-content">
+                            <h3 id="totalItemsCount">-</h3>
+                            <p>Total Items</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card" id="lowStockCard">
+                        <div class="stat-icon" style="background: var(--warning-color);">⚠️</div>
+                        <div class="stat-content">
+                            <h3 id="lowStockCount">-</h3>
+                            <p>Low Stock Items</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Navigation -->
+                <div class="analytics-nav" style="background: var(--card-bg); padding: 1rem; border-radius: 0; box-shadow: var(--shadow);">
+                    <h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Quick Reports</h3>
+                    <nav class="reports-sidebar-nav" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="sidebar-nav-btn active" data-report="stock" style="width: 100%; text-align: left; padding: 0.75rem; border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; border-radius: 0;">
+                            <i class="fas fa-boxes"></i> Stock Report
+                        </button>
+                        <button class="sidebar-nav-btn" data-report="sales" style="width: 100%; text-align: left; padding: 0.75rem; border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; border-radius: 0;">
+                            <i class="fas fa-chart-line"></i> Sales Report
+                        </button>
+                        <button class="sidebar-nav-btn" data-report="purchases" style="width: 100%; text-align: left; padding: 0.75rem; border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; border-radius: 0;">
+                            <i class="fas fa-shopping-cart"></i> Purchase Report
+                        </button>
+                        <button class="sidebar-nav-btn" data-report="fast-moving" style="width: 100%; text-align: left; padding: 0.75rem; border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; border-radius: 0;">
+                            <i class="fas fa-fire"></i> Fast Moving Items
+                        </button>
+                        <button class="sidebar-nav-btn" data-report="slow-moving" style="width: 100%; text-align: left; padding: 0.75rem; border: 1px solid var(--border-color); background: var(--card-bg); cursor: pointer; border-radius: 0;">
+                            <i class="fas fa-hourglass-half"></i> Slow Moving Items
+                        </button>
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- Main Reports Content -->
+            <div class="reports-content" style="flex: 1; min-width: 0;">
+                <nav class="reports-tabs" role="tablist" aria-label="Report types">
+                    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="stockReport" id="tab-stock">Stock Report</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="salesReport" id="tab-sales">Sales Report</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="purchasesReport" id="tab-purchases">Purchase Report</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="fastMovingReport" id="tab-fast-moving">Fast Moving Items</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="slowMovingReport" id="tab-slow-moving">Slow Moving Items</button>
+                </nav>
 
         <!-- Stock Report -->
         <section id="stockReport" class="report-section" role="tabpanel" aria-labelledby="tab-stock">

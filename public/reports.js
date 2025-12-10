@@ -2,6 +2,7 @@ let currentReport = 'stock';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadStockReport();
+    await loadAnalyticsOverview();
     
     // Setup tab button event listeners (replaces inline onclick handlers)
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -10,6 +11,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             const reportType = btn.id.replace('tab-', '');
             showReport(reportType);
+        });
+    });
+    
+    // Setup sidebar navigation buttons
+    const sidebarNavButtons = document.querySelectorAll('.sidebar-nav-btn');
+    sidebarNavButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const reportType = btn.getAttribute('data-report');
+            showReport(reportType);
+            // Update sidebar active state
+            sidebarNavButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         });
     });
     
@@ -30,6 +44,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// Load analytics overview for sidebar
+async function loadAnalyticsOverview() {
+    try {
+        // Load multiple analytics endpoints in parallel
+        const [salesData, purchasesData, stockData] = await Promise.all([
+            apiRequest('/reports/sales').catch(() => []),
+            apiRequest('/reports/purchases').catch(() => []),
+            apiRequest('/reports/stock').catch(() => [])
+        ]);
+        
+        // Calculate total sales
+        const totalSales = salesData.reduce((sum, sale) => sum + (sale.total_revenue || 0), 0);
+        const totalSalesElement = document.getElementById('totalSalesAmount');
+        if (totalSalesElement) {
+            totalSalesElement.textContent = formatCurrency(totalSales);
+        }
+        
+        // Calculate total purchases
+        const totalPurchases = purchasesData.reduce((sum, purchase) => sum + (purchase.total_spent || 0), 0);
+        const totalPurchasesElement = document.getElementById('totalPurchasesAmount');
+        if (totalPurchasesElement) {
+            totalPurchasesElement.textContent = formatCurrency(totalPurchases);
+        }
+        
+        // Calculate total items and low stock
+        const totalItems = stockData.length;
+        const lowStockItems = stockData.filter(item => item.low_stock).length;
+        
+        const totalItemsElement = document.getElementById('totalItemsCount');
+        if (totalItemsElement) {
+            totalItemsElement.textContent = totalItems;
+        }
+        
+        const lowStockElement = document.getElementById('lowStockCount');
+        if (lowStockElement) {
+            lowStockElement.textContent = lowStockItems;
+        }
+    } catch (error) {
+        console.error('Error loading analytics overview:', error);
+    }
+}
 
 function showReport(reportType) {
     const idMap = {
