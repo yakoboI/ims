@@ -319,28 +319,91 @@ async function startCameraScan() {
         let videoInputDevices = [];
         try {
             videoInputDevices = await codeReader.listVideoInputDevices();
+            console.log('Available cameras:', videoInputDevices.map(d => ({ id: d.deviceId, label: d.label })));
         } catch (listError) {
             console.warn('Error listing video devices:', listError);
             // Continue with default device
         }
         
-        // Select camera device
+        // Select camera device - prioritize back camera on mobile
         let selectedDeviceId = null;
         if (videoInputDevices.length > 0) {
-            // On mobile, prefer back camera (environment facing)
             if (isMobile) {
-                const backCamera = videoInputDevices.find(device => 
-                    device.label.toLowerCase().includes('back') || 
-                    device.label.toLowerCase().includes('rear') ||
-                    device.label.toLowerCase().includes('environment')
-                );
+                // On mobile, prioritize back camera (environment facing)
+                // Try multiple strategies to find back camera
+                let backCamera = null;
+                
+                // Strategy 1: Look for explicit back/rear/environment keywords
+                backCamera = videoInputDevices.find(device => {
+                    const label = device.label.toLowerCase();
+                    return label.includes('back') || 
+                           label.includes('rear') || 
+                           label.includes('environment') ||
+                           label.includes('facing back') ||
+                           label.includes('facing: environment');
+                });
+                
+                // Strategy 2: If no explicit back camera found, try to get device capabilities
+                if (!backCamera && videoInputDevices.length >= 2) {
+                    // Usually the second camera is the back camera on mobile devices
+                    // But let's check if we can determine which one is back
+                    for (let i = 0; i < videoInputDevices.length; i++) {
+                        const device = videoInputDevices[i];
+                        // Skip front-facing camera indicators
+                        const label = device.label.toLowerCase();
+                        if (!label.includes('front') && 
+                            !label.includes('user') && 
+                            !label.includes('facing: user')) {
+                            backCamera = device;
+                            break;
+                        }
+                    }
+                    // If still not found and we have 2+ cameras, use the second one (usually back)
+                    if (!backCamera && videoInputDevices.length >= 2) {
+                        backCamera = videoInputDevices[1];
+                    }
+                }
+                
+                // Strategy 3: Use constraints to request back camera specifically
+                if (!backCamera) {
+                    // Try to get back camera using constraints
+                    try {
+                        const backStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: 'environment' }
+                        });
+                        // Get the track's settings to find the device ID
+                        const track = backStream.getTracks()[0];
+                        const settings = track.getSettings();
+                        backStream.getTracks().forEach(t => t.stop());
+                        
+                        // Find device matching these settings
+                        if (settings.deviceId) {
+                            backCamera = videoInputDevices.find(d => d.deviceId === settings.deviceId);
+                        }
+                    } catch (constraintError) {
+                        console.warn('Could not get back camera via constraints:', constraintError);
+                    }
+                }
+                
                 selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+                
+                if (backCamera) {
+                    console.log('Selected back camera:', backCamera.label);
+                } else {
+                    console.log('Back camera not found, using first available:', videoInputDevices[0].label);
+                }
             } else {
+                // Desktop - use first available camera
                 selectedDeviceId = videoInputDevices[0].deviceId;
             }
         } else {
             // No devices listed, use undefined to let browser choose default
-            selectedDeviceId = undefined;
+            // But on mobile, try to request back camera via constraints
+            if (isMobile) {
+                selectedDeviceId = undefined; // Will use facingMode constraint
+            } else {
+                selectedDeviceId = undefined;
+            }
         }
         
         // Set up video element for mobile compatibility
