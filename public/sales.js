@@ -201,6 +201,26 @@ async function startCameraScan() {
             throw new Error('Barcode scanning library not loaded. Please refresh the page.');
         }
         
+        // Request camera permission first by trying to get user media
+        // This ensures we have permission before trying to use ZXing
+        let testStream = null;
+        try {
+            testStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment' // Prefer back camera on mobile
+                } 
+            });
+            // Permission granted, stop the test stream immediately
+            testStream.getTracks().forEach(track => track.stop());
+        } catch (permError) {
+            if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
+                throw new Error('Camera access denied. Please click the camera icon in your browser\'s address bar and allow camera access, then try again.');
+            } else if (permError.name === 'NotFoundError' || permError.name === 'DevicesNotFoundError') {
+                throw new Error('No camera found. Please connect a camera device.');
+            }
+            throw permError;
+        }
+        
         // Initialize code reader
         const codeReader = new ZXing.BrowserMultiFormatReader();
         cameraCodeReader = codeReader;
