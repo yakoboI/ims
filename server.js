@@ -100,6 +100,12 @@ app.use(helmet({
         "https://cdn.jsdelivr.net",
         "https://unpkg.com"
       ],
+      scriptSrcElem: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+        "https://unpkg.com"
+      ],
       scriptSrcAttr: ["'unsafe-hashes'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "data:"],
