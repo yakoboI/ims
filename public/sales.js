@@ -100,15 +100,8 @@ function renderSalesTable(sales) {
 function setupEventListeners() {
     document.getElementById('newSaleForm').addEventListener('submit', handleSaleSubmit);
     
-    // Camera scan button event listeners
-    const cameraScanBtn = document.getElementById('cameraScanBtn');
-    const stopCameraBtn = document.getElementById('stopCameraBtn');
-    if (cameraScanBtn) {
-        cameraScanBtn.addEventListener('click', startCameraScan);
-    }
-    if (stopCameraBtn) {
-        stopCameraBtn.addEventListener('click', stopCameraScan);
-    }
+    // Camera scan button event listeners - set up immediately and also when modal opens
+    setupCameraButtonListeners();
     
     // Use unified barcode scanner
     const barcodeInput = document.getElementById('saleBarcodeInput');
@@ -141,6 +134,30 @@ function setupEventListeners() {
     }
 }
 
+function setupCameraButtonListeners() {
+    // Camera scan button event listeners
+    const cameraScanBtn = document.getElementById('cameraScanBtn');
+    const stopCameraBtn = document.getElementById('stopCameraBtn');
+    if (cameraScanBtn) {
+        // Remove any existing onclick handlers and add event listener
+        cameraScanBtn.removeAttribute('onclick');
+        cameraScanBtn.onclick = null;
+        cameraScanBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            startCameraScan();
+        });
+    }
+    if (stopCameraBtn) {
+        // Remove any existing onclick handlers and add event listener
+        stopCameraBtn.removeAttribute('onclick');
+        stopCameraBtn.onclick = null;
+        stopCameraBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            stopCameraScan();
+        });
+    }
+}
+
 function openNewSaleModal() {
     saleItems = [];
     document.getElementById('saleItemsList').innerHTML = '';
@@ -151,6 +168,11 @@ function openNewSaleModal() {
     if (cameraScanning) {
         stopCameraScan();
     }
+    
+    // Re-setup camera button listeners in case modal was recreated
+    setTimeout(() => {
+        setupCameraButtonListeners();
+    }, 100);
     
     const barcodeInput = document.getElementById('saleBarcodeInput');
     openModal('newSaleModal', barcodeInput);
