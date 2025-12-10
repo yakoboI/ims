@@ -286,6 +286,14 @@ async function startCameraScan() {
             selectedDeviceId = undefined;
         }
         
+        // Set up video element for mobile compatibility
+        cameraVideo.setAttribute('playsinline', 'true');
+        cameraVideo.setAttribute('webkit-playsinline', 'true');
+        cameraVideo.setAttribute('x5-playsinline', 'true');
+        cameraVideo.style.width = '100%';
+        cameraVideo.style.maxWidth = '100%';
+        cameraVideo.style.objectFit = 'cover';
+        
         // Start decoding from video device
         cameraStatus.textContent = 'Camera active - Point at barcode';
         cameraStatus.style.color = 'var(--success-color)';
@@ -294,7 +302,7 @@ async function startCameraScan() {
         stopBtn.style.display = 'inline-flex';
         cameraScanning = true;
         
-        // Decode from video device
+        // Decode from video device - use undefined deviceId on mobile if needed
         codeReader.decodeFromVideoDevice(selectedDeviceId, cameraVideo, (result, err) => {
             if (result) {
                 // Barcode detected!
