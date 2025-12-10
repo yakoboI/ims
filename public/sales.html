@@ -50,6 +50,9 @@
     <!-- JsBarcode Library for generating barcode images -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
+    <!-- ZXing (Zebra Crossing) for camera barcode scanning -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    
     <!-- Product Flow Management -->
     <script src="product-flow.js"></script>
     
@@ -148,19 +151,44 @@
                 
                 <section class="sale-items-section" aria-labelledby="saleItemsHeading">
                     <h3 id="saleItemsHeading">Items</h3>
+                    
+                    <!-- Camera Scanning - PRIMARY METHOD -->
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="saleBarcodeInput">Scan Barcode (or select item below)</label>
-                        <input type="text" id="saleBarcodeInput" placeholder="Scan barcode here..." autocomplete="off" style="font-size: 1.1rem; padding: 0.75rem;" aria-label="Scan barcode to add item">
-                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Barcode scanner will auto-add items</small>
+                        <label>Scan with Camera</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" id="cameraScanBtn" onclick="startCameraScan()" aria-label="Start camera barcode scanning">
+                                <i class="fas fa-camera"></i> Scan with Camera
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="stopCameraBtn" onclick="stopCameraScan()" style="display: none;" aria-label="Stop camera scanning">
+                                <i class="fas fa-stop"></i> Stop Camera
+                            </button>
+                            <span id="cameraStatus" style="color: var(--text-secondary); font-size: 0.875rem;"></span>
+                        </div>
+                        <div id="cameraPreview" style="display: none; margin-top: 1rem; text-align: center;">
+                            <video id="cameraVideo" autoplay playsinline style="max-width: 100%; max-height: 300px; border: 2px solid var(--primary-color); border-radius: 4px;"></video>
+                            <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">Point camera at barcode</p>
+                        </div>
                     </div>
-                    <div class="add-item-row">
-                        <label for="saleItemSelect" class="sr-only">Select item</label>
-                        <select id="saleItemSelect" class="item-select" aria-label="Select item to add">
-                            <option value="">Select Item</option>
-                        </select>
-                        <label for="saleQuantity" class="sr-only">Quantity</label>
-                        <input type="number" id="saleQuantity" placeholder="Qty" min="1" class="qty-input" value="1" aria-label="Item quantity">
-                        <button type="button" class="btn btn-secondary" onclick="addSaleItem()" aria-label="Add item to sale">Add</button>
+                    
+                    <!-- Manual Barcode Input - SECONDARY METHOD -->
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="saleBarcodeInput">Or Enter Barcode Manually</label>
+                        <input type="text" id="saleBarcodeInput" placeholder="Type or scan barcode here..." autocomplete="off" style="font-size: 1.1rem; padding: 0.75rem;" aria-label="Enter barcode manually">
+                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Type barcode or use physical scanner</small>
+                    </div>
+                    
+                    <!-- Manual Item Selection - TERTIARY METHOD -->
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Or Select Item Manually</label>
+                        <div class="add-item-row">
+                            <label for="saleItemSelect" class="sr-only">Select item</label>
+                            <select id="saleItemSelect" class="item-select" aria-label="Select item to add">
+                                <option value="">Select Item</option>
+                            </select>
+                            <label for="saleQuantity" class="sr-only">Quantity</label>
+                            <input type="number" id="saleQuantity" placeholder="Qty" min="1" class="qty-input" value="1" aria-label="Item quantity">
+                            <button type="button" class="btn btn-secondary" onclick="addSaleItem()" aria-label="Add item to sale">Add</button>
+                        </div>
                     </div>
                     <div class="table-container">
                         <table class="data-table" role="table" aria-label="Sale items">

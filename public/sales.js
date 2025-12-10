@@ -4,6 +4,9 @@ let barcodeScanTimeout = null;
 let lastBarcodeTime = 0;
 let barcodeScanInProgress = false;
 let itemsCache = new Map();
+let cameraStream = null;
+let cameraCodeReader = null;
+let cameraScanning = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadItems();
@@ -134,8 +137,155 @@ function openNewSaleModal() {
     document.getElementById('saleTotal').textContent = '0.00';
     document.getElementById('newSaleForm').reset();
     
+    // Stop camera if running
+    if (cameraScanning) {
+        stopCameraScan();
+    }
+    
     const barcodeInput = document.getElementById('saleBarcodeInput');
     openModal('newSaleModal', barcodeInput);
+}
+
+// Camera Barcode Scanning Functions
+async function startCameraScan() {
+    if (cameraScanning) {
+        return; // Already scanning
+    }
+    
+    const cameraBtn = document.getElementById('cameraScanBtn');
+    const stopBtn = document.getElementById('stopCameraBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraStatus = document.getElementById('cameraStatus');
+    
+    try {
+        cameraStatus.textContent = 'Starting camera...';
+        cameraStatus.style.color = 'var(--text-secondary)';
+        cameraBtn.disabled = true;
+        
+        // Check if ZXing is available
+        if (typeof ZXing === 'undefined' || !ZXing.BrowserMultiFormatReader) {
+            throw new Error('Barcode scanning library not loaded. Please refresh the page.');
+        }
+        
+        // Initialize code reader
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        cameraCodeReader = codeReader;
+        
+        // Get available video devices
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        
+        if (videoInputDevices.length === 0) {
+            throw new Error('No camera found. Please connect a camera device.');
+        }
+        
+        // Use the first available camera (usually the default)
+        const selectedDeviceId = videoInputDevices[0].deviceId;
+        
+        // Start decoding from video device
+        cameraStatus.textContent = 'Camera active - Point at barcode';
+        cameraStatus.style.color = 'var(--success-color)';
+        cameraPreview.style.display = 'block';
+        cameraBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+        cameraScanning = true;
+        
+        // Decode from video device
+        codeReader.decodeFromVideoDevice(selectedDeviceId, cameraVideo, (result, err) => {
+            if (result) {
+                // Barcode detected!
+                const barcode = result.getText();
+                console.log('Barcode scanned:', barcode);
+                
+                // Show success feedback
+                cameraStatus.textContent = 'Barcode detected! Processing...';
+                cameraStatus.style.color = 'var(--success-color)';
+                
+                // Stop camera scanning
+                stopCameraScan();
+                
+                // Process the scanned barcode
+                handleBarcodeScan(barcode).then(() => {
+                    cameraStatus.textContent = 'Item added successfully!';
+                    setTimeout(() => {
+                        cameraStatus.textContent = '';
+                    }, 2000);
+                }).catch(error => {
+                    console.error('Error processing scanned barcode:', error);
+                    cameraStatus.textContent = 'Error: ' + (error.message || 'Failed to process barcode');
+                    cameraStatus.style.color = 'var(--danger-color)';
+                    setTimeout(() => {
+                        cameraStatus.textContent = '';
+                        cameraStatus.style.color = '';
+                    }, 3000);
+                });
+            }
+            
+            if (err) {
+                // NotFound is normal when no barcode is visible - don't log it
+                if (err.name !== 'NotFoundException' && err.name !== 'NoQRCodeFoundException') {
+                    console.error('Camera scan error:', err);
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Camera scan error:', error);
+        cameraStatus.textContent = 'Error: ' + (error.message || 'Failed to start camera');
+        cameraStatus.style.color = 'var(--danger-color)';
+        cameraBtn.disabled = false;
+        
+        showNotification(error.message || 'Failed to start camera. Please check permissions.', 'error');
+        
+        // Reset UI
+        setTimeout(() => {
+            cameraStatus.textContent = '';
+            cameraStatus.style.color = '';
+        }, 5000);
+    }
+}
+
+function stopCameraScan() {
+    if (!cameraScanning && !cameraCodeReader) {
+        return;
+    }
+    
+    const cameraBtn = document.getElementById('cameraScanBtn');
+    const stopBtn = document.getElementById('stopCameraBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraStatus = document.getElementById('cameraStatus');
+    
+    try {
+        // Stop code reader
+        if (cameraCodeReader) {
+            cameraCodeReader.reset();
+            cameraCodeReader = null;
+        }
+        
+        // Stop video stream
+        if (cameraVideo && cameraVideo.srcObject) {
+            const stream = cameraVideo.srcObject;
+            stream.getTracks().forEach(track => track.stop());
+            cameraVideo.srcObject = null;
+        }
+        
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        
+        // Reset UI
+        cameraScanning = false;
+        cameraPreview.style.display = 'none';
+        cameraBtn.style.display = 'inline-flex';
+        cameraBtn.disabled = false;
+        stopBtn.style.display = 'none';
+        cameraStatus.textContent = '';
+        cameraStatus.style.color = '';
+    } catch (error) {
+        console.error('Error stopping camera:', error);
+    }
 }
 
 function handleBarcodeInput(e) {
@@ -286,6 +436,10 @@ function handleBarcodeScanSuccess(item, barcode) {
 window.handleBarcodeScanSuccess = handleBarcodeScanSuccess;
 
 function closeNewSaleModal() {
+    // Stop camera if running
+    if (cameraScanning) {
+        stopCameraScan();
+    }
     closeModal('newSaleModal');
     saleItems = [];
 }
