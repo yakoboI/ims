@@ -138,23 +138,55 @@ function setupCameraButtonListeners() {
     // Camera scan button event listeners
     const cameraScanBtn = document.getElementById('cameraScanBtn');
     const stopCameraBtn = document.getElementById('stopCameraBtn');
+    
     if (cameraScanBtn) {
-        // Remove any existing onclick handlers and add event listener
-        cameraScanBtn.removeAttribute('onclick');
-        cameraScanBtn.onclick = null;
-        cameraScanBtn.addEventListener('click', function(e) {
+        // Remove any existing listeners by cloning the button
+        const newBtn = cameraScanBtn.cloneNode(true);
+        cameraScanBtn.parentNode.replaceChild(newBtn, cameraScanBtn);
+        
+        // Get the new button reference
+        const btn = document.getElementById('cameraScanBtn');
+        
+        // Add multiple event types for better mobile compatibility
+        btn.addEventListener('click', function(e) {
             e.preventDefault();
-            startCameraScan();
-        });
+            e.stopPropagation();
+            console.log('Camera button clicked');
+            startCameraScan().catch(error => {
+                console.error('Camera scan error:', error);
+            });
+        }, { passive: false });
+        
+        // Also add touchstart for mobile devices
+        btn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Camera button touched');
+            startCameraScan().catch(error => {
+                console.error('Camera scan error:', error);
+            });
+        }, { passive: false });
     }
+    
     if (stopCameraBtn) {
-        // Remove any existing onclick handlers and add event listener
-        stopCameraBtn.removeAttribute('onclick');
-        stopCameraBtn.onclick = null;
-        stopCameraBtn.addEventListener('click', function(e) {
+        // Remove any existing listeners by cloning the button
+        const newStopBtn = stopCameraBtn.cloneNode(true);
+        stopCameraBtn.parentNode.replaceChild(newStopBtn, stopCameraBtn);
+        
+        // Get the new button reference
+        const stopBtn = document.getElementById('stopCameraBtn');
+        
+        stopBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             stopCameraScan();
-        });
+        }, { passive: false });
+        
+        stopBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            stopCameraScan();
+        }, { passive: false });
     }
 }
 
@@ -181,7 +213,10 @@ function openNewSaleModal() {
 // Camera Barcode Scanning Functions
 // Expose functions globally for onclick handlers
 async function startCameraScan() {
+    console.log('startCameraScan called');
+    
     if (cameraScanning) {
+        console.log('Camera already scanning');
         return; // Already scanning
     }
     
@@ -191,7 +226,15 @@ async function startCameraScan() {
     const cameraVideo = document.getElementById('cameraVideo');
     const cameraStatus = document.getElementById('cameraStatus');
     
+    // Check if elements exist
+    if (!cameraBtn || !cameraVideo || !cameraStatus) {
+        console.error('Camera elements not found:', { cameraBtn, cameraVideo, cameraStatus });
+        showNotification('Camera elements not found. Please refresh the page.', 'error');
+        return;
+    }
+    
     try {
+        console.log('Starting camera scan...');
         cameraStatus.textContent = 'Starting camera...';
         cameraStatus.style.color = 'var(--text-secondary)';
         cameraBtn.disabled = true;
