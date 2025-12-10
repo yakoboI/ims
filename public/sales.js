@@ -201,24 +201,57 @@ async function startCameraScan() {
             throw new Error('Barcode scanning library not loaded. Please refresh the page.');
         }
         
+        // Detect mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        (window.innerWidth <= 768);
+        
         // Request camera permission first by trying to get user media
         // This ensures we have permission before trying to use ZXing
         let testStream = null;
+        let videoConstraints = {};
+        
+        if (isMobile) {
+            // Mobile-specific constraints
+            videoConstraints = {
+                facingMode: { ideal: 'environment' }, // Prefer back camera
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            };
+        } else {
+            // Desktop constraints
+            videoConstraints = {
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            };
+        }
+        
         try {
             testStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment' // Prefer back camera on mobile
-                } 
+                video: videoConstraints
             });
             // Permission granted, stop the test stream immediately
             testStream.getTracks().forEach(track => track.stop());
         } catch (permError) {
             if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
-                throw new Error('Camera access denied. Please click the camera icon in your browser\'s address bar and allow camera access, then try again.');
+                const mobileMsg = isMobile 
+                    ? 'Camera access denied. Please allow camera access in your device settings and browser permissions, then try again.'
+                    : 'Camera access denied. Please click the camera icon in your browser\'s address bar and allow camera access, then try again.';
+                throw new Error(mobileMsg);
             } else if (permError.name === 'NotFoundError' || permError.name === 'DevicesNotFoundError') {
                 throw new Error('No camera found. Please connect a camera device.');
+            } else if (permError.name === 'OverconstrainedError' || permError.name === 'ConstraintNotSatisfiedError') {
+                // Try with simpler constraints if advanced constraints fail
+                try {
+                    testStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: isMobile ? { facingMode: 'environment' } : true
+                    });
+                    testStream.getTracks().forEach(track => track.stop());
+                } catch (retryError) {
+                    throw permError; // Throw original error
+                }
+            } else {
+                throw permError;
             }
-            throw permError;
         }
         
         // Initialize code reader
@@ -226,14 +259,32 @@ async function startCameraScan() {
         cameraCodeReader = codeReader;
         
         // Get available video devices
-        const videoInputDevices = await codeReader.listVideoInputDevices();
-        
-        if (videoInputDevices.length === 0) {
-            throw new Error('No camera found. Please connect a camera device.');
+        let videoInputDevices = [];
+        try {
+            videoInputDevices = await codeReader.listVideoInputDevices();
+        } catch (listError) {
+            console.warn('Error listing video devices:', listError);
+            // Continue with default device
         }
         
-        // Use the first available camera (usually the default)
-        const selectedDeviceId = videoInputDevices[0].deviceId;
+        // Select camera device
+        let selectedDeviceId = null;
+        if (videoInputDevices.length > 0) {
+            // On mobile, prefer back camera (environment facing)
+            if (isMobile) {
+                const backCamera = videoInputDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear') ||
+                    device.label.toLowerCase().includes('environment')
+                );
+                selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+            } else {
+                selectedDeviceId = videoInputDevices[0].deviceId;
+            }
+        } else {
+            // No devices listed, use undefined to let browser choose default
+            selectedDeviceId = undefined;
+        }
         
         // Start decoding from video device
         cameraStatus.textContent = 'Camera active - Point at barcode';
