@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Inventory Management System - Login | IMS</title>
+    <meta name="description" content="Secure login to the Inventory Management System. Manage inventory, track sales, purchases, and generate reports with our comprehensive IMS solution.">
+    <meta name="keywords" content="inventory management, IMS, stock management, inventory system, warehouse management, sales tracking, purchase management">
+    <meta name="author" content="Inventory Management System">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <meta name="revisit-after" content="7 days">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Inventory Management System - Login">
+    <meta property="og:description" content="Secure login to the Inventory Management System. Manage inventory, track sales, purchases, and generate reports.">
+    <meta property="og:site_name" content="Inventory Management System">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Inventory Management System - Login">
+    <meta name="twitter:description" content="Secure login to the Inventory Management System. Manage inventory, track sales, purchases, and generate reports.">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+</head>
+<body class="login-page">
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <main id="main-content" class="login-container" role="main">
+        <div class="login-box">
+            <header>
+                <h1>Inventory Management System</h1>
+            </header>
+            <form id="loginForm" role="form" aria-label="Login form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        autocomplete="username"
+                        aria-required="true"
+                        aria-label="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        autocomplete="current-password"
+                        aria-required="true"
+                        aria-label="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary" aria-label="Submit login form">Login</button>
+                <div id="loginError" class="error-message" role="alert" aria-live="polite" aria-atomic="true"></div>
+            </form>
+        </div>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
+

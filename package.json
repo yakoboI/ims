@@ -1,0 +1,44 @@
+{
+  "name": "inventory-management-system",
+  "version": "1.0.0",
+  "description": "Inventory Management System (IMS) - Complete solution for tracking inventory, sales, and purchases",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "init-db": "node scripts/init-db.js",
+    "build": "echo 'No build step required'",
+    "postinstall": "echo 'Installation complete'",
+    "railway:build": "npm cache clean --force && npm ci --omit=dev || (npm cache clean --force && npm install --omit=dev)",
+    "install:retry": "npm ci || npm install"
+  },
+  "keywords": [
+    "inventory",
+    "management",
+    "ims"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "connect-timeout": "^1.9.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "pdfkit": "^0.15.2",
+    "sqlite3": "^5.1.6",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

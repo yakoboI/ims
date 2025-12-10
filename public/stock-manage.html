@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Stock Manage - Inventory Management System | IMS</title>
+    <meta name="description" content="Manage stock quantities, minimum stock levels, and stock adjustments for inventory items.">
+    <meta name="keywords" content="stock management, stock quantity, minimum stock level, inventory stock">
+    <meta name="author" content="Inventory Management System">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://your-domain.com/stock-manage.html">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Error Logger -->
+    <script src="error-logger.js"></script>
+    
+    <!-- Retry Utils -->
+    <script src="retry-utils.js"></script>
+    
+    <!-- Pagination -->
+    <script src="pagination.js"></script>
+    
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <div class="page-header-content">
+                <h1>Stock Manage</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="openBulkStockUpdateModal()" aria-label="Bulk stock update"><i class="fas fa-tasks"></i> <span class="btn-text">Bulk Update</span></button>
+                </div>
+            </div>
+        </header>
+
+        <section class="filters" aria-label="Stock filters">
+            <div class="filters-row">
+                <label for="searchStock" class="sr-only">Search items</label>
+                <input type="text" id="searchStock" placeholder="Search items..." class="search-input" aria-label="Search items">
+                <label for="categoryStockFilter" class="sr-only">Filter by category</label>
+                <select id="categoryStockFilter" class="filter-select" aria-label="Filter by category">
+                    <option value="">All Categories</option>
+                </select>
+                <label for="stockStatusFilter" class="sr-only">Filter by stock status</label>
+                <select id="stockStatusFilter" class="filter-select" aria-label="Filter by stock status">
+                    <option value="">All Stock Levels</option>
+                    <option value="in_stock">In Stock</option>
+                    <option value="low_stock">Low Stock</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="filterStock()" aria-label="Apply filters"><i class="fas fa-filter"></i> <span class="btn-text">Filter</span></button>
+                <button class="btn btn-secondary" onclick="clearStockFilters()" aria-label="Clear all filters"><i class="fas fa-times"></i> <span class="btn-text">Clear</span></button>
+            </div>
+        </section>
+
+        <section class="table-container" aria-label="Stock management table">
+            <table class="data-table" role="table" aria-label="Stock management">
+                <thead>
+                    <tr>
+                        <th scope="col" data-column="name" class="sortable" onclick="sortStockTable('name')" data-label="Name">Name <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="sku" data-label="SKU">SKU</th>
+                        <th scope="col" data-column="category" data-label="Category">Category</th>
+                        <th scope="col" data-column="stock_quantity" class="sortable numeric" onclick="sortStockTable('stock_quantity')" data-label="Stock Quantity">Stock Quantity <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="min_stock_level" class="sortable numeric" onclick="sortStockTable('min_stock_level')" data-label="Min Stock Level">Min Stock Level <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="unit" data-label="Unit">Unit</th>
+                        <th scope="col" data-column="status" data-label="Status">Status</th>
+                        <th scope="col" data-column="actions" data-label="Actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="8" class="text-center" data-label="">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Stock Update Modal -->
+    <div id="stockUpdateModal" class="modal" role="dialog" aria-labelledby="stockUpdateTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeStockUpdateModal()" aria-label="Close modal">&times;</button>
+            <h2 id="stockUpdateTitle">Update Stock</h2>
+            <form id="stockUpdateForm" role="form" aria-label="Update stock form">
+                <input type="hidden" id="stockItemId">
+                <div class="form-group">
+                    <label for="stockItemNameDisplay">Item Name</label>
+                    <input type="text" id="stockItemNameDisplay" readonly aria-label="Item name">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="updateStockQuantity">Stock Quantity</label>
+                        <input type="number" id="updateStockQuantity" value="0" aria-label="Stock quantity">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateMinStockLevel">Min Stock Level</label>
+                        <input type="number" id="updateMinStockLevel" value="10" aria-label="Minimum stock level">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="updateUnit">Unit</label>
+                    <input type="text" id="updateUnit" value="pcs" aria-label="Unit of measurement">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeStockUpdateModal()" aria-label="Cancel"><i class="fas fa-times"></i> <span class="btn-text">Cancel</span></button>
+                    <button type="submit" class="btn btn-primary" aria-label="Update stock"><i class="fas fa-save"></i> <span class="btn-text">Update</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Stock Update Modal -->
+    <div id="bulkStockUpdateModal" class="modal" role="dialog" aria-labelledby="bulkStockUpdateTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeBulkStockUpdateModal()" aria-label="Close modal">&times;</button>
+            <h2 id="bulkStockUpdateTitle">Bulk Stock Update</h2>
+            <form id="bulkStockUpdateForm" role="form" aria-label="Bulk stock update form">
+                <div class="form-group">
+                    <label for="bulkStockType">Update Type</label>
+                    <select id="bulkStockType" aria-label="Bulk stock update type">
+                        <option value="increase">Increase</option>
+                        <option value="decrease">Decrease</option>
+                        <option value="set">Set to Value</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="bulkStockQuantity">Stock Quantity</label>
+                        <input type="number" id="bulkStockQuantity" value="0" aria-label="Stock quantity">
+                    </div>
+                    <div class="form-group">
+                        <label for="bulkMinStockLevel">Min Stock Level</label>
+                        <input type="number" id="bulkMinStockLevel" value="10" aria-label="Minimum stock level">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="bulkStockCategory">Apply to Category</label>
+                    <select id="bulkStockCategory" aria-label="Category filter">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeBulkStockUpdateModal()" aria-label="Cancel"><i class="fas fa-times"></i> <span class="btn-text">Cancel</span></button>
+                    <button type="submit" class="btn btn-primary" aria-label="Apply bulk update"><i class="fas fa-check"></i> <span class="btn-text">Apply</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="stock-manage.js"></script>
+</body>
+</html>
+

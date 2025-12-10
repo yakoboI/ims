@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Dashboard - Inventory Management System | IMS</title>
+    <meta name="description" content="View real-time inventory statistics, sales data, purchase information, and low stock alerts on your IMS dashboard.">
+    <meta name="keywords" content="inventory dashboard, stock management dashboard, inventory statistics, sales dashboard, IMS dashboard">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Dashboard">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Mobile Menu Handler - Define early so onclick can use it -->
+    <script>
+        // Define mobile menu handler immediately so HTML onclick can access it
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            // The actual toggleMobileMenu function will be defined in app.js
+            // If it's not loaded yet, try again after a short delay
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                // Wait a bit for app.js to load
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Dashboard</h1>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn btn-primary" onclick="refreshDashboard()" id="refreshBtn" style="display: none;" aria-label="Refresh dashboard data"><i class="fas fa-sync-alt fa-icon-white"></i> Refresh</button>
+                <button class="btn btn-danger" onclick="initiateClearData()" id="initiateClearDataBtn" style="display: none;" aria-label="Initiate clear data process"><i class="fas fa-trash-alt fa-icon-white"></i> Clear Data</button>
+            </div>
+        </header>
+        
+        <!-- Admin Dashboard -->
+        <section id="adminDashboard" class="role-dashboard" style="display: none;" aria-label="Administrator dashboard">
+            <!-- Clear Data Section - Hidden by default, shown only when status exists -->
+            <div id="adminClearDataStatus" style="margin-bottom: 1rem; display: none;"></div>
+            <div id="adminClearDataFiles" style="margin-bottom: 1rem; display: none;"></div>
+
+            <div class="stats-grid" id="adminStatsGrid" role="region" aria-label="Statistics overview">
+                <article class="stat-card" role="article" aria-label="Total items statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-boxes fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="adminTotalItems" aria-live="polite">-</h3>
+                        <p>Total Items</p>
+                    </div>
+                </article>
+                <article class="stat-card warning" role="article" aria-label="Low stock items statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle fa-icon-warning" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="adminLowStockItems" aria-live="polite">-</h3>
+                        <p>Low Stock Items</p>
+                    </div>
+                </article>
+                <article class="stat-card success" role="article" aria-label="Today's sales statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-success" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="adminTodaySales" aria-live="polite">-</h3>
+                        <p>Today's Sales</p>
+                    </div>
+                </article>
+                <article class="stat-card info" role="article" aria-label="Today's purchases statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-shopping-cart fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="adminTodayPurchases" aria-live="polite">-</h3>
+                        <p>Today's Purchases</p>
+                    </div>
+                </article>
+            </div>
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="low-stock-heading">
+                    <h2 id="low-stock-heading">Low Stock Alerts</h2>
+                    <div id="adminLowStockList" class="alert-list" role="list" aria-live="polite" aria-label="Low stock items list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="recent-sales-heading">
+                    <h2 id="recent-sales-heading">Recent Sales</h2>
+                    <div id="adminRecentSales" class="recent-list" role="list" aria-live="polite" aria-label="Recent sales list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="recent-purchases-heading">
+                    <h2 id="recent-purchases-heading">Recent Purchases</h2>
+                    <div id="adminRecentPurchases" class="recent-list" role="list" aria-live="polite" aria-label="Recent purchases list"></div>
+                </section>
+            </div>
+        </section>
+
+        <!-- Storekeeper Dashboard -->
+        <section id="storekeeperDashboard" class="role-dashboard" style="display: none;" aria-label="Storekeeper dashboard">
+            <!-- Key Performance Indicators -->
+            <div class="stats-grid" id="storekeeperStatsGrid" role="region" aria-label="Statistics overview">
+                <article class="stat-card" role="article" aria-label="Total items statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-boxes fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="storekeeperTotalItems" aria-live="polite">-</h3>
+                        <p>Total Items</p>
+                        <small id="storekeeperTotalUnits" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card warning" role="article" aria-label="Low stock items statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle fa-icon-warning" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="storekeeperLowStockItems" aria-live="polite">-</h3>
+                        <p>Low Stock Items</p>
+                        <small id="storekeeperOutOfStock" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card info" role="article" aria-label="Today's purchases statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-shopping-cart fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="storekeeperTodayPurchases" aria-live="polite">-</h3>
+                        <p>Today's Purchases</p>
+                        <small id="storekeeperTodayPurchaseItems" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card success" role="article" aria-label="Total stock value statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-success" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="storekeeperTotalStockValue" aria-live="polite">-</h3>
+                        <p>Inventory Value</p>
+                        <small id="storekeeperSalesValue" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Critical Stock & Reorder Recommendations -->
+            <div class="dashboard-sections" style="margin-top: 2rem;">
+                <section class="section-card" aria-labelledby="critical-stock-heading">
+                    <h2 id="critical-stock-heading">Critical Stock Alerts</h2>
+                    <div id="storekeeperCriticalStock" class="alert-list" role="list" aria-live="polite" aria-label="Critical stock items list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="reorder-heading">
+                    <h2 id="reorder-heading">Reorder Recommendations</h2>
+                    <div id="storekeeperReorderRecommendations" class="recent-list" role="list" aria-live="polite" aria-label="Reorder recommendations list"></div>
+                </section>
+            </div>
+
+            <!-- Purchase Analysis -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="purchase-stats-heading">
+                    <h2 id="purchase-stats-heading">Purchase Statistics</h2>
+                    <div id="storekeeperPurchaseStats" role="region" aria-live="polite"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="recent-purchases-heading">
+                    <h2 id="recent-purchases-heading">Recent Purchases</h2>
+                    <div id="storekeeperRecentPurchases" class="recent-list" role="list" aria-live="polite" aria-label="Recent purchases list"></div>
+                </section>
+            </div>
+
+            <!-- Stock Management -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="category-stock-heading">
+                    <h2 id="category-stock-heading">Stock by Category</h2>
+                    <div id="storekeeperCategoryStock" class="recent-list" role="list" aria-live="polite" aria-label="Category stock summary list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="stock-adjustments-heading">
+                    <h2 id="stock-adjustments-heading">Recent Stock Adjustments</h2>
+                    <div id="storekeeperRecentAdjustments" class="recent-list" role="list" aria-live="polite" aria-label="Recent stock adjustments list"></div>
+                </section>
+            </div>
+
+            <!-- Suppliers & Items Needing Attention -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="top-suppliers-heading">
+                    <h2 id="top-suppliers-heading">Top Suppliers (This Month)</h2>
+                    <div id="storekeeperTopSuppliers" class="recent-list" role="list" aria-live="polite" aria-label="Top suppliers list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="attention-heading">
+                    <h2 id="attention-heading">Items Needing Attention</h2>
+                    <div id="storekeeperItemsNeedingAttention" class="recent-list" role="list" aria-live="polite" aria-label="Items needing attention list"></div>
+                </section>
+            </div>
+
+            <!-- Purchase Trend -->
+            <section class="section-card" aria-labelledby="purchase-trend-heading">
+                <h2 id="purchase-trend-heading">Purchase Trend (Last 7 Days)</h2>
+                <div id="storekeeperPurchaseTrend" role="region" aria-live="polite"></div>
+            </section>
+        </section>
+
+        <!-- Sales Dashboard -->
+        <section id="salesDashboard" class="role-dashboard" style="display: none;" aria-label="Sales dashboard">
+            <!-- Key Performance Indicators -->
+            <div class="stats-grid" id="salesStatsGrid" role="region" aria-label="Sales statistics overview">
+                <article class="stat-card success" role="article" aria-label="Today's sales statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-success" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="salesTodaySales" aria-live="polite">-</h3>
+                        <p>Today's Revenue</p>
+                        <small id="salesTodayItems" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card info" role="article" aria-label="This week sales statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-chart-bar fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="salesWeekSales" aria-live="polite">-</h3>
+                        <p>This Week</p>
+                        <small id="salesWeekTransactions" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card" role="article" aria-label="This month sales statistic">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-chart-line fa-icon-primary" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="salesMonthSales" aria-live="polite">-</h3>
+                        <p>This Month</p>
+                        <small id="salesMonthGrowth" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card warning" role="article" aria-label="Average transaction statistic">
+                    <div class="stat-icon" aria-hidden="true">💵</div>
+                    <div class="stat-content">
+                        <h3 id="salesAvgTransaction" aria-live="polite">-</h3>
+                        <p>Avg Transaction</p>
+                        <small id="salesTotalTransactions" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Sales Performance & Trends -->
+            <div class="dashboard-sections" style="margin-top: 2rem;">
+                <section class="section-card" aria-labelledby="sales-performance-heading">
+                    <h2 id="sales-performance-heading">Sales Performance</h2>
+                    <div id="salesPerformanceMetrics" role="region" aria-live="polite"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="sales-trend-heading">
+                    <h2 id="sales-trend-heading">Sales Trend (Last 7 Days)</h2>
+                    <div id="salesTrend" role="region" aria-live="polite"></div>
+                </section>
+            </div>
+
+            <!-- Recent Sales & Top Selling Items -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="recent-sales-heading">
+                    <h2 id="recent-sales-heading">Recent Sales</h2>
+                    <div id="salesRecentSales" class="recent-list" role="list" aria-live="polite" aria-label="Recent sales transactions list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="top-selling-heading">
+                    <h2 id="top-selling-heading">Top Selling Items (This Month)</h2>
+                    <div id="salesTopSellingItems" class="recent-list" role="list" aria-live="polite" aria-label="Top selling items list"></div>
+                </section>
+            </div>
+
+            <!-- Sales by Category & Hourly Pattern -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="category-sales-heading">
+                    <h2 id="category-sales-heading">Sales by Category</h2>
+                    <div id="salesByCategory" class="recent-list" role="list" aria-live="polite" aria-label="Category sales list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="hourly-pattern-heading">
+                    <h2 id="hourly-pattern-heading">Today's Sales Pattern</h2>
+                    <div id="salesHourlyPattern" role="region" aria-live="polite"></div>
+                </section>
+            </div>
+
+            <!-- Customer Insights & Available Items -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="top-customers-heading">
+                    <h2 id="top-customers-heading">Top Customers (This Month)</h2>
+                    <div id="salesTopCustomers" class="recent-list" role="list" aria-live="polite" aria-label="Top customers list"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="available-items-heading">
+                    <h2 id="available-items-heading">Available Items</h2>
+                    <div id="salesAvailableItems" class="recent-list" role="list" aria-live="polite" aria-label="Available items list"></div>
+                </section>
+            </div>
+
+            <!-- Out of Stock Alerts -->
+            <section class="section-card" aria-labelledby="out-of-stock-heading">
+                <h2 id="out-of-stock-heading">Out of Stock Items</h2>
+                <div id="salesOutOfStockItems" class="alert-list" role="list" aria-live="polite" aria-label="Out of stock items list"></div>
+            </section>
+        </section>
+
+        <!-- Manager Dashboard -->
+        <section id="managerDashboard" class="role-dashboard" style="display: none;" aria-label="Manager dashboard">
+            <!-- Clear Data Approval Section -->
+            <div id="managerClearDataSection" class="section-card" style="margin-bottom: 2rem; border: 2px solid var(--warning-color); background: #fffbf0; display: none;">
+                <h2 style="color: var(--warning-color);"><i class="fas fa-exclamation-triangle fa-icon-warning"></i> Clear Data Request Pending Approval</h2>
+                <div id="managerClearDataRequest" style="margin-bottom: 1rem;"></div>
+                <div id="managerClearDataActions" style="display: flex; gap: 1rem;">
+                    <button class="btn btn-success" onclick="approveClearDataRequest()" id="approveClearDataBtn"><i class="fas fa-check fa-icon-white"></i> Approve</button>
+                    <button class="btn btn-danger" onclick="rejectClearDataRequest()" id="rejectClearDataBtn"><i class="fas fa-times fa-icon-white"></i> Reject</button>
+                </div>
+            </div>
+
+            <!-- Key Performance Indicators -->
+            <div class="stats-grid" id="managerKPIs" role="region" aria-label="Key performance indicators">
+                <article class="stat-card success" role="article" aria-label="This month revenue">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-success" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="managerMonthRevenue" aria-live="polite">-</h3>
+                        <p>This Month Revenue</p>
+                        <small id="managerMonthGrowth" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card info" role="article" aria-label="Profit margin">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-chart-bar fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="managerProfitMargin" aria-live="polite">-</h3>
+                        <p>Profit Margin</p>
+                        <small id="managerProfitAmount" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card" role="article" aria-label="Inventory value">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-boxes fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="managerInventoryValue" aria-live="polite">-</h3>
+                        <p>Inventory Value</p>
+                        <small id="managerInventoryItems" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+                <article class="stat-card warning" role="article" aria-label="Business health score">
+                    <div class="stat-icon" aria-hidden="true"><i class="fas fa-heartbeat fa-icon-warning" style="font-size: 2.5rem;"></i></div>
+                    <div class="stat-content">
+                        <h3 id="managerHealthScore" aria-live="polite">-</h3>
+                        <p>Business Health</p>
+                        <small id="managerHealthDetails" style="font-size: 0.75rem; opacity: 0.8;"></small>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Performance Comparison -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="performance-heading">
+                    <h2 id="performance-heading">Performance Comparison</h2>
+                    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 1rem; gap: 1rem;">
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Today</h4>
+                                <h3 id="managerTodayRevenue" style="font-size: 1.5rem;">-</h3>
+                                <p style="font-size: 0.75rem; margin-top: 0.25rem;" id="managerTodayTransactions">-</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">This Week</h4>
+                                <h3 id="managerWeekRevenue" style="font-size: 1.5rem;">-</h3>
+                                <p style="font-size: 0.75rem; margin-top: 0.25rem;" id="managerWeekGrowth">-</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <h4 style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">This Month</h4>
+                                <h3 id="managerMonthRevenue2" style="font-size: 1.5rem;">-</h3>
+                                <p style="font-size: 0.75rem; margin-top: 0.25rem;" id="managerMonthGrowth2">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section-card" aria-labelledby="top-items-heading">
+                    <h2 id="top-items-heading">Top Performing Items</h2>
+                    <div id="managerTopItems" class="recent-list" role="list" aria-live="polite" aria-label="Top performing items list"></div>
+                </section>
+            </div>
+
+            <!-- Financial Analysis -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="financial-heading">
+                    <h2 id="financial-heading">Financial Analysis</h2>
+                    <div id="managerFinancialAnalysis" role="region" aria-live="polite"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="category-heading">
+                    <h2 id="category-heading">Category Performance</h2>
+                    <div id="managerCategoryPerformance" class="recent-list" role="list" aria-live="polite" aria-label="Category performance list"></div>
+                </section>
+            </div>
+
+            <!-- Inventory & Operations -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="inventory-heading">
+                    <h2 id="inventory-heading">Inventory Analysis</h2>
+                    <div id="managerInventoryAnalysis" role="region" aria-live="polite"></div>
+                </section>
+
+                <section class="section-card" aria-labelledby="turnover-heading">
+                    <h2 id="turnover-heading">Inventory Turnover</h2>
+                    <div id="managerInventoryTurnover" class="recent-list" role="list" aria-live="polite" aria-label="Inventory turnover list"></div>
+                </section>
+            </div>
+
+            <!-- Sales Trend -->
+            <section class="section-card" aria-labelledby="trend-heading">
+                <h2 id="trend-heading">Sales Trend (Last 7 Days)</h2>
+                <div id="managerSalesTrend" role="region" aria-live="polite"></div>
+            </section>
+
+            <!-- Admin Dashboard Sections -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-low-stock-heading">
+                    <h2 id="manager-low-stock-heading">Low Stock Alerts</h2>
+                    <div id="managerLowStockList" class="alert-list" role="list" aria-live="polite" aria-label="Low stock items list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-recent-sales-heading">
+                    <h2 id="manager-recent-sales-heading">Recent Sales</h2>
+                    <div id="managerRecentSales" class="recent-list" role="list" aria-live="polite" aria-label="Recent sales list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-recent-purchases-heading">
+                    <h2 id="manager-recent-purchases-heading">Recent Purchases</h2>
+                    <div id="managerRecentPurchases" class="recent-list" role="list" aria-live="polite" aria-label="Recent purchases list"></div>
+                </section>
+            </div>
+
+            <!-- Storekeeper Dashboard Sections -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-critical-stock-heading">
+                    <h2 id="manager-critical-stock-heading">Critical Stock Alerts</h2>
+                    <div id="managerCriticalStock" class="alert-list" role="list" aria-live="polite" aria-label="Critical stock items list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-reorder-heading">
+                    <h2 id="manager-reorder-heading">Reorder Recommendations</h2>
+                    <div id="managerReorderRecommendations" class="recent-list" role="list" aria-live="polite" aria-label="Reorder recommendations list"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-purchase-stats-heading">
+                    <h2 id="manager-purchase-stats-heading">Purchase Statistics</h2>
+                    <div id="managerPurchaseStats" role="region" aria-live="polite"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-category-stock-heading">
+                    <h2 id="manager-category-stock-heading">Stock by Category</h2>
+                    <div id="managerCategoryStock" class="recent-list" role="list" aria-live="polite" aria-label="Category stock summary list"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-stock-adjustments-heading">
+                    <h2 id="manager-stock-adjustments-heading">Recent Stock Adjustments</h2>
+                    <div id="managerRecentAdjustments" class="recent-list" role="list" aria-live="polite" aria-label="Recent stock adjustments list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-top-suppliers-heading">
+                    <h2 id="manager-top-suppliers-heading">Top Suppliers (This Month)</h2>
+                    <div id="managerTopSuppliers" class="recent-list" role="list" aria-live="polite" aria-label="Top suppliers list"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-items-attention-heading">
+                    <h2 id="manager-items-attention-heading">Items Needing Attention</h2>
+                    <div id="managerItemsNeedingAttention" class="recent-list" role="list" aria-live="polite" aria-label="Items needing attention list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-purchase-trend-heading">
+                    <h2 id="manager-purchase-trend-heading">Purchase Trend (Last 7 Days)</h2>
+                    <div id="managerPurchaseTrend" role="region" aria-live="polite"></div>
+                </section>
+            </div>
+
+            <!-- Sales Dashboard Sections -->
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-sales-performance-heading">
+                    <h2 id="manager-sales-performance-heading">Sales Performance Metrics</h2>
+                    <div id="managerSalesPerformanceMetrics" role="region" aria-live="polite"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-top-selling-heading">
+                    <h2 id="manager-top-selling-heading">Top Selling Items (This Month)</h2>
+                    <div id="managerTopSellingItems" class="recent-list" role="list" aria-live="polite" aria-label="Top selling items list"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-sales-category-heading">
+                    <h2 id="manager-sales-category-heading">Sales by Category</h2>
+                    <div id="managerSalesByCategory" class="recent-list" role="list" aria-live="polite" aria-label="Category sales list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-hourly-pattern-heading">
+                    <h2 id="manager-hourly-pattern-heading">Today's Sales Pattern</h2>
+                    <div id="managerHourlyPattern" role="region" aria-live="polite"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-sections">
+                <section class="section-card" aria-labelledby="manager-top-customers-heading">
+                    <h2 id="manager-top-customers-heading">Top Customers (This Month)</h2>
+                    <div id="managerTopCustomers" class="recent-list" role="list" aria-live="polite" aria-label="Top customers list"></div>
+                </section>
+                <section class="section-card" aria-labelledby="manager-available-items-heading">
+                    <h2 id="manager-available-items-heading">Available Items</h2>
+                    <div id="managerAvailableItems" class="recent-list" role="list" aria-live="polite" aria-label="Available items list"></div>
+                </section>
+            </div>
+
+            <section class="section-card" aria-labelledby="manager-out-of-stock-heading">
+                <h2 id="manager-out-of-stock-heading">Out of Stock Items</h2>
+                <div id="managerOutOfStockItems" class="alert-list" role="list" aria-live="polite" aria-label="Out of stock items list"></div>
+            </section>
+        </section>
+    </div>
+
+    </main>
+
+    <!-- Clear Data Confirmation Modal -->
+    <div id="clearDataModal" class="modal" role="dialog" aria-labelledby="clearDataModalTitle" aria-hidden="true" style="display: none;">
+        <div class="modal-content" style="max-width: 500px; display: flex; flex-direction: column; max-height: 90vh;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+                <h2 id="clearDataModalTitle" style="color: var(--danger-color); margin: 0;"><i class="fas fa-exclamation-triangle fa-icon-danger"></i> Clear All Data</h2>
+                <button class="close" onclick="closeClearDataModal()" aria-label="Close clear data modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">&times;</button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 1rem 0; margin-bottom: 1rem;">
+                <p style="margin-bottom: 1rem; color: var(--text-primary);">
+                    <strong>Warning:</strong> This action will permanently delete all data from the system.
+                </p>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                    PDFs and backups will be generated automatically before deletion.
+                </p>
+                <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                    This process requires multiple confirmations from both admin and manager.
+                </p>
+                <div id="clearDataModalStatus" style="margin-bottom: 1rem;"></div>
+            </div>
+            <div class="modal-footer" style="display: flex !important; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; flex-shrink: 0; margin-top: auto;">
+                <button class="btn btn-secondary" onclick="closeClearDataModal()" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; min-width: 100px; padding: 0.75rem 1.5rem; font-size: 1rem; background: #64748b; color: white; border: none; border-radius: 0; cursor: pointer; font-weight: 500;">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmInitiateClearData()" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; min-width: 150px; padding: 0.75rem 1.5rem; font-size: 1rem; background: #ef4444; color: white; border: none; border-radius: 0; cursor: pointer; font-weight: 500;">Initiate Clear Data Process</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="clear-data.js"></script>
+</body>
+</html>
+

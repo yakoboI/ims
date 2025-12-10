@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Invoice Management - Inventory Management System | IMS</title>
+    <meta name="description" content="Create, manage, and track invoices with the IMS invoice management system. Generate professional invoices, track payments, and manage customer billing efficiently.">
+    <meta name="keywords" content="invoice management, invoice software, billing system, invoice tracking, accounts receivable, invoice generation, professional invoices, payment tracking">
+    <meta name="author" content="Inventory Management System">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="language" content="English">
+    <link rel="canonical" href="https://your-domain.com/invoices.html">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Invoice Management - Inventory Management System | IMS">
+    <meta property="og:description" content="Create, manage, and track invoices with the IMS invoice management system. Generate professional invoices, track payments, and manage customer billing efficiently.">
+    <meta property="og:url" content="https://your-domain.com/invoices.html">
+    <meta property="og:site_name" content="Inventory Management System">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Invoice Management - Inventory Management System | IMS">
+    <meta name="twitter:description" content="Create, manage, and track invoices with the IMS invoice management system. Generate professional invoices, track payments, and manage customer billing efficiently.">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Invoice Management System",
+      "description": "Professional invoice management software for creating, tracking, and managing customer invoices and payments",
+      "url": "https://your-domain.com/invoices.html",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Invoice generation",
+        "Payment tracking",
+        "Customer billing",
+        "Invoice templates",
+        "Payment status management",
+        "Invoice printing"
+      ]
+    }
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    <script src="browser-compat.js"></script>
+    <script src="modal-utils.js"></script>
+    <script src="form-validation.js"></script>
+    <script src="loading-states.js"></script>
+    <script src="empty-states.js"></script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link active" id="invoicesLink" role="menuitem" aria-current="page"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Invoice Management</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openInvoiceModal()" aria-label="Create new invoice">
+                    <i class="fas fa-plus"></i> <span class="btn-text">Create Invoice</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Filters -->
+        <div class="filters" style="margin-bottom: 1.5rem;" aria-label="Invoice filters">
+            <select id="invoiceStatusFilter" class="form-control filter-select" aria-label="Filter by status">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="paid">Paid</option>
+                <option value="partial">Partial</option>
+                <option value="overdue">Overdue</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <input type="date" id="invoiceDateFrom" class="form-control filter-input" aria-label="Filter invoices from date">
+            <input type="date" id="invoiceDateTo" class="form-control filter-input" aria-label="Filter invoices to date">
+            <input type="text" id="searchInvoices" class="form-control search-input" placeholder="Search by invoice number or customer..." aria-label="Search invoices">
+            <button class="btn btn-secondary filter-btn" onclick="applyInvoiceFilters()" aria-label="Apply filters">
+                <i class="fas fa-filter"></i> <span class="btn-text">Filter</span>
+            </button>
+            <button class="btn btn-secondary filter-btn" onclick="clearInvoiceFilters()" aria-label="Clear filters">
+                <i class="fas fa-times"></i> <span class="btn-text">Clear</span>
+            </button>
+        </div>
+
+        <!-- Invoices Table -->
+        <section class="section-card" aria-labelledby="invoices-heading">
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Invoices list">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-column="invoice_number">Invoice #</th>
+                            <th scope="col" data-column="date">Date</th>
+                            <th scope="col" data-column="due_date">Due Date</th>
+                            <th scope="col" data-column="customer">Customer</th>
+                            <th scope="col" data-column="total_amount" class="col-amount">Total Amount</th>
+                            <th scope="col" data-column="paid" class="col-amount">Paid</th>
+                            <th scope="col" data-column="balance" class="col-amount">Balance</th>
+                            <th scope="col" data-column="status">Status</th>
+                            <th scope="col" data-column="actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody" role="rowgroup" aria-live="polite">
+                        <tr><td colspan="9" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Invoice Modal -->
+    <div id="invoiceModal" class="modal" role="dialog" aria-labelledby="invoiceModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 900px;">
+            <button class="close" onclick="closeInvoiceModal()" aria-label="Close modal">&times;</button>
+            <h2 id="invoiceModalTitle">Create Invoice</h2>
+            <form id="invoiceForm" role="form" aria-label="Create or edit invoice form">
+                <input type="hidden" id="invoiceId">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="invoiceNumber">Invoice Number *</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="invoiceNumber" required aria-required="true" aria-label="Invoice number">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="generateInvoiceNumber()" aria-label="Generate invoice number"><i class="fas fa-sync"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceDate">Invoice Date *</label>
+                        <input type="date" id="invoiceDate" required aria-required="true" aria-label="Invoice date">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceDueDate">Due Date</label>
+                        <input type="date" id="invoiceDueDate" aria-label="Due date">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceStatus">Status *</label>
+                        <select id="invoiceStatus" required aria-required="true" aria-label="Invoice status">
+                            <option value="draft">Draft</option>
+                            <option value="sent">Sent</option>
+                            <option value="paid">Paid</option>
+                            <option value="partial">Partial</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceCustomer">Customer</label>
+                    <select id="invoiceCustomer" aria-label="Select customer" onchange="loadCustomerDetails()">
+                        <option value="">Select Customer</option>
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="invoiceCustomerName">Customer Name</label>
+                        <input type="text" id="invoiceCustomerName" aria-label="Customer name">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceCustomerEmail">Customer Email</label>
+                        <input type="email" id="invoiceCustomerEmail" aria-label="Customer email">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceCustomerPhone">Customer Phone</label>
+                        <input type="tel" id="invoiceCustomerPhone" aria-label="Customer phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoicePaymentMethod">Payment Method</label>
+                        <select id="invoicePaymentMethod" aria-label="Payment method">
+                            <option value="">Select Method</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Mobile Money">Mobile Money</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Check">Check</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceCustomerAddress">Customer Address</label>
+                    <textarea id="invoiceCustomerAddress" rows="2" aria-label="Customer address"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Invoice Items *</label>
+                    <div id="invoiceItemsList" style="margin-bottom: 1rem;"></div>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addInvoiceItem()" aria-label="Add item"><i class="fas fa-plus"></i> Add Item</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="invoiceSubtotal">Subtotal</label>
+                        <input type="number" id="invoiceSubtotal" step="0.01" readonly aria-label="Subtotal">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceDiscount">Discount Amount</label>
+                        <input type="number" id="invoiceDiscount" step="0.01" min="0" value="0" onchange="calculateInvoiceTotal()" aria-label="Discount amount">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceTax">Tax Amount</label>
+                        <input type="number" id="invoiceTax" step="0.01" min="0" value="0" onchange="calculateInvoiceTotal()" aria-label="Tax amount">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceTotal">Total Amount</label>
+                        <input type="number" id="invoiceTotal" step="0.01" readonly aria-label="Total amount">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoicePaidAmount">Paid Amount</label>
+                        <input type="number" id="invoicePaidAmount" step="0.01" min="0" value="0" onchange="calculateInvoiceBalance()" aria-label="Paid amount">
+                    </div>
+                    <div class="form-group">
+                        <label for="invoiceBalance">Balance</label>
+                        <input type="number" id="invoiceBalance" step="0.01" readonly aria-label="Balance">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoicePaymentTerms">Payment Terms</label>
+                    <input type="text" id="invoicePaymentTerms" placeholder="e.g., Net 30, Due on receipt" aria-label="Payment terms">
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceNotes">Notes</label>
+                    <textarea id="invoiceNotes" rows="3" aria-label="Invoice notes"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceTermsConditions">Terms & Conditions</label>
+                    <textarea id="invoiceTermsConditions" rows="3" aria-label="Terms and conditions"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary form-action-btn" onclick="closeInvoiceModal()" aria-label="Cancel">
+                        <i class="fas fa-times"></i> <span class="btn-text">Cancel</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary form-action-btn" aria-label="Save invoice">
+                        <i class="fas fa-save"></i> <span class="btn-text">Save Invoice</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Invoice Modal -->
+    <div id="viewInvoiceModal" class="modal" role="dialog" aria-labelledby="viewInvoiceModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 800px;">
+            <button class="close" onclick="closeViewInvoiceModal()" aria-label="Close modal">&times;</button>
+            <h2 id="viewInvoiceModalTitle">Invoice Details</h2>
+            <div id="invoiceDetailsContent"></div>
+            <div class="form-actions" style="margin-top: 1rem;">
+                <button type="button" class="btn btn-secondary form-action-btn" onclick="closeViewInvoiceModal()" aria-label="Close">
+                    <i class="fas fa-times"></i> <span class="btn-text">Close</span>
+                </button>
+                <button type="button" class="btn btn-primary form-action-btn" onclick="printInvoice()" aria-label="Print invoice">
+                    <i class="fas fa-print"></i> <span class="btn-text">Print</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="invoices.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Expenses Management - Inventory Management System | IMS</title>
+    <meta name="description" content="Track and manage business expenses, view expense reports, and monitor spending with the IMS expense management system.">
+    <meta name="keywords" content="expense management, business expenses, expense tracking, spending management, financial tracking">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Expenses">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link active" id="expensesLink" role="menuitem" aria-current="page"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Expenses Management</h1>
+            <button class="btn btn-primary" onclick="openExpenseModal()" aria-label="Add new expense"><i class="fas fa-plus fa-icon-white"></i> Add Expense</button>
+        </header>
+
+        <!-- Filters -->
+        <div class="filters" style="margin-bottom: 1.5rem;">
+            <input type="date" id="expenseDateFrom" class="form-control" style="max-width: 200px;" aria-label="Filter expenses from date">
+            <input type="date" id="expenseDateTo" class="form-control" style="max-width: 200px;" aria-label="Filter expenses to date">
+            <select id="expenseCategoryFilter" class="form-control" style="max-width: 200px;" aria-label="Filter by category">
+                <option value="">All Categories</option>
+            </select>
+            <button class="btn btn-secondary" onclick="applyExpenseFilters()" aria-label="Apply filters"><i class="fas fa-filter"></i> Filter</button>
+            <button class="btn btn-secondary" onclick="clearExpenseFilters()" aria-label="Clear filters"><i class="fas fa-times"></i> Clear</button>
+        </div>
+
+        <!-- Expenses Table -->
+        <section class="section-card" aria-labelledby="expenses-heading">
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Expenses list">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Payment Method</th>
+                            <th scope="col">Created By</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTableBody" role="rowgroup" aria-live="polite">
+                        <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Summary Cards -->
+        <div class="stats-grid" style="margin-top: 2rem;">
+            <article class="stat-card warning" role="article" aria-label="Total expenses">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-warning" style="font-size: 2.5rem;"></i></div>
+                <div class="stat-content">
+                    <h3 id="totalExpenses" aria-live="polite">-</h3>
+                    <p>Total Expenses</p>
+                </div>
+            </article>
+            <article class="stat-card info" role="article" aria-label="This month expenses">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-calendar-alt fa-icon-info" style="font-size: 2.5rem;"></i></div>
+                <div class="stat-content">
+                    <h3 id="monthExpenses" aria-live="polite">-</h3>
+                    <p>This Month</p>
+                </div>
+            </article>
+            <article class="stat-card" role="article" aria-label="Today expenses">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-calendar-day fa-icon-primary" style="font-size: 2.5rem;"></i></div>
+                <div class="stat-content">
+                    <h3 id="todayExpenses" aria-live="polite">-</h3>
+                    <p>Today</p>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal" role="dialog" aria-labelledby="expenseModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeExpenseModal()" aria-label="Close modal">&times;</button>
+            <h2 id="expenseModalTitle">Add Expense</h2>
+            <form id="expenseForm" role="form" aria-label="Add or edit expense form">
+                <input type="hidden" id="expenseId">
+                <div class="form-group">
+                    <label for="expenseDate">Date *</label>
+                    <input type="date" id="expenseDate" required aria-required="true" aria-label="Expense date">
+                </div>
+                <div class="form-group">
+                    <label for="expenseCategory">Category *</label>
+                    <select id="expenseCategory" required aria-required="true" aria-label="Expense category">
+                        <option value="">Select Category</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Salaries">Salaries</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Supplies">Supplies</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Insurance">Insurance</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expenseDescription">Description *</label>
+                    <textarea id="expenseDescription" rows="3" required aria-required="true" aria-label="Expense description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="expenseAmount">Amount *</label>
+                    <input type="number" id="expenseAmount" step="0.01" min="0" required aria-required="true" aria-label="Expense amount">
+                </div>
+                <div class="form-group">
+                    <label for="expensePaymentMethod">Payment Method *</label>
+                    <select id="expensePaymentMethod" required aria-required="true" aria-label="Payment method">
+                        <option value="">Select Method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Mobile Money">Mobile Money</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Check">Check</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expenseReceipt">Receipt/Reference Number</label>
+                    <input type="text" id="expenseReceipt" aria-label="Receipt or reference number">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeExpenseModal()" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save expense">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="expenses.js"></script>
+</body>
+</html>
+

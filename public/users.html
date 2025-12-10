@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>User Management - Inventory Management System | IMS</title>
+    <meta name="description" content="Manage system users, assign roles and permissions, control access levels, and maintain user accounts with the IMS user management system.">
+    <meta name="keywords" content="user management, access control, user administration, role management, permissions, user accounts">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Users">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Mobile Menu Handler - Define early so onclick can use it -->
+    <script>
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link active" id="usersLink" style="display: none;" role="menuitem" aria-current="page"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>User Management</h1>
+            <button class="btn btn-primary" onclick="openUserModal()" aria-label="Add new user">+ Add User</button>
+        </header>
+
+        <section class="table-container" aria-label="Users table">
+            <table class="data-table" role="table" aria-label="System users">
+                <thead>
+                    <tr>
+                        <th scope="col">Username</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Full Name</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="page-header" style="margin-top: 3rem;" aria-labelledby="roleAccessHeading">
+            <h2 id="roleAccessHeading">Role Access Management</h2>
+            <button class="btn btn-primary" onclick="loadRolePermissions()" aria-label="Refresh role permissions">🔄 Refresh Permissions</button>
+        </section>
+
+        <section class="section-card" aria-labelledby="roleAccessHeading">
+            <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                Configure which pages each role can access. Check the boxes to grant access, uncheck to deny.
+            </p>
+            <div id="rolePermissionsContainer" role="region" aria-live="polite" aria-label="Role permissions configuration">
+                <p class="text-center">Loading permissions...</p>
+            </div>
+        </section>
+
+        <section class="page-header backup-section-header" aria-labelledby="backupHeading">
+            <h2 id="backupHeading">Data Backup & Restore</h2>
+        </section>
+
+        <section class="section-card" aria-labelledby="backupHeading">
+            <div class="backup-actions" aria-label="Backup actions">
+                <button class="btn btn-primary" onclick="createBackup()" aria-label="Create database backup">💾 Create Backup</button>
+                <button class="btn btn-secondary" onclick="loadBackups()" aria-label="Refresh backup list">🔄 Refresh List</button>
+            </div>
+
+            <div id="backupMessage" class="backup-message" role="alert" aria-live="polite"></div>
+
+            <h3>Available Backups</h3>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Available backups">
+                    <thead>
+                        <tr>
+                            <th scope="col">Filename</th>
+                            <th scope="col">Size</th>
+                            <th scope="col">Created At</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="backupsTableBody" role="rowgroup" aria-live="polite">
+                        <tr><td colspan="4" class="text-center">Loading backups...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal" role="dialog" aria-labelledby="userModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeUserModal()" aria-label="Close modal">&times;</button>
+            <h2 id="userModalTitle">Add User</h2>
+            <form id="userForm" role="form" aria-label="Add or edit user form">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label for="userUsername">Username *</label>
+                    <input type="text" id="userUsername" autocomplete="username" required aria-required="true" aria-label="Username">
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">Email *</label>
+                    <input type="email" id="userEmail" autocomplete="username" required aria-required="true" aria-label="Email address">
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label for="userPassword">Password *</label>
+                    <input type="password" id="userPassword" autocomplete="new-password" required aria-required="true" aria-label="Password">
+                </div>
+                <div class="form-group">
+                    <label for="userFullName">Full Name</label>
+                    <input type="text" id="userFullName" aria-label="Full name">
+                </div>
+                <div class="form-group">
+                    <label for="userRole">Role *</label>
+                    <select id="userRole" required aria-required="true" aria-label="User role">
+                        <option value="admin">Admin</option>
+                        <option value="storekeeper">Storekeeper</option>
+                        <option value="sales">Sales/Staff</option>
+                        <option value="manager">Manager</option>
+                    </select>
+                </div>
+                <div class="form-group" id="statusGroup" style="display: none;">
+                    <label for="userStatus">Status</label>
+                    <select id="userStatus" aria-label="User status">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeUserModal()" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save user">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal" role="dialog" aria-labelledby="changePasswordModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeChangePasswordModal()" aria-label="Close modal">&times;</button>
+            <h2 id="changePasswordModalTitle">Change Password</h2>
+            <form id="changePasswordForm" role="form" aria-label="Change user password form">
+                <input type="hidden" id="changePasswordUserId">
+                <div class="form-group">
+                    <label for="changePasswordUsername">User</label>
+                    <input type="text" id="changePasswordUsername" readonly autocomplete="username" aria-label="Username" style="background: #f1f5f9; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label for="changePasswordNew">New Password *</label>
+                    <input type="password" id="changePasswordNew" autocomplete="new-password" required aria-required="true" aria-label="New password">
+                    <small style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem; display: block;">
+                        Password must be at least 8 characters with uppercase, lowercase, number, and special character.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="changePasswordConfirm">Confirm New Password *</label>
+                    <input type="password" id="changePasswordConfirm" autocomplete="new-password" required aria-required="true" aria-label="Confirm new password">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-warning" aria-label="Change password">Change Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="users.js"></script>
+</body>
+</html>
+

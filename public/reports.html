@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Reports & Analytics - Inventory Management System | IMS</title>
+    <meta name="description" content="Generate comprehensive reports, analyze sales data, track inventory trends, and view business analytics with the IMS reporting system.">
+    <meta name="keywords" content="business reports, sales analytics, inventory reports, business intelligence, data analytics, inventory analysis">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Reports">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Mobile Menu Handler - Define early so onclick can use it -->
+    <script>
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header>
+            <h1>Reports & Analytics</h1>
+        </header>
+
+        <nav class="reports-tabs" role="tablist" aria-label="Report types">
+            <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="stockReport" id="tab-stock">Stock Report</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="salesReport" id="tab-sales">Sales Report</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="purchasesReport" id="tab-purchases">Purchase Report</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="fastMovingReport" id="tab-fast-moving">Fast Moving Items</button>
+            <button class="tab-btn" role="tab" aria-selected="false" aria-controls="slowMovingReport" id="tab-slow-moving">Slow Moving Items</button>
+        </nav>
+
+        <!-- Stock Report -->
+        <section id="stockReport" class="report-section" role="tabpanel" aria-labelledby="tab-stock">
+            <div class="report-filters" aria-label="Stock report filters">
+                <label for="stockSearch" class="sr-only">Search stock items</label>
+                <input type="text" id="stockSearch" placeholder="Search items..." class="search-input" aria-label="Search stock items">
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Stock report">
+                    <thead>
+                        <tr>
+                            <th scope="col">SKU</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Category</th>
+                            <th scope="col" class="col-stock">Stock Qty</th>
+                            <th scope="col" class="col-min-stock">Min Level</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Sales Report -->
+        <section id="salesReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-sales" aria-hidden="true">
+            <div class="report-filters" aria-label="Sales report filters">
+                <label for="salesStartDate" class="sr-only">Start date</label>
+                <input type="date" id="salesStartDate" class="date-input" aria-label="Sales report start date">
+                <label for="salesEndDate" class="sr-only">End date</label>
+                <input type="date" id="salesEndDate" class="date-input" aria-label="Sales report end date">
+                <button class="btn btn-primary" id="salesFilterBtn" aria-label="Load sales report with filters">Filter</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Sales report">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col" class="col-quantity">Total Sales</th>
+                            <th scope="col" class="col-amount">Total Revenue</th>
+                            <th scope="col" class="col-quantity">Items Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Purchase Report -->
+        <section id="purchasesReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-purchases" aria-hidden="true">
+            <div class="report-filters" aria-label="Purchase report filters">
+                <label for="purchasesStartDate" class="sr-only">Start date</label>
+                <input type="date" id="purchasesStartDate" class="date-input" aria-label="Purchase report start date">
+                <label for="purchasesEndDate" class="sr-only">End date</label>
+                <input type="date" id="purchasesEndDate" class="date-input" aria-label="Purchase report end date">
+                <button class="btn btn-primary" id="purchasesFilterBtn" aria-label="Load purchase report with filters">Filter</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Purchase report">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col" class="col-quantity">Total Purchases</th>
+                            <th scope="col" class="col-amount">Total Spent</th>
+                            <th scope="col" class="col-quantity">Items Purchased</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchasesReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Fast Moving Items -->
+        <section id="fastMovingReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-fast-moving" aria-hidden="true">
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Fast moving items report">
+                    <thead>
+                        <tr>
+                            <th scope="col">SKU</th>
+                            <th scope="col">Item Name</th>
+                            <th scope="col" class="col-quantity">Total Sold</th>
+                            <th scope="col" class="col-amount">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fastMovingReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Slow Moving Items -->
+        <section id="slowMovingReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-slow-moving" aria-hidden="true">
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Slow moving items report">
+                    <thead>
+                        <tr>
+                            <th scope="col">SKU</th>
+                            <th scope="col">Item Name</th>
+                            <th scope="col" class="col-stock">Stock Qty</th>
+                            <th scope="col" class="col-quantity">Total Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slowMovingReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="reports.js"></script>
+</body>
+</html>
+

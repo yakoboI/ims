@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Goods Barcodes - Inventory Management System | IMS</title>
+    <meta name="description" content="View and manage all product barcodes from inventory, sales, and other economic transactions in the IMS system.">
+    <meta name="keywords" content="barcodes, product barcodes, inventory barcodes, sales barcodes, barcode management">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Barcodes">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- JsBarcode Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Goods Barcodes</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="loadAllBarcodes()" aria-label="Refresh barcodes">
+                    <i class="fas fa-sync-alt"></i> <span class="btn-text">Refresh</span>
+                </button>
+                <button class="btn btn-primary" onclick="printAllBarcodes()" aria-label="Print all barcodes">
+                    <i class="fas fa-print"></i> <span class="btn-text">Print All</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Filter Section -->
+        <section class="filters" aria-label="Barcode filters">
+            <div class="filters-row">
+                <label for="barcodeSearch" class="sr-only">Search barcodes</label>
+                <input type="text" id="barcodeSearch" placeholder="Search by name, SKU, or barcode..." class="search-input" aria-label="Search barcodes">
+                <label for="barcodeSourceFilter" class="sr-only">Filter by source</label>
+                <select id="barcodeSourceFilter" class="filter-select" aria-label="Filter by source">
+                    <option value="">All Sources</option>
+                    <option value="inventory">Inventory Items</option>
+                    <option value="sales">Sold Items</option>
+                    <option value="purchases">Purchase Items</option>
+                </select>
+                <label for="barcodeCategoryFilter" class="sr-only">Filter by category</label>
+                <select id="barcodeCategoryFilter" class="filter-select" aria-label="Filter by category">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="clearBarcodeFilters()" aria-label="Clear filters">
+                    <i class="fas fa-times"></i> <span class="btn-text">Clear</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Barcodes Display -->
+        <section class="table-container" aria-label="Goods barcodes">
+            <table class="data-table" role="table" aria-label="Goods barcodes">
+                <thead>
+                    <tr>
+                        <th scope="col" data-column="name" class="sortable" onclick="sortBarcodes('name')" data-label="Name">Name <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="sku" class="sortable" onclick="sortBarcodes('sku')" data-label="SKU">SKU <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="barcode" class="sortable" onclick="sortBarcodes('barcode')" data-label="Barcode">Barcode <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="category" class="sortable" onclick="sortBarcodes('category')" data-label="Category">Category <i class="fas fa-sort"></i></th>
+                        <th scope="col" data-column="source" data-label="Source">Source</th>
+                        <th scope="col" data-column="barcode_display" data-label="Barcode Display">Barcode Display</th>
+                        <th scope="col" data-column="actions" data-label="Actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="barcodesTableBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="7" class="text-center">Loading barcodes...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Barcode Viewer Modal -->
+    <div id="barcodeViewerModal" class="modal" role="dialog" aria-labelledby="barcodeViewerModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close" onclick="closeBarcodeViewer()" aria-label="Close modal">&times;</button>
+            <h2 id="barcodeViewerModalTitle">Barcode Details</h2>
+            <div id="barcodeViewerContent" style="text-align: center; padding: 2rem;">
+                <div id="barcodeViewerItemName" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;"></div>
+                <div id="barcodeViewerValue" style="font-family: monospace; font-size: 1.25rem; margin-bottom: 1rem;"></div>
+                <canvas id="barcodeViewerCanvas" style="max-width: 100%; height: auto;"></canvas>
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" onclick="printBarcode()" aria-label="Print barcode">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadBarcode()" aria-label="Download barcode">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="goods-barcodes.js"></script>
+</body>
+</html>
+

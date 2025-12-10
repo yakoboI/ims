@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Shop Management - Inventory Management System | IMS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    <script src="browser-compat.js"></script>
+    <script src="modal-utils.js"></script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link active" id="shopsLink" style="display: none;" role="menuitem" aria-current="page"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Shop Management</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="addShopBtn" onclick="openShopModal()" style="display: none;" aria-label="Add new shop">
+                    <i class="fas fa-plus"></i> <span class="btn-text">Add Shop</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="table-container" aria-label="Shops table">
+            <table class="data-table" role="table" aria-label="Shops">
+                <thead>
+                    <tr>
+                        <th scope="col" data-column="shop_name">Shop Name</th>
+                        <th scope="col" data-column="shop_code">Shop Code</th>
+                        <th scope="col" data-column="contact">Contact</th>
+                        <th scope="col" data-column="status">Status</th>
+                        <th scope="col" data-column="subscription">Subscription</th>
+                        <th scope="col" data-column="created">Created</th>
+                        <th scope="col" data-column="actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="shopsTableBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Shop Modal -->
+    <div id="shopModal" class="modal" role="dialog" aria-labelledby="shopModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close" onclick="closeShopModal()" aria-label="Close modal">&times;</button>
+            <div class="modal-header">
+                <h2 id="shopModalTitle">Add Shop</h2>
+            </div>
+            <form id="shopForm" onsubmit="saveShop(event)" role="form" aria-label="Add or edit shop form">
+                <input type="hidden" id="shopId">
+                
+                <div class="form-group">
+                    <label for="shopName">Shop Name *</label>
+                    <input type="text" id="shopName" required aria-required="true" aria-label="Shop name">
+                </div>
+
+                <div class="form-group">
+                    <label for="shopCode">Shop Code *</label>
+                    <input type="text" id="shopCode" required pattern="[A-Z0-9_-]+" title="Alphanumeric, hyphens, underscores only" aria-required="true" aria-label="Shop code">
+                    <small>Unique identifier for the shop (e.g., SHOP001)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="shopAddress">Address</label>
+                    <textarea id="shopAddress" rows="3" aria-label="Shop address"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="shopPhone">Phone</label>
+                    <input type="tel" id="shopPhone" aria-label="Shop phone number">
+                </div>
+
+                <div class="form-group">
+                    <label for="shopEmail">Email</label>
+                    <input type="email" id="shopEmail" aria-label="Shop email address">
+                </div>
+
+                <div class="form-group">
+                    <label for="shopContactPerson">Contact Person</label>
+                    <input type="text" id="shopContactPerson" aria-label="Contact person name">
+                </div>
+
+                <div class="form-group">
+                    <label for="shopStatus">Status</label>
+                    <select id="shopStatus" aria-label="Shop status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="shopSubscriptionPlan">Subscription Plan</label>
+                    <select id="shopSubscriptionPlan" aria-label="Subscription plan">
+                        <option value="basic">Basic</option>
+                        <option value="standard">Standard</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+
+                <div class="form-actions modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeShopModal()" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Save shop">Save Shop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="shops.js"></script>
+    <script>
+        // Initialize currentUser for shops.js
+        if (typeof window.currentUser === 'undefined') {
+            try {
+                const storedUser = localStorage.getItem('currentUser');
+                if (storedUser) {
+                    window.currentUser = JSON.parse(storedUser);
+                }
+            } catch (e) {
+                console.error('Error loading current user:', e);
+            }
+        }
+        
+        // Show "Add Shop" button only for superadmin
+        document.addEventListener('DOMContentLoaded', () => {
+            const addShopBtn = document.getElementById('addShopBtn');
+            if (addShopBtn && window.currentUser && window.currentUser.role === 'superadmin') {
+                addShopBtn.style.display = 'inline-block';
+            }
+        });
+    </script>
+</body>
+</html>
