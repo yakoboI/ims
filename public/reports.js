@@ -554,6 +554,65 @@ function renderSlowMovingReport(items) {
     `).join('');
 }
 
+// Mobile Sidebar Toggle Functionality
+function setupMobileSidebar() {
+    const mobileToggle = document.getElementById('mobileSidebarToggle');
+    const sidebar = document.getElementById('analyticsSidebar');
+    const mobileClose = document.getElementById('mobileSidebarClose');
+    
+    if (!mobileToggle || !sidebar) return;
+    
+    // Show/hide close button based on screen size
+    function updateCloseButton() {
+        if (window.innerWidth <= 768) {
+            if (mobileClose) mobileClose.style.display = 'block';
+        } else {
+            if (mobileClose) mobileClose.style.display = 'none';
+            sidebar.classList.remove('mobile-open');
+            document.body.style.overflow = '';
+        }
+    }
+    
+    // Toggle sidebar
+    mobileToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+        document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+    });
+    
+    // Close sidebar
+    if (mobileClose) {
+        mobileClose.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-open');
+            document.body.style.overflow = '';
+        });
+    }
+    
+    // Close sidebar when clicking outside
+    sidebar.addEventListener('click', (e) => {
+        if (e.target === sidebar && sidebar.classList.contains('mobile-open')) {
+            sidebar.classList.remove('mobile-open');
+            document.body.style.overflow = '';
+        }
+    });
+    
+    // Close sidebar when clicking on a nav button (mobile)
+    const sidebarNavButtons = document.querySelectorAll('.sidebar-nav-btn');
+    sidebarNavButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                setTimeout(() => {
+                    sidebar.classList.remove('mobile-open');
+                    document.body.style.overflow = '';
+                }, 300);
+            }
+        });
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', updateCloseButton);
+    updateCloseButton();
+}
+
 // Make functions globally available
 window.showReport = showReport;
 window.loadSalesReport = loadSalesReport;
