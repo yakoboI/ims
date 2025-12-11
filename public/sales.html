@@ -46,9 +46,6 @@
     <!-- Empty States -->
     <script src="empty-states.js"></script>
     
-    <!-- Barcode Utilities -->
-    <script src="barcode-utils.js"></script>
-    
     <!-- JsBarcode Library for generating barcode images -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
@@ -239,6 +236,10 @@
     </div>
 
     <script src="app.js"></script>
+    <!-- Retry Utilities (must be loaded after app.js) -->
+    <script src="retry-utils.js"></script>
+    <!-- Barcode Utilities (must be loaded after retry-utils.js) -->
+    <script src="barcode-utils.js"></script>
     <script src="sales.js"></script>
     <script src="shop-selector.js"></script>
 </body>
