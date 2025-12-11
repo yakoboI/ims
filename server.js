@@ -12,6 +12,7 @@ const timeout = require('connect-timeout');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -479,6 +480,71 @@ const initDatabase = () => {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
+
+    // Customers table
+    db.run(`CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      address TEXT,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Add shop_id column to customers if it doesn't exist (migration)
+    db.run(`ALTER TABLE customers ADD COLUMN shop_id INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Invoices table
+    db.run(`CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT UNIQUE NOT NULL,
+      invoice_date DATETIME NOT NULL,
+      due_date DATETIME,
+      customer_id INTEGER,
+      customer_name TEXT,
+      customer_email TEXT,
+      customer_phone TEXT,
+      customer_address TEXT,
+      subtotal REAL NOT NULL DEFAULT 0,
+      discount_amount REAL DEFAULT 0,
+      tax_amount REAL DEFAULT 0,
+      total_amount REAL NOT NULL DEFAULT 0,
+      paid_amount REAL DEFAULT 0,
+      balance_amount REAL DEFAULT 0,
+      payment_method TEXT,
+      payment_terms TEXT,
+      notes TEXT,
+      terms_conditions TEXT,
+      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'paid', 'partial', 'overdue', 'cancelled')),
+      created_by INTEGER,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Invoice_Items table
+    db.run(`CREATE TABLE IF NOT EXISTS invoice_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER NOT NULL,
+      item_id INTEGER,
+      item_name TEXT NOT NULL,
+      description TEXT,
+      quantity REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      discount REAL DEFAULT 0,
+      tax_rate REAL DEFAULT 0,
+      total_price REAL NOT NULL,
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id)
     )`);
 
     // Role_Permissions table for page access management
@@ -2434,30 +2500,131 @@ app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'
 
 app.get('/api/sales', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
   const shopFilter = getShopFilter(req);
+  
+  // First, check if is_return column exists by querying pragma_table_info
+  db.all("SELECT name FROM pragma_table_info('sales') WHERE name='is_return'", (colErr, colRows) => {
+    // Check if column exists - colRows will be an array, empty if column doesn't exist
+    const hasIsReturnColumn = !colErr && colRows && colRows.length > 0;
+    
+    let query = `
+      SELECT s.*, u.username as created_by_name, u.shop_id
+      FROM sales s
+      LEFT JOIN users u ON s.created_by = u.id
+    `;
+    const params = [];
+    const whereConditions = [];
+    
+    // Filter out returns (is_return = 1) - only show regular sales
+    // Only add this filter if the column exists
+    if (hasIsReturnColumn) {
+      whereConditions.push(`(s.is_return IS NULL OR s.is_return = 0)`);
+    }
+    
+    // Filter by shop_id if provided (for superadmin)
+    if (shopFilter.shop_id && req.user.role === 'superadmin') {
+      // Include sales from the selected shop OR sales where creator has no shop_id
+      whereConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+      params.push(shopFilter.shop_id);
+    } else if (req.user.role !== 'superadmin') {
+      // Non-superadmin users: show sales from their shop OR sales where creator has no shop_id
+      if (req.user.shop_id) {
+        // Show sales from same shop OR sales where creator has no shop_id (NULL)
+        whereConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+        params.push(req.user.shop_id);
+      }
+      // If user has no shop_id, don't add any shop filter - show all sales
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+    
+    query += ` ORDER BY s.sale_date DESC`;
+    
+    db.all(query, params, (err, sales) => {
+      if (err) {
+        // If error is about missing is_return column, retry without that filter
+        if (err.message && (err.message.includes('no such column') || err.message.includes('is_return'))) {
+          // Retry query without is_return filter
+          let retryQuery = `
+            SELECT s.*, u.username as created_by_name, u.shop_id
+            FROM sales s
+            LEFT JOIN users u ON s.created_by = u.id
+          `;
+          const retryParams = [];
+          const retryConditions = [];
+          
+          if (shopFilter.shop_id && req.user.role === 'superadmin') {
+            retryConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+            retryParams.push(shopFilter.shop_id);
+          } else if (req.user.role !== 'superadmin') {
+            if (req.user.shop_id) {
+              retryConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+              retryParams.push(req.user.shop_id);
+            }
+          }
+          
+          if (retryConditions.length > 0) {
+            retryQuery += ` WHERE ${retryConditions.join(' AND ')}`;
+          }
+          
+          retryQuery += ` ORDER BY s.sale_date DESC`;
+          
+          db.all(retryQuery, retryParams, (retryErr, retrySales) => {
+            if (retryErr) {
+              console.error('Sales retry query error:', retryErr);
+              return res.status(500).json({ error: sanitizeError(retryErr) });
+            }
+            res.json(retrySales);
+          });
+          return;
+        }
+        console.error('Sales query error:', err);
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json(sales);
+    });
+  });
+});
+
+app.get('/api/sales/returns', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+  const shopFilter = getShopFilter(req);
   let query = `
     SELECT s.*, u.username as created_by_name, u.shop_id
     FROM sales s
     LEFT JOIN users u ON s.created_by = u.id
+    WHERE s.is_return = 1
   `;
   const params = [];
   
   // Filter by shop_id if provided (for superadmin)
   if (shopFilter.shop_id && req.user.role === 'superadmin') {
-    query += ` WHERE u.shop_id = ?`;
+    query += ` AND u.shop_id = ?`;
     params.push(shopFilter.shop_id);
   } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
-    // Non-superadmin users only see sales from their shop
-    query += ` WHERE u.shop_id = ?`;
+    // Non-superadmin users only see returns from their shop
+    query += ` AND u.shop_id = ?`;
     params.push(req.user.shop_id);
   }
   
   query += ` ORDER BY s.sale_date DESC`;
   
-  db.all(query, params, (err, sales) => {
+  db.all(query, params, (err, returns) => {
     if (err) {
+      // If column doesn't exist, return empty array instead of error
+      if (err.message && err.message.includes('no such column')) {
+        return res.json([]);
+      }
       return res.status(500).json({ error: sanitizeError(err) });
     }
-    res.json(sales);
+    // Map sale_date to return_date for compatibility with frontend
+    const formattedReturns = returns.map(ret => ({
+      ...ret,
+      return_date: ret.sale_date || ret.return_date,
+      sale_id: ret.original_sale_id || ret.sale_id || ret.id,
+      invoice_number: ret.invoice_number || `#${ret.id}`
+    }));
+    res.json(formattedReturns);
   });
 });
 
@@ -2533,25 +2700,199 @@ app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), (req, r
           [total_amount, customer_name, created_by, notes],
           function(err) {
             if (err) {
+              console.error('Error creating sale:', err);
               return res.status(500).json({ error: sanitizeError(err) });
             }
             const sale_id = this.lastID;
 
             // Insert sales items and update stock
             let completed = 0;
+            let hasError = false;
             items.forEach((item) => {
               db.run(
                 'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
                 [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
                 function(err) {
                   if (err) {
-                    return res.status(500).json({ error: sanitizeError(err) });
+                    console.error('Error creating sale item:', err);
+                    if (!hasError) {
+                      hasError = true;
+                      return res.status(500).json({ error: sanitizeError(err) });
+                    }
+                    return;
                   }
                   // Update stock
-                  db.run('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.item_id]);
+                  db.run('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.item_id], (stockErr) => {
+                    if (stockErr) {
+                      console.error('Error updating stock:', stockErr);
+                    }
+                  });
                   completed++;
-                  if (completed === items.length) {
+                  if (completed === items.length && !hasError) {
                     res.json({ id: sale_id, message: 'Sale recorded successfully' });
+                  }
+                }
+              );
+            });
+          }
+        );
+      }
+    });
+  });
+});
+
+// ==================== SALES RETURN ROUTES ====================
+
+// Configure multer for file uploads
+const uploadsDir = path.join(__dirname, 'public', 'uploads', 'returns');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp and UUID
+    const uniqueSuffix = Date.now() + '-' + uuidv4().substring(0, 8);
+    const ext = path.extname(file.originalname);
+    cb(null, `return-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Only allow image files
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only image files are allowed.'));
+    }
+  }
+});
+
+// Upload return image endpoint
+app.post('/api/sales/return/upload-image', authenticateToken, requireRole('admin', 'sales', 'manager'), upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  // Return the relative path from public directory
+  const imagePath = `/uploads/returns/${req.file.filename}`;
+  res.json({ image_path: imagePath });
+});
+
+// Create return endpoint
+app.post('/api/sales/return', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+  const { original_sale_id, items, reason, return_info, image_path } = req.body;
+  const created_by = req.user.id;
+
+  if (!original_sale_id || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Original sale ID and items are required' });
+  }
+
+  // First, verify the original sale exists
+  db.get('SELECT * FROM sales WHERE id = ?', [original_sale_id], (err, originalSale) => {
+    if (err) {
+      console.error('Error fetching original sale:', err);
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!originalSale) {
+      return res.status(404).json({ error: 'Original sale not found' });
+    }
+
+    // Calculate total return amount
+    let total_amount = 0;
+    items.forEach(item => {
+      total_amount += (item.quantity || 0) * (item.unit_price || 0);
+    });
+
+    // Check if sales table has return-related columns, add them if needed
+    db.all("SELECT name FROM pragma_table_info('sales') WHERE name IN ('is_return', 'original_sale_id', 'return_info', 'image_path')", (colErr, colRows) => {
+      if (colErr) {
+        console.error('Error checking columns:', colErr);
+        return res.status(500).json({ error: sanitizeError(colErr) });
+      }
+
+      const existingColumns = colRows.map(row => row.name);
+      const columnsToAdd = [];
+
+      if (!existingColumns.includes('is_return')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN is_return INTEGER DEFAULT 0");
+      if (!existingColumns.includes('original_sale_id')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN original_sale_id INTEGER");
+      if (!existingColumns.includes('return_info')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN return_info TEXT");
+      if (!existingColumns.includes('image_path')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN image_path TEXT");
+
+      // Add missing columns
+      let addColumnCount = 0;
+      if (columnsToAdd.length === 0) {
+        createReturn();
+      } else {
+        columnsToAdd.forEach((sql, index) => {
+          db.run(sql, (addErr) => {
+            if (addErr && !addErr.message.includes('duplicate column')) {
+              console.error(`Error adding column: ${sql}`, addErr);
+            }
+            addColumnCount++;
+            if (addColumnCount === columnsToAdd.length) {
+              createReturn();
+            }
+          });
+        });
+      }
+
+      function createReturn() {
+        // Create the return sale record
+        db.run(
+          'INSERT INTO sales (sale_date, total_amount, customer_name, created_by, notes, is_return, original_sale_id, return_info, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            new Date().toISOString(),
+            total_amount,
+            originalSale.customer_name || null,
+            created_by,
+            reason || null,
+            1, // is_return = 1
+            original_sale_id,
+            return_info || null,
+            image_path || null
+          ],
+          function(insertErr) {
+            if (insertErr) {
+              console.error('Error creating return:', insertErr);
+              return res.status(500).json({ error: sanitizeError(insertErr) });
+            }
+            const return_id = this.lastID;
+
+            // Insert return items and restore stock
+            let completed = 0;
+            let hasError = false;
+            items.forEach((item) => {
+              db.run(
+                'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
+                [return_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
+                function(itemErr) {
+                  if (itemErr) {
+                    console.error('Error creating return item:', itemErr);
+                    if (!hasError) {
+                      hasError = true;
+                      return res.status(500).json({ error: sanitizeError(itemErr) });
+                    }
+                    return;
+                  }
+                  // Restore stock (add back the returned quantity)
+                  db.run('UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?', [item.quantity, item.item_id], (stockErr) => {
+                    if (stockErr) {
+                      console.error('Error restoring stock:', stockErr);
+                    }
+                  });
+                  completed++;
+                  if (completed === items.length && !hasError) {
+                    res.json({ id: return_id, message: 'Return processed successfully' });
                   }
                 }
               );
@@ -2813,6 +3154,425 @@ app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager
       res.json({ message: 'Expense deleted successfully' });
     });
   });
+});
+
+// ==================== CUSTOMERS ROUTES ====================
+
+app.get('/api/customers', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM customers';
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' WHERE shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see customers from their shop
+    query += ' WHERE shop_id = ?';
+    params.push(req.user.shop_id);
+  }
+  
+  query += ' ORDER BY name';
+  
+  db.all(query, params, (err, customers) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(customers);
+  });
+});
+
+app.post('/api/customers', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const { name, email, phone, address } = req.body;
+  const shopFilter = getShopFilter(req);
+  const shopId = shopFilter.shop_id || req.user.shop_id || null;
+  
+  db.run(
+    'INSERT INTO customers (name, email, phone, address, shop_id) VALUES (?, ?, ?, ?, ?)',
+    [name, email, phone, address, shopId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ id: this.lastID, message: 'Customer created successfully' });
+    }
+  );
+});
+
+app.put('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const { name, email, phone, address } = req.body;
+  
+  db.run(
+    'UPDATE customers SET name = ?, email = ?, phone = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [name, email, phone, address, id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      res.json({ message: 'Customer updated successfully' });
+    }
+  );
+});
+
+app.delete('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  
+  db.run('DELETE FROM customers WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    res.json({ message: 'Customer deleted successfully' });
+  });
+});
+
+// ==================== INVOICES ROUTES ====================
+
+app.get('/api/invoices', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT i.*, 
+           c.name as customer_name_full,
+           c.email as customer_email_full,
+           c.phone as customer_phone_full,
+           c.address as customer_address_full,
+           u.username as created_by_name,
+           i.shop_id,
+           (SELECT json_group_array(json_object(
+             'id', ii.id,
+             'item_id', ii.item_id,
+             'item_name', ii.item_name,
+             'description', ii.description,
+             'quantity', ii.quantity,
+             'unit_price', ii.unit_price,
+             'discount', ii.discount,
+             'tax_rate', ii.tax_rate,
+             'total_price', ii.total_price
+           ))
+           FROM invoice_items ii
+           WHERE ii.invoice_id = i.id) as items
+    FROM invoices i
+    LEFT JOIN customers c ON i.customer_id = c.id
+    LEFT JOIN users u ON i.created_by = u.id
+  `;
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' WHERE i.shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin') {
+    // Non-superadmin users only see invoices from their shop
+    if (req.user.shop_id) {
+      query += ' WHERE i.shop_id = ?';
+      params.push(req.user.shop_id);
+    } else {
+      // User has no shop_id, show only invoices with null shop_id
+      query += ' WHERE i.shop_id IS NULL';
+    }
+  }
+  // For superadmin without shop filter, show all invoices (no WHERE clause)
+  
+  query += ' ORDER BY i.invoice_date DESC, i.id DESC';
+  
+  db.all(query, params, (err, invoices) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    // Parse items JSON for each invoice
+    invoices.forEach(invoice => {
+      try {
+        invoice.items = JSON.parse(invoice.items || '[]');
+      } catch (e) {
+        invoice.items = [];
+      }
+    });
+    res.json(invoices);
+  });
+});
+
+app.get('/api/invoices/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const query = `
+    SELECT i.*,
+           c.name as customer_name_full,
+           c.email as customer_email_full,
+           c.phone as customer_phone_full,
+           c.address as customer_address_full,
+           (SELECT json_group_array(json_object(
+             'id', ii.id,
+             'item_id', ii.item_id,
+             'item_name', ii.item_name,
+             'description', ii.description,
+             'quantity', ii.quantity,
+             'unit_price', ii.unit_price,
+             'discount', ii.discount,
+             'tax_rate', ii.tax_rate,
+             'total_price', ii.total_price
+           ))
+           FROM invoice_items ii
+           WHERE ii.invoice_id = i.id) as items
+    FROM invoices i
+    LEFT JOIN customers c ON i.customer_id = c.id
+    WHERE i.id = ?
+  `;
+  db.get(query, [id], (err, invoice) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    try {
+      invoice.items = JSON.parse(invoice.items || '[]');
+    } catch (e) {
+      invoice.items = [];
+    }
+    res.json(invoice);
+  });
+});
+
+app.post('/api/invoices', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const {
+    invoice_number,
+    invoice_date,
+    due_date,
+    customer_id,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    items,
+    subtotal,
+    discount_amount,
+    tax_amount,
+    total_amount,
+    paid_amount,
+    payment_method,
+    payment_terms,
+    notes,
+    terms_conditions,
+    status
+  } = req.body;
+  
+  const created_by = req.user.id;
+  const shopFilter = getShopFilter(req);
+  // Ensure shop_id is always set - use filter for superadmin, otherwise use user's shop_id
+  const shopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  const balance_amount = (total_amount || 0) - (paid_amount || 0);
+  const invoiceStatus = status || 'draft';
+  
+  db.run(
+    `INSERT INTO invoices (
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal, discount_amount, tax_amount, total_amount,
+      paid_amount, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, status, created_by, shop_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal || 0, discount_amount || 0, tax_amount || 0, total_amount || 0,
+      paid_amount || 0, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, invoiceStatus, created_by, shopId
+    ],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      const invoice_id = this.lastID;
+      
+      // Insert invoice items
+      if (items && items.length > 0) {
+        let completed = 0;
+        items.forEach((item, index) => {
+          db.run(
+            `INSERT INTO invoice_items (
+              invoice_id, item_id, item_name, description,
+              quantity, unit_price, discount, tax_rate, total_price
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              invoice_id,
+              item.item_id || null,
+              item.item_name || '',
+              item.description || '',
+              item.quantity || 0,
+              item.unit_price || 0,
+              item.discount || 0,
+              item.tax_rate || 0,
+              item.total_price || 0
+            ],
+            function(err) {
+              if (err) {
+                return res.status(500).json({ error: sanitizeError(err) });
+              }
+              completed++;
+              if (completed === items.length) {
+                res.json({ id: invoice_id, message: 'Invoice created successfully' });
+              }
+            }
+          );
+        });
+      } else {
+        res.json({ id: invoice_id, message: 'Invoice created successfully' });
+      }
+    }
+  );
+});
+
+app.put('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const {
+    invoice_number,
+    invoice_date,
+    due_date,
+    customer_id,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    items,
+    subtotal,
+    discount_amount,
+    tax_amount,
+    total_amount,
+    paid_amount,
+    payment_method,
+    payment_terms,
+    notes,
+    terms_conditions,
+    status
+  } = req.body;
+  
+  const balance_amount = (total_amount || 0) - (paid_amount || 0);
+  
+  db.run(
+    `UPDATE invoices SET
+      invoice_number = ?, invoice_date = ?, due_date = ?, customer_id = ?,
+      customer_name = ?, customer_email = ?, customer_phone = ?, customer_address = ?,
+      subtotal = ?, discount_amount = ?, tax_amount = ?, total_amount = ?,
+      paid_amount = ?, balance_amount = ?, payment_method = ?, payment_terms = ?,
+      notes = ?, terms_conditions = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?`,
+    [
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal || 0, discount_amount || 0, tax_amount || 0, total_amount || 0,
+      paid_amount || 0, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, status, id
+    ],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      // Delete existing invoice items and insert new ones
+      db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [id], (err) => {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        
+        if (items && items.length > 0) {
+          let completed = 0;
+          items.forEach((item) => {
+            db.run(
+              `INSERT INTO invoice_items (
+                invoice_id, item_id, item_name, description,
+                quantity, unit_price, discount, tax_rate, total_price
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                id,
+                item.item_id || null,
+                item.item_name || '',
+                item.description || '',
+                item.quantity || 0,
+                item.unit_price || 0,
+                item.discount || 0,
+                item.tax_rate || 0,
+                item.total_price || 0
+              ],
+              function(err) {
+                if (err) {
+                  return res.status(500).json({ error: sanitizeError(err) });
+                }
+                completed++;
+                if (completed === items.length) {
+                  res.json({ message: 'Invoice updated successfully' });
+                }
+              }
+            );
+          });
+        } else {
+          res.json({ message: 'Invoice updated successfully' });
+        }
+      });
+    }
+  );
+});
+
+app.delete('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  
+  db.run('DELETE FROM invoices WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    // Invoice items are automatically deleted due to CASCADE
+    res.json({ message: 'Invoice deleted successfully' });
+  });
+});
+
+app.get('/api/invoices/generate-number', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  // Generate invoice number: INV-YYYYMMDD-XXX
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const datePrefix = `INV-${year}${month}${day}`;
+  
+  // Find the highest number for today
+  db.get(
+    `SELECT invoice_number FROM invoices 
+     WHERE invoice_number LIKE ? 
+     ORDER BY invoice_number DESC LIMIT 1`,
+    [`${datePrefix}-%`],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      let sequence = 1;
+      if (row && row.invoice_number) {
+        const parts = row.invoice_number.split('-');
+        if (parts.length === 3) {
+          const lastSequence = parseInt(parts[2]);
+          if (!isNaN(lastSequence)) {
+            sequence = lastSequence + 1;
+          }
+        }
+      }
+      
+      const invoice_number = `${datePrefix}-${String(sequence).padStart(3, '0')}`;
+      res.json({ invoice_number });
+    }
+  );
 });
 
 // ==================== REPORTS ROUTES ====================
