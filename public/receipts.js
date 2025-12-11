@@ -28,9 +28,19 @@ function formatDate(dateString) {
     }
 }
 
+// Local formatCurrency function - completely self-contained to avoid recursion
 function formatCurrency(amount) {
-    if (amount == null) return '0.00';
-    return parseFloat(amount).toFixed(2);
+    // Handle null/undefined/NaN
+    if (amount == null || amount === undefined) {
+        return 'Tshs 0.00';
+    }
+    // Parse and validate
+    const num = parseFloat(amount);
+    if (isNaN(num) || !isFinite(num)) {
+        return 'Tshs 0.00';
+    }
+    // Format directly - no function calls that could cause recursion
+    return 'Tshs ' + num.toFixed(2);
 }
 
 function switchTab(tab) {
@@ -69,10 +79,8 @@ async function loadReceipts() {
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
     
     try {
-        // Get shop filter if superadmin has selected a shop
-        const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
-        const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        const sales = await apiRequest(`/sales${queryParams}`);
+        // Get shop filter - apiRequest handles shop_id automatically for superadmin
+        const sales = await apiRequest('/sales');
         
         // Filter out returns (is_return = 1)
         receipts = sales.filter(sale => !sale.is_return || sale.is_return === 0);
@@ -80,18 +88,11 @@ async function loadReceipts() {
         if (tableContainer) hideTableSkeleton(tableContainer);
         renderReceiptsTable(receipts);
     } catch (error) {
+        console.error('Error loading receipts:', error);
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading receipts', 'error');
+        showNotification('Error loading receipts: ' + (error.message || 'Unknown error'), 'error');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">Error loading receipts</td></tr>';
-        }
-        if (receipts.length === 0 && tableContainer) {
-            showEmptyState(tableContainer, EmptyStates.receipts || {
-                icon: '<i class="fas fa-file-invoice fa-icon-primary" style="font-size: 4rem;"></i>',
-                title: 'No Receipts',
-                message: 'No receipts have been generated yet.',
-                className: 'empty-state-small'
-            });
         }
     }
 }
@@ -117,14 +118,6 @@ async function loadReturnedReceipts() {
         showNotification('Error loading returned receipts', 'error');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center">Error loading returned receipts</td></tr>';
-        }
-        if (returnedReceipts.length === 0 && tableContainer) {
-            showEmptyState(tableContainer, EmptyStates.returns || {
-                icon: '<i class="fas fa-undo fa-icon-warning" style="font-size: 4rem;"></i>',
-                title: 'No Returns',
-                message: 'No receipts have been returned yet.',
-                className: 'empty-state-small'
-            });
         }
     }
 }
@@ -445,25 +438,49 @@ async function handleReturnReceiptSubmit(e) {
 }
 
 function viewReturnImage(imagePath) {
-    if (!imagePath) return;
+    if (!imagePath) {
+        showNotification('Image path not provided', 'error');
+        return;
+    }
+    
+    // Ensure path starts with / if it doesn't already
+    const normalizedPath = imagePath.startsWith('/') ? imagePath : '/' + imagePath;
     
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
+    modal.style.zIndex = '10000';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 800px;">
-            <button class="close" onclick="this.closest('.modal').remove()">&times;</button>
-            <h2>Return Image</h2>
-            <img src="${escapeHtml(imagePath)}" alt="Return receipt documentation image showing proof of return" style="max-width: 100%; border-radius: 4px;">
+        <div class="modal-content" style="max-width: 90%; max-width: 800px; position: relative;">
+            <button class="close" onclick="this.closest('.modal').remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1;">&times;</button>
+            <h2 style="margin-top: 0;">Return Image</h2>
+            <div id="imageLoading" style="text-align: center; padding: 2rem;">
+                <p>Loading image...</p>
+            </div>
+            <div id="imageError" style="display: none; text-align: center; padding: 2rem; color: var(--danger-color);">
+                <p><strong>Failed to load image</strong></p>
+                <p style="font-size: 0.9em; margin-top: 0.5rem;">The image may have been deleted or moved.</p>
+            </div>
+            <img id="returnImageView" src="${escapeHtml(normalizedPath)}" alt="Return receipt documentation image showing proof of return" style="display: none; max-width: 100%; border-radius: 4px; margin-top: 1rem;" onload="document.getElementById('imageLoading').style.display='none'; this.style.display='block';" onerror="document.getElementById('imageLoading').style.display='none'; document.getElementById('imageError').style.display='block';">
         </div>
     `;
     document.body.appendChild(modal);
     
+    // Close on background click
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.remove();
         }
     });
+    
+    // Close on Escape key
+    const escapeHandler = function(e) {
+        if (e.key === 'Escape') {
+            modal.remove();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
 }
 
 async function viewReturnDetails(returnId) {
@@ -494,7 +511,14 @@ async function viewReturnDetails(returnId) {
             ${returnRecord.image_path ? `
                 <div>
                     <strong>Return Image:</strong><br>
-                    <img src="${escapeHtml(returnRecord.image_path)}" alt="Return receipt documentation for ${escapeHtml(returnRecord.invoice_number || 'invoice')} showing proof of return" style="max-width: 100%; max-height: 400px; border-radius: 4px; margin-top: 0.5rem; cursor: pointer;" onclick="viewReturnImage('${escapeHtml(returnRecord.image_path)}')">
+                    <div style="position: relative; margin-top: 0.5rem;" id="returnImageContainer-${returnRecord.id}">
+                        <img src="${escapeHtml(returnRecord.image_path.startsWith('/') ? returnRecord.image_path : '/' + returnRecord.image_path)}" 
+                             alt="Return receipt documentation for ${escapeHtml(returnRecord.invoice_number || 'invoice')} showing proof of return" 
+                             style="max-width: 100%; max-height: 400px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-color);" 
+                             onclick="viewReturnImage('${escapeHtml(returnRecord.image_path)}')"
+                             onerror="const container = document.getElementById('returnImageContainer-${returnRecord.id}'); if(container) { container.innerHTML = '<div style=\\'padding: 1rem; text-align: center; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: 4px;\\'><p>Image not available</p><button class=\\'btn btn-sm btn-secondary\\' onclick=\\'viewReturnImage(\\'${escapeHtml(returnRecord.image_path)}\\')\\'>Try again</button></div>'; }">
+                    </div>
+                    <p style="font-size: 0.85em; color: var(--text-secondary); margin-top: 0.25rem;">Click image to view full size</p>
                 </div>
             ` : ''}
         </div>
@@ -532,6 +556,332 @@ function clearReceiptFilters() {
     }
 }
 
+async function printAllReceipts() {
+    const dateFrom = document.getElementById('receiptDateFrom');
+    const dateTo = document.getElementById('receiptDateTo');
+    
+    if (!dateFrom || !dateTo || !dateFrom.value || !dateTo.value) {
+        showNotification('Please select both start and end dates', 'error');
+        return;
+    }
+    
+    const startDate = dateFrom.value;
+    const endDate = dateTo.value;
+    
+    if (new Date(startDate) > new Date(endDate)) {
+        showNotification('Start date must be before or equal to end date', 'error');
+        return;
+    }
+    
+    try {
+        showNotification('Loading receipts...', 'info');
+        
+        // Get all receipts in the date range - apiRequest handles shop_id automatically
+        const allSales = await apiRequest('/sales');
+        
+        // Filter by date range and exclude returns
+        const filteredReceipts = allSales.filter(sale => {
+            if (sale.is_return && sale.is_return === 1) return false;
+            const saleDate = new Date(sale.sale_date);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include entire end date
+            return saleDate >= start && saleDate <= end;
+        });
+        
+        if (filteredReceipts.length === 0) {
+            showNotification('No receipts found in the selected date range', 'error');
+            return;
+        }
+        
+        // Fetch full details for each receipt
+        showNotification(`Loading ${filteredReceipts.length} receipts...`, 'info');
+        const receiptsWithDetails = await Promise.all(
+            filteredReceipts.map(async (receipt) => {
+                try {
+                    const fullReceipt = await apiRequest(`/sales/${receipt.id}`);
+                    return fullReceipt;
+                } catch (error) {
+                    console.error(`Error loading receipt ${receipt.id}:`, error);
+                    return receipt;
+                }
+            })
+        );
+        
+        // Open print window
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        
+        if (!printWindow) {
+            showNotification('Pop-up blocked. Please allow pop-ups for this site to print receipts.', 'error');
+            return;
+        }
+        
+        // Generate print content - format data before writing to print window
+        const currentDate = new Date();
+        const totalAmount = receiptsWithDetails.reduce((sum, r) => sum + (parseFloat(r.total_amount) || 0), 0);
+        
+        // Helper functions for formatting (will be used before writing to print window)
+        const formatCurrencyForPrint = (amount) => {
+            if (amount == null) return 'Tshs 0.00';
+            return 'Tshs ' + parseFloat(amount).toFixed(2);
+        };
+        
+        const formatDateForPrint = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        };
+        
+        const escapeHtmlForPrint = (text) => {
+            if (text == null) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+        
+        // Get display system name
+        const systemDisplayName = window.getDisplaySystemName 
+            ? await window.getDisplaySystemName() 
+            : 'INVENTORY MANAGEMENT SYSTEM';
+        
+        // Format all data before generating HTML
+        const formattedReceipts = receiptsWithDetails.map(sale => {
+            let items = [];
+            try {
+                if (Array.isArray(sale.items)) {
+                    items = sale.items;
+                } else if (typeof sale.items === 'string') {
+                    items = JSON.parse(sale.items || '[]');
+                } else if (sale.items) {
+                    items = [sale.items];
+                }
+            } catch (parseError) {
+                console.error('Error parsing items for sale', sale.id, ':', parseError);
+                items = [];
+            }
+            
+            return {
+                ...sale,
+                items: items.map(item => ({
+                    ...item,
+                    formattedUnitPrice: formatCurrencyForPrint(item.unit_price || 0),
+                    formattedTotalPrice: formatCurrencyForPrint(item.total_price || (item.quantity || 0) * (item.unit_price || 0)),
+                    escapedItemName: escapeHtmlForPrint(item.item_name || '-')
+                })),
+                formattedDate: formatDateForPrint(sale.sale_date),
+                formattedTotal: formatCurrencyForPrint(sale.total_amount || 0),
+                escapedCustomer: escapeHtmlForPrint(sale.customer_name || 'Walk-in Customer'),
+                escapedCashier: escapeHtmlForPrint(sale.created_by_name || 'System'),
+                escapedNotes: sale.notes ? escapeHtmlForPrint(sale.notes) : null
+            };
+        });
+        
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>All Receipts - ${startDate} to ${endDate}</title>
+                <style>
+                    @media print {
+                        @page {
+                            size: A4;
+                            margin: 1cm;
+                        }
+                        body {
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                        .receipt {
+                            page-break-after: always;
+                        }
+                        .receipt:last-child {
+                            page-break-after: auto;
+                        }
+                    }
+                    body {
+                        font-family: Arial, sans-serif;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        color: #000;
+                    }
+                    .summary {
+                        text-align: center;
+                        border-bottom: 3px solid #000;
+                        padding-bottom: 20px;
+                        margin-bottom: 30px;
+                    }
+                    .summary h1 {
+                        margin: 0 0 10px 0;
+                        font-size: 24px;
+                        font-weight: bold;
+                    }
+                    .summary p {
+                        margin: 5px 0;
+                        font-size: 14px;
+                    }
+                    .receipt {
+                        border: 2px solid #000;
+                        padding: 20px;
+                        margin-bottom: 30px;
+                        page-break-inside: avoid;
+                    }
+                    .receipt-header {
+                        text-align: center;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 15px;
+                        margin-bottom: 20px;
+                    }
+                    .receipt-header h2 {
+                        margin: 0 0 10px 0;
+                        font-size: 20px;
+                        font-weight: bold;
+                    }
+                    .receipt-info {
+                        margin-bottom: 15px;
+                        line-height: 1.6;
+                    }
+                    .receipt-info p {
+                        margin: 4px 0;
+                        font-size: 13px;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    .receipt-info p strong {
+                        min-width: 100px;
+                        font-weight: 600;
+                    }
+                    .receipt-items {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 15px;
+                        font-size: 12px;
+                    }
+                    .receipt-items th {
+                        background: #f0f0f0;
+                        padding: 8px 6px;
+                        text-align: left;
+                        border-bottom: 2px solid #000;
+                        font-weight: bold;
+                    }
+                    .receipt-items td {
+                        padding: 6px;
+                        border-bottom: 1px solid #ddd;
+                    }
+                    .receipt-items tfoot td {
+                        border-top: 2px solid #000;
+                        font-weight: bold;
+                        padding: 8px 6px;
+                    }
+                    .text-right {
+                        text-align: right;
+                    }
+                    .no-print {
+                        text-align: center;
+                        margin-top: 20px;
+                    }
+                    .no-print button {
+                        padding: 10px 20px;
+                        font-size: 16px;
+                        background: #2563eb;
+                        color: white;
+                        border: none;
+                        border-radius: 0;
+                        cursor: pointer;
+                        margin: 0 10px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="summary">
+                    <h1>${systemDisplayName}</h1>
+                    <p><strong>All Receipts Report</strong></p>
+                    <p>Date Range: ${startDate} to ${endDate}</p>
+                    <p>Total Receipts: ${receiptsWithDetails.length}</p>
+                    <p>Grand Total: ${formatCurrencyForPrint(totalAmount)}</p>
+                    <p>Generated: ${currentDate.toLocaleString()}</p>
+                </div>
+                
+                ${formattedReceipts.map((sale) => {
+                    return `
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <h2>RECEIPT #${sale.id}</h2>
+                        <p>${sale.formattedDate}</p>
+                    </div>
+                    
+                    <div class="receipt-info">
+                        <p><strong>Customer:</strong> <span>${sale.escapedCustomer}</span></p>
+                        <p><strong>Cashier:</strong> <span>${sale.escapedCashier}</span></p>
+                        ${sale.escapedNotes ? `<p><strong>Notes:</strong> <span>${sale.escapedNotes}</span></p>` : ''}
+                    </div>
+                    
+                    <table class="receipt-items">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-right">Qty</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sale.items.map(item => `
+                            <tr>
+                                <td>${item.escapedItemName}</td>
+                                <td class="text-right">${item.quantity || 0}</td>
+                                <td class="text-right">${item.formattedUnitPrice}</td>
+                                <td class="text-right">${item.formattedTotalPrice}</td>
+                            </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>TOTAL:</strong></td>
+                                <td class="text-right"><strong>${sale.formattedTotal}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                    `;
+                }).join('')}
+                
+                <div class="no-print">
+                    <button onclick="window.print()">🖨️ Print All Receipts</button>
+                    <button onclick="window.close()">Close</button>
+                </div>
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        
+        showNotification(`Loaded ${receiptsWithDetails.length} receipts. Click Print in the new window.`, 'success');
+        
+        // Auto-print after a short delay
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    } catch (error) {
+        console.error('Error printing receipts:', error);
+        showNotification(error.message || 'Error printing receipts', 'error');
+    }
+}
+
 // Expose functions to global scope
 window.switchTab = switchTab;
 window.viewReceipt = viewReceipt;
@@ -544,6 +894,7 @@ window.applyReceiptFilters = applyReceiptFilters;
 window.clearReceiptFilters = clearReceiptFilters;
 window.removeReturnImage = removeReturnImage;
 window.updateReturnItems = updateReturnItems;
+window.printAllReceipts = printAllReceipts;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadReceipts();

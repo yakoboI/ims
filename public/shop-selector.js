@@ -89,6 +89,11 @@ function handleShopSelection(event) {
 
     // Reload current page data
     reloadPageData();
+    
+    // Update system name display when shop changes
+    if (window.updateSystemNameDisplay) {
+        window.updateSystemNameDisplay();
+    }
 }
 
 // Clear shop selection
@@ -101,6 +106,11 @@ function clearShopSelection() {
         selector.value = '';
     }
     reloadPageData();
+    
+    // Update system name display when shop selection is cleared
+    if (window.updateSystemNameDisplay) {
+        window.updateSystemNameDisplay();
+    }
 }
 
 // Reload page data based on current page
@@ -175,6 +185,10 @@ function reloadPageData() {
         if (typeof loadExpenses === 'function') {
             loadExpenses();
         }
+    } else if (filename.includes('settings.html') || filename === 'settings.html') {
+        if (typeof loadSettings === 'function') {
+            loadSettings();
+        }
     } else if (filename.includes('invoices.html') || filename === 'invoices.html') {
         if (typeof loadInvoices === 'function') {
             loadInvoices();
@@ -184,6 +198,11 @@ function reloadPageData() {
             loadReceipts();
         }
     } else if (filename.includes('reports.html') || filename === 'reports.html') {
+        // Refresh analytics overview first
+        if (typeof loadAnalyticsOverview === 'function') {
+            loadAnalyticsOverview();
+        }
+        // Then refresh the current report
         if (typeof showReport === 'function') {
             // Get current report type from active tab
             const activeTab = document.querySelector('.tab-btn.active');

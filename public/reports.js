@@ -617,4 +617,5 @@ function setupMobileSidebar() {
 window.showReport = showReport;
 window.loadSalesReport = loadSalesReport;
 window.loadPurchasesReport = loadPurchasesReport;
+window.loadAnalyticsOverview = loadAnalyticsOverview;
 

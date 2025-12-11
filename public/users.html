@@ -82,20 +82,21 @@
         <div class="nav-menu" role="menubar">
             <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
             <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
             <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
             <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
-            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
             <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
             <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
             <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
-            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
-            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
-            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
             <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
-            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
             <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
             <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
-            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-file-contract fa-icon-primary"></i> Terms and Service</a>
+            <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem" style="display: none;"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
             <a href="users.html" class="nav-link active" id="usersLink" style="display: none;" role="menuitem" aria-current="page"><i class="fas fa-users fa-icon-primary"></i> Users</a>
             <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
             <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
@@ -103,7 +104,44 @@
         </div>
     </nav>
 
-    <main id="main-content" class="container" role="main">
+    <!-- Login Form Container (shown when not logged in) -->
+    <div id="loginContainer" class="login-container" style="display: none;">
+        <div class="login-box">
+            <header>
+                <h1>User Login</h1>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem;">Enter your credentials to access your shop</p>
+            </header>
+            <form id="userLoginForm" role="form" aria-label="User login form">
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input 
+                        type="text" 
+                        id="loginUsername" 
+                        name="username" 
+                        required 
+                        autocomplete="username"
+                        aria-required="true"
+                        aria-label="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input 
+                        type="password" 
+                        id="loginPassword" 
+                        name="password" 
+                        required 
+                        autocomplete="current-password"
+                        aria-required="true"
+                        aria-label="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary" aria-label="Submit login form">Login</button>
+                <div id="userLoginError" class="error-message" role="alert" aria-live="polite" aria-atomic="true"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Management Content (shown when logged in) -->
+    <main id="main-content" class="container" role="main" style="display: none;">
         <header class="page-header">
             <h1>User Management</h1>
             <button class="btn btn-primary" onclick="openUserModal()" aria-label="Add new user">+ Add User</button>
@@ -197,12 +235,21 @@
                 </div>
                 <div class="form-group">
                     <label for="userRole">Role *</label>
-                    <select id="userRole" required aria-required="true" aria-label="User role">
+                    <select id="userRole" required aria-required="true" aria-label="User role" onchange="handleRoleChange()">
                         <option value="admin">Admin</option>
                         <option value="storekeeper">Storekeeper</option>
                         <option value="sales">Sales/Staff</option>
                         <option value="manager">Manager</option>
                     </select>
+                </div>
+                <div class="form-group" id="shopGroup">
+                    <label for="userShop">Shop</label>
+                    <select id="userShop" aria-label="Shop assignment" style="display: none;">
+                        <option value="">-- Select Shop --</option>
+                    </select>
+                    <div id="shopDisplay" style="padding: 0.75rem; background: #f1f5f9; border-radius: 4px; color: #475569;">
+                        <i class="fas fa-store"></i> <span id="shopDisplayText">Loading shop information...</span>
+                    </div>
                 </div>
                 <div class="form-group" id="statusGroup" style="display: none;">
                     <label for="userStatus">Status</label>
@@ -252,6 +299,213 @@
     <script src="app.js"></script>
     <script src="users.js"></script>
     <script src="shop-selector.js"></script>
+    <script>
+        // Login functionality for users.html
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is already logged in
+            const authToken = localStorage.getItem('authToken');
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            
+            const loginContainer = document.getElementById('loginContainer');
+            const mainContent = document.getElementById('main-content');
+            const navbar = document.querySelector('.navbar');
+            const navFooter = document.querySelector('.nav-footer');
+            
+            if (!authToken || !currentUser) {
+                // User is not logged in - show login form
+                if (loginContainer) loginContainer.style.display = 'flex';
+                if (mainContent) mainContent.style.display = 'none';
+                if (navbar) navbar.style.display = 'none';
+                
+                // Hide mobile menu toggle button
+                const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+                if (mobileMenuToggle) mobileMenuToggle.style.display = 'none';
+                
+                // Setup login form handler
+                const loginForm = document.getElementById('userLoginForm');
+                if (loginForm) {
+                    loginForm.addEventListener('submit', handleUserLogin);
+                }
+            } else {
+                // User is logged in - verify access
+                await verifyUserAccess(currentUser);
+            }
+        });
+        
+        async function handleUserLogin(e) {
+            e.preventDefault();
+            const errorDiv = document.getElementById('userLoginError');
+            const loginUsername = document.getElementById('loginUsername');
+            const loginPassword = document.getElementById('loginPassword');
+            
+            if (errorDiv) {
+                errorDiv.textContent = '';
+                errorDiv.classList.remove('show');
+            }
+            
+            const username = loginUsername ? loginUsername.value : '';
+            const password = loginPassword ? loginPassword.value : '';
+            
+            if (!username || !password) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter both username and password';
+                    errorDiv.classList.add('show');
+                }
+                return;
+            }
+            
+            try {
+                const response = await apiRequest('/login', {
+                    method: 'POST',
+                    body: { username, password }
+                });
+                
+                // Store authentication data
+                localStorage.setItem('authToken', response.token);
+                localStorage.setItem('currentUser', JSON.stringify(response.user));
+                if (response.refreshToken) {
+                    localStorage.setItem('refreshToken', response.refreshToken);
+                }
+                
+                // Verify user access with shop_id and role
+                await verifyUserAccess(response.user);
+                
+            } catch (error) {
+                if (errorDiv) {
+                    errorDiv.textContent = error.message || 'Login failed. Please check your credentials.';
+                    errorDiv.classList.add('show');
+                }
+                console.error('Login error:', error);
+            }
+        }
+        
+        async function verifyUserAccess(user) {
+            // Check if user has required data
+            if (!user || !user.username) {
+                showLoginError('Invalid user data');
+                return;
+            }
+            
+            // Check if password exists (basic validation)
+            // The backend already validated the password during login
+            
+            // Verify shop_id exists for non-superadmin users
+            if (user.role !== 'superadmin' && !user.shop_id) {
+                showLoginError('User account is not associated with any shop. Please contact administrator.');
+                // Clear invalid session
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('refreshToken');
+                return;
+            }
+            
+            // Verify role exists
+            if (!user.role) {
+                showLoginError('User role is not set. Please contact administrator.');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('refreshToken');
+                return;
+            }
+            
+            // Check role permissions to access users.html
+            const allowedRoles = ['superadmin', 'admin'];
+            if (!allowedRoles.includes(user.role)) {
+                // User doesn't have permission to access users.html
+                // Redirect to dashboard
+                showNotification('You do not have permission to access this page. Redirecting to dashboard...', 'info');
+                setTimeout(() => {
+                    window.location.href = '/dashboard.html';
+                }, 2000);
+                return;
+            }
+            
+            // All checks passed - show the user management page
+            const loginContainer = document.getElementById('loginContainer');
+            const mainContent = document.getElementById('main-content');
+            const navbar = document.querySelector('.navbar');
+            const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (mainContent) mainContent.style.display = 'block';
+            if (navbar) navbar.style.display = 'block';
+            if (mobileMenuToggle) mobileMenuToggle.style.display = 'block';
+            
+            // Update nav user display
+            const navUser = document.getElementById('navUser');
+            if (navUser) {
+                navUser.textContent = `${user.full_name || user.username} (${user.role})`;
+            }
+            
+            // Show success message
+            showNotification(`Welcome, ${user.full_name || user.username}! Shop ID: ${user.shop_id || 'N/A'}, Role: ${user.role}`);
+            
+            // Load user management data if users.js is loaded
+            if (typeof loadUsers === 'function') {
+                await loadUsers();
+            }
+            if (typeof loadBackups === 'function') {
+                await loadBackups();
+            }
+            if (typeof loadRolePermissions === 'function') {
+                await loadRolePermissions();
+            }
+        }
+        
+        function showLoginError(message) {
+            const errorDiv = document.getElementById('userLoginError');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+            } else {
+                alert(message);
+            }
+        }
+        
+        // Add CSS for login container if not already present
+        if (!document.getElementById('usersLoginStyles')) {
+            const style = document.createElement('style');
+            style.id = 'usersLoginStyles';
+            style.textContent = `
+                .login-container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    padding: 2rem;
+                    background: var(--bg-primary, #f8fafc);
+                }
+                .login-box {
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    width: 100%;
+                    max-width: 400px;
+                }
+                .login-box header {
+                    text-align: center;
+                    margin-bottom: 2rem;
+                }
+                .login-box header h1 {
+                    margin: 0;
+                    color: var(--text-primary, #1e293b);
+                }
+                #userLoginError {
+                    margin-top: 1rem;
+                    padding: 0.75rem;
+                    background: #fee2e2;
+                    color: #991b1b;
+                    border-radius: 4px;
+                    display: none;
+                }
+                #userLoginError.show {
+                    display: block;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    </script>
 </body>
 </html>
 

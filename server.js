@@ -12,6 +12,7 @@ const timeout = require('connect-timeout');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -479,6 +480,186 @@ const initDatabase = () => {
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
+
+    // Customers table
+    db.run(`CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT,
+      phone TEXT,
+      address TEXT,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Add shop_id column to customers if it doesn't exist (migration)
+    db.run(`ALTER TABLE customers ADD COLUMN shop_id INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // Terms and Service Templates table
+    db.run(`CREATE TABLE IF NOT EXISTS terms_and_service (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('invoice', 'receipt', 'purchase', 'general')),
+      content TEXT NOT NULL,
+      description TEXT,
+      shop_id INTEGER,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (shop_id) REFERENCES shops(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )`);
+
+    // Add shop_id and created_by columns if they don't exist (migration)
+    db.run(`ALTER TABLE terms_and_service ADD COLUMN shop_id INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+    db.run(`ALTER TABLE terms_and_service ADD COLUMN created_by INTEGER`, (err) => {
+      // Ignore error if column already exists
+    });
+    db.run(`ALTER TABLE terms_and_service ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => {
+      // Ignore error if column already exists
+    });
+
+    // System Settings table
+    db.run(`CREATE TABLE IF NOT EXISTS system_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      setting_key TEXT UNIQUE NOT NULL,
+      setting_value TEXT,
+      setting_type TEXT NOT NULL DEFAULT 'string' CHECK(setting_type IN ('string', 'number', 'boolean', 'json')),
+      category TEXT NOT NULL DEFAULT 'general' CHECK(category IN ('general', 'security', 'email', 'backup', 'display', 'currency', 'datetime', 'notification', 'integration')),
+      description TEXT,
+      is_encrypted INTEGER DEFAULT 0,
+      shop_id INTEGER,
+      updated_by INTEGER,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (shop_id) REFERENCES shops(id),
+      FOREIGN KEY (updated_by) REFERENCES users(id)
+    )`);
+
+    // Initialize default system settings
+    const defaultSettings = [
+      { key: 'system_name', value: 'Inventory Management System', type: 'string', category: 'general', description: 'System name displayed in the application' },
+      { key: 'shop_system_name', value: '', type: 'string', category: 'general', description: 'Sub-system name for this shop (customizable per shop)' },
+      { key: 'company_name', value: '', type: 'string', category: 'general', description: 'Company name for invoices and receipts' },
+      { key: 'company_address', value: '', type: 'string', category: 'general', description: 'Company address' },
+      { key: 'company_phone', value: '', type: 'string', category: 'general', description: 'Company phone number' },
+      { key: 'company_email', value: '', type: 'string', category: 'general', description: 'Company email address' },
+      { key: 'company_tax_id', value: '', type: 'string', category: 'general', description: 'Company tax ID/VAT number' },
+      { key: 'system_timezone', value: 'UTC', type: 'string', category: 'datetime', description: 'System timezone (e.g., UTC, Africa/Dar_es_Salaam)' },
+      { key: 'date_format', value: 'YYYY-MM-DD', type: 'string', category: 'datetime', description: 'Date format (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY)' },
+      { key: 'time_format', value: '24h', type: 'string', category: 'datetime', description: 'Time format (12h or 24h)' },
+      { key: 'currency_code', value: 'TZS', type: 'string', category: 'currency', description: 'Currency code (TZS, USD, EUR, etc.)' },
+      { key: 'currency_symbol', value: 'Tshs', type: 'string', category: 'currency', description: 'Currency symbol' },
+      { key: 'currency_position', value: 'before', type: 'string', category: 'currency', description: 'Currency position (before or after)' },
+      { key: 'decimal_places', value: '2', type: 'number', category: 'currency', description: 'Number of decimal places for currency' },
+      { key: 'default_tax_rate', value: '0', type: 'number', category: 'general', description: 'Default tax rate percentage' },
+      { key: 'tax_calculation_method', value: 'inclusive', type: 'string', category: 'general', description: 'Tax calculation method (inclusive or exclusive)' },
+      { key: 'invoice_number_format', value: 'INV-{YYYY}-{MM}-{####}', type: 'string', category: 'general', description: 'Invoice number format (use {YYYY}, {MM}, {DD}, {####} for auto-increment)' },
+      { key: 'receipt_number_format', value: 'RCP-{YYYY}-{MM}-{####}', type: 'string', category: 'general', description: 'Receipt number format' },
+      { key: 'items_per_page', value: '25', type: 'number', category: 'display', description: 'Default number of items per page' },
+      { key: 'print_paper_size', value: 'A4', type: 'string', category: 'display', description: 'Default paper size for printing (A4, Letter, etc.)' },
+      { key: 'print_margin', value: '10', type: 'number', category: 'display', description: 'Print margin in millimeters' },
+      { key: 'session_timeout', value: '30', type: 'number', category: 'security', description: 'Session timeout in minutes' },
+      { key: 'password_min_length', value: '8', type: 'number', category: 'security', description: 'Minimum password length' },
+      { key: 'require_strong_password', value: 'true', type: 'boolean', category: 'security', description: 'Require strong passwords' },
+      { key: 'enable_two_factor', value: 'false', type: 'boolean', category: 'security', description: 'Enable two-factor authentication' },
+      { key: 'max_login_attempts', value: '5', type: 'number', category: 'security', description: 'Maximum login attempts before lockout' },
+      { key: 'lockout_duration', value: '15', type: 'number', category: 'security', description: 'Account lockout duration in minutes' },
+      { key: 'backup_auto_enabled', value: 'true', type: 'boolean', category: 'backup', description: 'Enable automatic backups' },
+      { key: 'backup_frequency', value: 'daily', type: 'string', category: 'backup', description: 'Backup frequency (daily, weekly, monthly)' },
+      { key: 'backup_retention_days', value: '30', type: 'number', category: 'backup', description: 'Number of days to retain backups' },
+      { key: 'backup_location', value: 'local', type: 'string', category: 'backup', description: 'Backup storage location (local, cloud)' },
+      { key: 'email_enabled', value: 'false', type: 'boolean', category: 'email', description: 'Enable email notifications' },
+      { key: 'email_host', value: '', type: 'string', category: 'email', description: 'SMTP host' },
+      { key: 'email_port', value: '587', type: 'number', category: 'email', description: 'SMTP port' },
+      { key: 'email_secure', value: 'true', type: 'boolean', category: 'email', description: 'Use secure connection (TLS)' },
+      { key: 'email_username', value: '', type: 'string', category: 'email', description: 'SMTP username' },
+      { key: 'email_password', value: '', type: 'string', category: 'email', description: 'SMTP password (encrypted)' },
+      { key: 'email_from', value: '', type: 'string', category: 'email', description: 'Default sender email address' },
+      { key: 'email_from_name', value: '', type: 'string', category: 'email', description: 'Default sender name' },
+      { key: 'low_stock_notification', value: 'true', type: 'boolean', category: 'notification', description: 'Enable low stock notifications' },
+      { key: 'low_stock_threshold', value: '10', type: 'number', category: 'notification', description: 'Low stock threshold percentage' },
+      { key: 'enable_audit_log', value: 'true', type: 'boolean', category: 'security', description: 'Enable audit logging' },
+      { key: 'audit_log_retention_days', value: '90', type: 'number', category: 'security', description: 'Audit log retention in days' },
+      { key: 'enable_api_rate_limit', value: 'true', type: 'boolean', category: 'security', description: 'Enable API rate limiting' },
+      { key: 'api_rate_limit_per_minute', value: '100', type: 'number', category: 'security', description: 'API requests per minute limit' },
+      { key: 'theme', value: 'light', type: 'string', category: 'display', description: 'Application theme (light, dark, auto)' },
+      { key: 'language', value: 'en', type: 'string', category: 'display', description: 'Default language code' },
+      { key: 'enable_barcode_scanning', value: 'true', type: 'boolean', category: 'display', description: 'Enable barcode scanning feature' },
+      { key: 'barcode_format', value: 'CODE128', type: 'string', category: 'display', description: 'Default barcode format' }
+    ];
+
+    // Insert default settings if they don't exist
+    // Use INSERT OR IGNORE with proper error handling to avoid UNIQUE constraint violations
+    defaultSettings.forEach(setting => {
+      db.run(
+        `INSERT OR IGNORE INTO system_settings (setting_key, setting_value, setting_type, category, description, shop_id) 
+         VALUES (?, ?, ?, ?, ?, NULL)`,
+        [setting.key, setting.value, setting.type, setting.category, setting.description],
+        (err) => {
+          // INSERT OR IGNORE should prevent UNIQUE constraint errors, but handle any other errors
+          if (err) {
+            // Only log non-UNIQUE constraint errors
+            if (err.code !== 'SQLITE_CONSTRAINT' || !err.message.includes('UNIQUE')) {
+              console.error(`Error inserting default setting ${setting.key}:`, err);
+            }
+            // Silently ignore UNIQUE constraint errors as they indicate the setting already exists
+          }
+        }
+      );
+    });
+
+    // Invoices table
+    db.run(`CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT UNIQUE NOT NULL,
+      invoice_date DATETIME NOT NULL,
+      due_date DATETIME,
+      customer_id INTEGER,
+      customer_name TEXT,
+      customer_email TEXT,
+      customer_phone TEXT,
+      customer_address TEXT,
+      subtotal REAL NOT NULL DEFAULT 0,
+      discount_amount REAL DEFAULT 0,
+      tax_amount REAL DEFAULT 0,
+      total_amount REAL NOT NULL DEFAULT 0,
+      paid_amount REAL DEFAULT 0,
+      balance_amount REAL DEFAULT 0,
+      payment_method TEXT,
+      payment_terms TEXT,
+      notes TEXT,
+      terms_conditions TEXT,
+      status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'sent', 'paid', 'partial', 'overdue', 'cancelled')),
+      created_by INTEGER,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Invoice_Items table
+    db.run(`CREATE TABLE IF NOT EXISTS invoice_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER NOT NULL,
+      item_id INTEGER,
+      item_name TEXT NOT NULL,
+      description TEXT,
+      quantity REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      discount REAL DEFAULT 0,
+      tax_rate REAL DEFAULT 0,
+      total_price REAL NOT NULL,
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES items(id)
     )`);
 
     // Role_Permissions table for page access management
@@ -1473,6 +1654,244 @@ app.get('/api/shops', authenticateToken, requireRole('admin'), (req, res) => {
   }
 });
 
+// Get all shops statistics summary (superadmin only) - MUST BE BEFORE /api/shops/:id
+app.get('/api/shops/statistics/summary', authenticateToken, requireRole('superadmin'), (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const monthStart = new Date().toISOString().substring(0, 7); // YYYY-MM
+  
+  // Get all shops
+  db.all('SELECT * FROM shops ORDER BY shop_name', (err, shops) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    if (shops.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get statistics for each shop
+    const shopPromises = shops.map(shop => {
+      return new Promise((resolve, reject) => {
+        const shopId = shop.id;
+        
+        // Get all statistics for this shop
+        const queries = {
+          totalUsers: new Promise((resolve, reject) => {
+            db.get(
+              'SELECT COUNT(*) as count FROM users WHERE shop_id = ? AND is_active = 1',
+              [shopId],
+              (err, row) => err ? reject(err) : resolve(row?.count || 0)
+            );
+          }),
+          
+          totalItems: new Promise((resolve, reject) => {
+            db.get(
+              'SELECT COUNT(*) as count FROM items WHERE shop_id = ? AND (is_archived IS NULL OR is_archived = 0)',
+              [shopId],
+              (err, row) => err ? reject(err) : resolve(row?.count || 0)
+            );
+          }),
+          
+          lowStockItems: new Promise((resolve, reject) => {
+            db.get(
+              'SELECT COUNT(*) as count FROM items WHERE shop_id = ? AND (is_archived IS NULL OR is_archived = 0) AND stock_quantity <= min_stock_level',
+              [shopId],
+              (err, row) => err ? reject(err) : resolve(row?.count || 0)
+            );
+          }),
+          
+          todaySales: new Promise((resolve, reject) => {
+            db.get(
+              `SELECT COALESCE(SUM(s.total_amount), 0) as total 
+               FROM sales s 
+               LEFT JOIN users u ON s.created_by = u.id 
+               WHERE DATE(s.sale_date) = ? AND u.shop_id = ?`,
+              [today, shopId],
+              (err, row) => err ? reject(err) : resolve(parseFloat(row?.total || 0))
+            );
+          }),
+          
+          monthSales: new Promise((resolve, reject) => {
+            db.get(
+              `SELECT COALESCE(SUM(s.total_amount), 0) as total 
+               FROM sales s 
+               LEFT JOIN users u ON s.created_by = u.id 
+               WHERE strftime('%Y-%m', s.sale_date) = ? AND u.shop_id = ?`,
+              [monthStart, shopId],
+              (err, row) => err ? reject(err) : resolve(parseFloat(row?.total || 0))
+            );
+          })
+        };
+        
+        Promise.all(Object.values(queries))
+          .then(([totalUsers, totalItems, lowStockItems, todaySales, monthSales]) => {
+            resolve({
+              shop_id: shop.id,
+              shop_name: shop.shop_name,
+              shop_code: shop.shop_code,
+              total_users: totalUsers,
+              total_items: totalItems,
+              low_stock_items: lowStockItems,
+              today_sales: todaySales,
+              month_sales: monthSales,
+              status: shop.is_active === 1 ? 'active' : 'inactive'
+            });
+          })
+          .catch(reject);
+      });
+    });
+    
+    // Wait for all shop statistics
+    Promise.all(shopPromises)
+      .then(results => {
+        res.json(results);
+      })
+      .catch(err => {
+        console.error('Error fetching shops statistics summary:', err);
+        return res.status(500).json({ error: sanitizeError(err) });
+      });
+  });
+});
+
+// Get shop statistics (single shop) - MUST BE BEFORE /api/shops/:id
+app.get('/api/shops/:id/statistics', authenticateToken, requireRole('admin'), (req, res) => {
+  const shopId = parseInt(req.params.id);
+  
+  // Authorization check
+  if (req.user.role !== 'superadmin' && req.user.shop_id !== shopId) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+  
+  if (!shopId || isNaN(shopId)) {
+    return res.status(400).json({ error: 'Invalid shop ID' });
+  }
+  
+  // Verify shop exists
+  db.get('SELECT * FROM shops WHERE id = ?', [shopId], (err, shop) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = new Date().toISOString().substring(0, 7); // YYYY-MM
+    
+    // Get statistics in parallel
+    const queries = {
+      totalItems: new Promise((resolve, reject) => {
+        db.get(
+          'SELECT COUNT(*) as count FROM items WHERE shop_id = ? AND (is_archived IS NULL OR is_archived = 0)',
+          [shopId],
+          (err, row) => err ? reject(err) : resolve(row?.count || 0)
+        );
+      }),
+      
+      lowStockItems: new Promise((resolve, reject) => {
+        db.get(
+          'SELECT COUNT(*) as count FROM items WHERE shop_id = ? AND (is_archived IS NULL OR is_archived = 0) AND stock_quantity <= min_stock_level',
+          [shopId],
+          (err, row) => err ? reject(err) : resolve(row?.count || 0)
+        );
+      }),
+      
+      todaySales: new Promise((resolve, reject) => {
+        db.get(
+          `SELECT COUNT(*) as count, COALESCE(SUM(s.total_amount), 0) as total 
+           FROM sales s 
+           LEFT JOIN users u ON s.created_by = u.id 
+           WHERE DATE(s.sale_date) = ? AND u.shop_id = ?`,
+          [today, shopId],
+          (err, row) => err ? reject(err) : resolve({ count: row?.count || 0, total: parseFloat(row?.total || 0) })
+        );
+      }),
+      
+      monthSales: new Promise((resolve, reject) => {
+        db.get(
+          `SELECT COUNT(*) as count, COALESCE(SUM(s.total_amount), 0) as total 
+           FROM sales s 
+           LEFT JOIN users u ON s.created_by = u.id 
+           WHERE strftime('%Y-%m', s.sale_date) = ? AND u.shop_id = ?`,
+          [monthStart, shopId],
+          (err, row) => err ? reject(err) : resolve({ count: row?.count || 0, total: parseFloat(row?.total || 0) })
+        );
+      }),
+      
+      todayPurchases: new Promise((resolve, reject) => {
+        db.get(
+          `SELECT COUNT(*) as count, COALESCE(SUM(p.total_amount), 0) as total 
+           FROM purchases p 
+           LEFT JOIN users u ON p.created_by = u.id 
+           WHERE DATE(p.purchase_date) = ? AND u.shop_id = ?`,
+          [today, shopId],
+          (err, row) => err ? reject(err) : resolve({ count: row?.count || 0, total: parseFloat(row?.total || 0) })
+        );
+      }),
+      
+      totalUsers: new Promise((resolve, reject) => {
+        db.get(
+          'SELECT COUNT(*) as count FROM users WHERE shop_id = ? AND is_active = 1',
+          [shopId],
+          (err, row) => err ? reject(err) : resolve(row?.count || 0)
+        );
+      }),
+      
+      totalCategories: new Promise((resolve, reject) => {
+        db.get(
+          'SELECT COUNT(DISTINCT category_id) as count FROM items WHERE shop_id = ? AND category_id IS NOT NULL AND (is_archived IS NULL OR is_archived = 0)',
+          [shopId],
+          (err, row) => err ? reject(err) : resolve(row?.count || 0)
+        );
+      }),
+      
+      totalSuppliers: new Promise((resolve, reject) => {
+        // Suppliers don't have shop_id directly, count suppliers used by this shop's purchases
+        db.get(
+          `SELECT COUNT(DISTINCT p.supplier_id) as count 
+           FROM purchases p 
+           LEFT JOIN users u ON p.created_by = u.id 
+           WHERE u.shop_id = ? AND p.supplier_id IS NOT NULL`,
+          [shopId],
+          (err, row) => {
+            if (err) {
+              // If error, fallback to counting all suppliers
+              db.get('SELECT COUNT(*) as count FROM suppliers', [], (err2, row2) => {
+                err2 ? reject(err2) : resolve(row2?.count || 0);
+              });
+            } else {
+              resolve(row?.count || 0);
+            }
+          }
+        );
+      })
+    };
+    
+    // Execute all queries in parallel
+    Promise.all(Object.values(queries))
+      .then(([totalItems, lowStockItems, todaySales, monthSales, todayPurchases, totalUsers, totalCategories, totalSuppliers]) => {
+        const statistics = {
+          shop_id: shopId,
+          shop_name: shop.shop_name,
+          totalItems,
+          lowStockItems,
+          todaySales,
+          monthSales,
+          todayPurchases,
+          totalUsers,
+          totalCategories,
+          totalSuppliers
+        };
+        
+        res.json(statistics);
+      })
+      .catch(err => {
+        console.error('Error fetching shop statistics:', err);
+        return res.status(500).json({ error: sanitizeError(err) });
+      });
+  });
+});
+
 // Get single shop by ID
 app.get('/api/shops/:id', authenticateToken, requireRole('admin'), (req, res) => {
   const shopId = parseInt(req.params.id);
@@ -2434,30 +2853,131 @@ app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'
 
 app.get('/api/sales', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
   const shopFilter = getShopFilter(req);
+  
+  // First, check if is_return column exists by querying pragma_table_info
+  db.all("SELECT name FROM pragma_table_info('sales') WHERE name='is_return'", (colErr, colRows) => {
+    // Check if column exists - colRows will be an array, empty if column doesn't exist
+    const hasIsReturnColumn = !colErr && colRows && colRows.length > 0;
+    
+    let query = `
+      SELECT s.*, u.username as created_by_name, u.shop_id
+      FROM sales s
+      LEFT JOIN users u ON s.created_by = u.id
+    `;
+    const params = [];
+    const whereConditions = [];
+    
+    // Filter out returns (is_return = 1) - only show regular sales
+    // Only add this filter if the column exists
+    if (hasIsReturnColumn) {
+      whereConditions.push(`(s.is_return IS NULL OR s.is_return = 0)`);
+    }
+    
+    // Filter by shop_id if provided (for superadmin)
+    if (shopFilter.shop_id && req.user.role === 'superadmin') {
+      // Only show sales from the selected shop
+      whereConditions.push('u.shop_id = ?');
+      params.push(shopFilter.shop_id);
+    } else if (req.user.role !== 'superadmin') {
+      // Non-superadmin users: show sales from their shop OR sales where creator has no shop_id
+      if (req.user.shop_id) {
+        // Show sales from same shop OR sales where creator has no shop_id (NULL)
+        whereConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+        params.push(req.user.shop_id);
+      }
+      // If user has no shop_id, don't add any shop filter - show all sales
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+    
+    query += ` ORDER BY s.sale_date DESC`;
+    
+    db.all(query, params, (err, sales) => {
+      if (err) {
+        // If error is about missing is_return column, retry without that filter
+        if (err.message && (err.message.includes('no such column') || err.message.includes('is_return'))) {
+          // Retry query without is_return filter
+          let retryQuery = `
+            SELECT s.*, u.username as created_by_name, u.shop_id
+            FROM sales s
+            LEFT JOIN users u ON s.created_by = u.id
+          `;
+          const retryParams = [];
+          const retryConditions = [];
+          
+          if (shopFilter.shop_id && req.user.role === 'superadmin') {
+            retryConditions.push('u.shop_id = ?');
+            retryParams.push(shopFilter.shop_id);
+          } else if (req.user.role !== 'superadmin') {
+            if (req.user.shop_id) {
+              retryConditions.push(`(u.shop_id = ? OR u.shop_id IS NULL)`);
+              retryParams.push(req.user.shop_id);
+            }
+          }
+          
+          if (retryConditions.length > 0) {
+            retryQuery += ` WHERE ${retryConditions.join(' AND ')}`;
+          }
+          
+          retryQuery += ` ORDER BY s.sale_date DESC`;
+          
+          db.all(retryQuery, retryParams, (retryErr, retrySales) => {
+            if (retryErr) {
+              console.error('Sales retry query error:', retryErr);
+              return res.status(500).json({ error: sanitizeError(retryErr) });
+            }
+            res.json(retrySales);
+          });
+          return;
+        }
+        console.error('Sales query error:', err);
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json(sales);
+    });
+  });
+});
+
+app.get('/api/sales/returns', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+  const shopFilter = getShopFilter(req);
   let query = `
     SELECT s.*, u.username as created_by_name, u.shop_id
     FROM sales s
     LEFT JOIN users u ON s.created_by = u.id
+    WHERE s.is_return = 1
   `;
   const params = [];
   
   // Filter by shop_id if provided (for superadmin)
   if (shopFilter.shop_id && req.user.role === 'superadmin') {
-    query += ` WHERE u.shop_id = ?`;
+    query += ` AND u.shop_id = ?`;
     params.push(shopFilter.shop_id);
   } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
-    // Non-superadmin users only see sales from their shop
-    query += ` WHERE u.shop_id = ?`;
+    // Non-superadmin users only see returns from their shop
+    query += ` AND u.shop_id = ?`;
     params.push(req.user.shop_id);
   }
   
   query += ` ORDER BY s.sale_date DESC`;
   
-  db.all(query, params, (err, sales) => {
+  db.all(query, params, (err, returns) => {
     if (err) {
+      // If column doesn't exist, return empty array instead of error
+      if (err.message && err.message.includes('no such column')) {
+        return res.json([]);
+      }
       return res.status(500).json({ error: sanitizeError(err) });
     }
-    res.json(sales);
+    // Map sale_date to return_date for compatibility with frontend
+    const formattedReturns = returns.map(ret => ({
+      ...ret,
+      return_date: ret.sale_date || ret.return_date,
+      sale_id: ret.original_sale_id || ret.sale_id || ret.id,
+      invoice_number: ret.invoice_number || `#${ret.id}`
+    }));
+    res.json(formattedReturns);
   });
 });
 
@@ -2533,25 +3053,199 @@ app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), (req, r
           [total_amount, customer_name, created_by, notes],
           function(err) {
             if (err) {
+              console.error('Error creating sale:', err);
               return res.status(500).json({ error: sanitizeError(err) });
             }
             const sale_id = this.lastID;
 
             // Insert sales items and update stock
             let completed = 0;
+            let hasError = false;
             items.forEach((item) => {
               db.run(
                 'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
                 [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
                 function(err) {
                   if (err) {
-                    return res.status(500).json({ error: sanitizeError(err) });
+                    console.error('Error creating sale item:', err);
+                    if (!hasError) {
+                      hasError = true;
+                      return res.status(500).json({ error: sanitizeError(err) });
+                    }
+                    return;
                   }
                   // Update stock
-                  db.run('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.item_id]);
+                  db.run('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.item_id], (stockErr) => {
+                    if (stockErr) {
+                      console.error('Error updating stock:', stockErr);
+                    }
+                  });
                   completed++;
-                  if (completed === items.length) {
+                  if (completed === items.length && !hasError) {
                     res.json({ id: sale_id, message: 'Sale recorded successfully' });
+                  }
+                }
+              );
+            });
+          }
+        );
+      }
+    });
+  });
+});
+
+// ==================== SALES RETURN ROUTES ====================
+
+// Configure multer for file uploads
+const uploadsDir = path.join(__dirname, 'public', 'uploads', 'returns');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp and UUID
+    const uniqueSuffix = Date.now() + '-' + uuidv4().substring(0, 8);
+    const ext = path.extname(file.originalname);
+    cb(null, `return-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Only allow image files
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only image files are allowed.'));
+    }
+  }
+});
+
+// Upload return image endpoint
+app.post('/api/sales/return/upload-image', authenticateToken, requireRole('admin', 'sales', 'manager'), upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  // Return the relative path from public directory
+  const imagePath = `/uploads/returns/${req.file.filename}`;
+  res.json({ image_path: imagePath });
+});
+
+// Create return endpoint
+app.post('/api/sales/return', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+  const { original_sale_id, items, reason, return_info, image_path } = req.body;
+  const created_by = req.user.id;
+
+  if (!original_sale_id || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Original sale ID and items are required' });
+  }
+
+  // First, verify the original sale exists
+  db.get('SELECT * FROM sales WHERE id = ?', [original_sale_id], (err, originalSale) => {
+    if (err) {
+      console.error('Error fetching original sale:', err);
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!originalSale) {
+      return res.status(404).json({ error: 'Original sale not found' });
+    }
+
+    // Calculate total return amount
+    let total_amount = 0;
+    items.forEach(item => {
+      total_amount += (item.quantity || 0) * (item.unit_price || 0);
+    });
+
+    // Check if sales table has return-related columns, add them if needed
+    db.all("SELECT name FROM pragma_table_info('sales') WHERE name IN ('is_return', 'original_sale_id', 'return_info', 'image_path')", (colErr, colRows) => {
+      if (colErr) {
+        console.error('Error checking columns:', colErr);
+        return res.status(500).json({ error: sanitizeError(colErr) });
+      }
+
+      const existingColumns = colRows.map(row => row.name);
+      const columnsToAdd = [];
+
+      if (!existingColumns.includes('is_return')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN is_return INTEGER DEFAULT 0");
+      if (!existingColumns.includes('original_sale_id')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN original_sale_id INTEGER");
+      if (!existingColumns.includes('return_info')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN return_info TEXT");
+      if (!existingColumns.includes('image_path')) columnsToAdd.push("ALTER TABLE sales ADD COLUMN image_path TEXT");
+
+      // Add missing columns
+      let addColumnCount = 0;
+      if (columnsToAdd.length === 0) {
+        createReturn();
+      } else {
+        columnsToAdd.forEach((sql, index) => {
+          db.run(sql, (addErr) => {
+            if (addErr && !addErr.message.includes('duplicate column')) {
+              console.error(`Error adding column: ${sql}`, addErr);
+            }
+            addColumnCount++;
+            if (addColumnCount === columnsToAdd.length) {
+              createReturn();
+            }
+          });
+        });
+      }
+
+      function createReturn() {
+        // Create the return sale record
+        db.run(
+          'INSERT INTO sales (sale_date, total_amount, customer_name, created_by, notes, is_return, original_sale_id, return_info, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            new Date().toISOString(),
+            total_amount,
+            originalSale.customer_name || null,
+            created_by,
+            reason || null,
+            1, // is_return = 1
+            original_sale_id,
+            return_info || null,
+            image_path || null
+          ],
+          function(insertErr) {
+            if (insertErr) {
+              console.error('Error creating return:', insertErr);
+              return res.status(500).json({ error: sanitizeError(insertErr) });
+            }
+            const return_id = this.lastID;
+
+            // Insert return items and restore stock
+            let completed = 0;
+            let hasError = false;
+            items.forEach((item) => {
+              db.run(
+                'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
+                [return_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
+                function(itemErr) {
+                  if (itemErr) {
+                    console.error('Error creating return item:', itemErr);
+                    if (!hasError) {
+                      hasError = true;
+                      return res.status(500).json({ error: sanitizeError(itemErr) });
+                    }
+                    return;
+                  }
+                  // Restore stock (add back the returned quantity)
+                  db.run('UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?', [item.quantity, item.item_id], (stockErr) => {
+                    if (stockErr) {
+                      console.error('Error restoring stock:', stockErr);
+                    }
+                  });
+                  completed++;
+                  if (completed === items.length && !hasError) {
+                    res.json({ id: return_id, message: 'Return processed successfully' });
                   }
                 }
               );
@@ -2815,6 +3509,1306 @@ app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager
   });
 });
 
+// ==================== CUSTOMERS ROUTES ====================
+
+app.get('/api/customers', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM customers';
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' WHERE shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see customers from their shop
+    query += ' WHERE shop_id = ?';
+    params.push(req.user.shop_id);
+  }
+  
+  query += ' ORDER BY name';
+  
+  db.all(query, params, (err, customers) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(customers);
+  });
+});
+
+app.post('/api/customers', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const { name, email, phone, address } = req.body;
+  const shopFilter = getShopFilter(req);
+  const shopId = shopFilter.shop_id || req.user.shop_id || null;
+  
+  db.run(
+    'INSERT INTO customers (name, email, phone, address, shop_id) VALUES (?, ?, ?, ?, ?)',
+    [name, email, phone, address, shopId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ id: this.lastID, message: 'Customer created successfully' });
+    }
+  );
+});
+
+app.put('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const { name, email, phone, address } = req.body;
+  
+  db.run(
+    'UPDATE customers SET name = ?, email = ?, phone = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [name, email, phone, address, id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      res.json({ message: 'Customer updated successfully' });
+    }
+  );
+});
+
+app.delete('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  
+  db.run('DELETE FROM customers WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    res.json({ message: 'Customer deleted successfully' });
+  });
+});
+
+// ==================== TERMS AND SERVICE TEMPLATES ROUTES ====================
+
+app.get('/api/terms-and-service', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM terms_and_service WHERE 1=1';
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' AND shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see templates from their shop
+    query += ' AND shop_id = ?';
+    params.push(req.user.shop_id);
+  } else if (req.user.role !== 'superadmin' && !req.user.shop_id) {
+    // Non-superadmin without shop_id sees no templates
+    query += ' AND 1=0';
+  }
+  
+  query += ' ORDER BY created_at DESC';
+  
+  db.all(query, params, (err, templates) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(templates);
+  });
+});
+
+app.get('/api/terms-and-service/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  let query = 'SELECT * FROM terms_and_service WHERE id = ?';
+  const params = [id];
+  
+  // Add shop filter for non-superadmin users
+  if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    query += ' AND shop_id = ?';
+    params.push(req.user.shop_id);
+  } else if (req.user.role !== 'superadmin' && !req.user.shop_id) {
+    query += ' AND 1=0';
+  }
+  
+  db.get(query, params, (err, template) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    res.json(template);
+  });
+});
+
+app.post('/api/terms-and-service', authenticateToken, requireRole('admin', 'storekeeper', 'sales'), (req, res) => {
+  const { name, type, content, description } = req.body;
+  const shopFilter = getShopFilter(req);
+  const shopId = shopFilter.shop_id || req.user.shop_id || null;
+  
+  // SECURITY: Input validation
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'Template name is required' });
+  }
+  
+  if (!type || !['invoice', 'receipt', 'purchase', 'general'].includes(type)) {
+    return res.status(400).json({ error: 'Valid template type is required (invoice, receipt, purchase, or general)' });
+  }
+  
+  if (!content || typeof content !== 'string' || content.trim().length < 1) {
+    return res.status(400).json({ error: 'Template content is required' });
+  }
+  
+  db.run(
+    'INSERT INTO terms_and_service (name, type, content, description, shop_id, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+    [name.trim(), type, content.trim(), description ? description.trim() : null, shopId, req.user.id],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      // SECURITY: Log template creation
+      logAudit(req, 'TERMS_TEMPLATE_CREATED', 'terms_and_service', this.lastID, { name: name.trim(), type });
+      
+      res.json({ id: this.lastID, message: 'Template created successfully' });
+    }
+  );
+});
+
+app.put('/api/terms-and-service/:id', authenticateToken, requireRole('admin', 'storekeeper', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const { name, type, content, description } = req.body;
+  const shopFilter = getShopFilter(req);
+  
+  // SECURITY: Input validation
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'Template name is required' });
+  }
+  
+  if (!type || !['invoice', 'receipt', 'purchase', 'general'].includes(type)) {
+    return res.status(400).json({ error: 'Valid template type is required (invoice, receipt, purchase, or general)' });
+  }
+  
+  if (!content || typeof content !== 'string' || content.trim().length < 1) {
+    return res.status(400).json({ error: 'Template content is required' });
+  }
+  
+  // First check if template exists and user has permission
+  db.get('SELECT * FROM terms_and_service WHERE id = ?', [id], (err, template) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    // Check permissions
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && template.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (template.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    db.run(
+      'UPDATE terms_and_service SET name = ?, type = ?, content = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [name.trim(), type, content.trim(), description ? description.trim() : null, id],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'Template not found' });
+        }
+        
+        // SECURITY: Log template update
+        logAudit(req, 'TERMS_TEMPLATE_UPDATED', 'terms_and_service', parseInt(id), { name: name.trim(), type });
+        
+        res.json({ message: 'Template updated successfully' });
+      }
+    );
+  });
+});
+
+app.delete('/api/terms-and-service/:id', authenticateToken, requireRole('admin', 'storekeeper', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const shopFilter = getShopFilter(req);
+  
+  // First check if template exists and user has permission
+  db.get('SELECT * FROM terms_and_service WHERE id = ?', [id], (err, template) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    // Check permissions
+    if (req.user.role === 'superadmin') {
+      if (shopFilter.shop_id && template.shop_id !== shopFilter.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } else {
+      if (template.shop_id !== req.user.shop_id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
+    db.run('DELETE FROM terms_and_service WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+      
+      // SECURITY: Log template deletion
+      logAudit(req, 'TERMS_TEMPLATE_DELETED', 'terms_and_service', parseInt(id), { name: template.name });
+      
+      res.json({ message: 'Template deleted successfully' });
+    });
+  });
+});
+
+// ==================== SYSTEM SETTINGS ROUTES ====================
+
+app.get('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT * FROM system_settings WHERE 1=1';
+  const params = [];
+  
+  // For superadmin, can filter by shop_id
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users see global settings and their shop settings
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(req.user.shop_id);
+  } else if (req.user.role !== 'superadmin' && !req.user.shop_id) {
+    // Non-superadmin without shop_id only see global settings
+    query += ' AND shop_id IS NULL';
+  }
+  
+  query += ' ORDER BY category, setting_key';
+  
+  db.all(query, params, (err, settings) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Group settings by category for easier frontend handling
+    const groupedSettings = {};
+    settings.forEach(setting => {
+      if (!groupedSettings[setting.category]) {
+        groupedSettings[setting.category] = [];
+      }
+      
+      // Parse value based on type
+      let parsedValue = setting.setting_value;
+      if (setting.setting_type === 'number') {
+        parsedValue = setting.setting_value ? parseFloat(setting.setting_value) : null;
+      } else if (setting.setting_type === 'boolean') {
+        parsedValue = setting.setting_value === 'true' || setting.setting_value === '1';
+      } else if (setting.setting_type === 'json') {
+        try {
+          parsedValue = setting.setting_value ? JSON.parse(setting.setting_value) : null;
+        } catch (e) {
+          parsedValue = null;
+        }
+      }
+      
+      groupedSettings[setting.category].push({
+        id: setting.id,
+        key: setting.setting_key,
+        value: parsedValue,
+        type: setting.setting_type,
+        category: setting.category,
+        description: setting.description,
+        is_encrypted: setting.is_encrypted === 1,
+        shop_id: setting.shop_id,
+        updated_at: setting.updated_at
+      });
+    });
+    
+    res.json(groupedSettings);
+  });
+});
+
+// Get display system name (accessible to all authenticated users)
+app.get('/api/settings/display-name', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  const shopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  // Get system_name (global default)
+  db.get('SELECT setting_value FROM system_settings WHERE setting_key = ? AND shop_id IS NULL LIMIT 1', 
+    ['system_name'], (err, globalSetting) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      const systemName = globalSetting?.setting_value || 'Inventory Management System';
+      
+      // If shop_id is set, try to get shop_system_name
+      if (shopId) {
+        db.get('SELECT setting_value FROM system_settings WHERE setting_key = ? AND shop_id = ? LIMIT 1', 
+          ['shop_system_name', shopId], (shopErr, shopSetting) => {
+            if (shopErr) {
+              return res.status(500).json({ error: sanitizeError(shopErr) });
+            }
+            
+            const shopSystemName = shopSetting?.setting_value;
+            
+            // Return shop_system_name if set and not empty, otherwise return system_name
+            if (shopSystemName && shopSystemName.trim() !== '') {
+              return res.json({ displayName: shopSystemName.trim(), systemName });
+            }
+            
+            return res.json({ displayName: systemName, systemName });
+          }
+        );
+      } else {
+        return res.json({ displayName: systemName, systemName });
+      }
+    }
+  );
+});
+
+app.get('/api/settings/:key', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const key = req.params.key;
+  const shopFilter = getShopFilter(req);
+  
+  let query = 'SELECT * FROM system_settings WHERE setting_key = ?';
+  const params = [key];
+  
+  // Add shop filter
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(req.user.shop_id);
+  } else if (req.user.role !== 'superadmin' && !req.user.shop_id) {
+    query += ' AND shop_id IS NULL';
+  }
+  
+  query += ' ORDER BY shop_id DESC LIMIT 1'; // Prefer shop-specific over global
+  
+  db.get(query, params, (err, setting) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!setting) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+    
+    // Parse value based on type
+    let parsedValue = setting.setting_value;
+    if (setting.setting_type === 'number') {
+      parsedValue = setting.setting_value ? parseFloat(setting.setting_value) : null;
+    } else if (setting.setting_type === 'boolean') {
+      parsedValue = setting.setting_value === 'true' || setting.setting_value === '1';
+    } else if (setting.setting_type === 'json') {
+      try {
+        parsedValue = setting.setting_value ? JSON.parse(setting.setting_value) : null;
+      } catch (e) {
+        parsedValue = null;
+      }
+    }
+    
+    res.json({
+      id: setting.id,
+      key: setting.setting_key,
+      value: parsedValue,
+      type: setting.setting_type,
+      category: setting.category,
+      description: setting.description,
+      is_encrypted: setting.is_encrypted === 1,
+      shop_id: setting.shop_id,
+      updated_at: setting.updated_at
+    });
+  });
+});
+
+app.put('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const { settings } = req.body; // Expect array of {key, value} objects
+  const shopFilter = getShopFilter(req);
+  const shopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  if (!Array.isArray(settings) || settings.length === 0) {
+    return res.status(400).json({ error: 'Settings array is required' });
+  }
+  
+  const results = [];
+  let completed = 0;
+  let hasError = false;
+  
+  settings.forEach((setting, index) => {
+    const { key, value } = setting;
+    
+    if (!key || typeof key !== 'string') {
+      results[index] = { key, error: 'Invalid setting key' };
+      completed++;
+      if (completed === settings.length && !hasError) {
+        return res.status(400).json({ error: 'Some settings failed to update', results });
+      }
+      return;
+    }
+    
+    // Get existing setting to determine type
+    db.get('SELECT * FROM system_settings WHERE setting_key = ? AND (shop_id = ? OR (shop_id IS NULL AND ? IS NULL)) ORDER BY shop_id DESC LIMIT 1', 
+      [key, shopId, shopId], (err, existing) => {
+        if (err) {
+          results[index] = { key, error: sanitizeError(err) };
+          hasError = true;
+        } else {
+          const settingType = existing ? existing.setting_type : 'string';
+          
+          // Convert value to string based on type
+          let stringValue;
+          if (settingType === 'boolean') {
+            stringValue = value ? 'true' : 'false';
+          } else if (settingType === 'number') {
+            stringValue = value !== null && value !== undefined ? String(value) : null;
+          } else if (settingType === 'json') {
+            stringValue = value !== null && value !== undefined ? JSON.stringify(value) : null;
+          } else {
+            stringValue = value !== null && value !== undefined ? String(value) : null;
+          }
+          
+          // Encrypt password fields
+          let finalValue = stringValue;
+          const isPassword = key.toLowerCase().includes('password') || key.toLowerCase().includes('secret');
+          
+          if (isPassword && stringValue) {
+            // For now, store as-is (in production, use proper encryption)
+            // TODO: Implement proper encryption for sensitive fields
+            finalValue = stringValue;
+          }
+          
+          // Update or insert setting
+          if (existing) {
+            // If shop admin is editing and existing is global (shop_id IS NULL), create shop-specific override
+            // If superadmin without shop filter, update global. If superadmin with shop filter or shop admin, create/update shop-specific
+            if (shopId && existing.shop_id === null && req.user.role !== 'superadmin') {
+              // Shop admin editing global setting - create shop-specific override
+              db.get('SELECT * FROM system_settings WHERE setting_key = ? AND shop_id IS NULL LIMIT 1', [key], (getErr, globalSetting) => {
+                if (getErr) {
+                  results[index] = { key, error: sanitizeError(getErr) };
+                  hasError = true;
+                  completed++;
+                  if (completed === settings.length) {
+                    return res.status(400).json({ error: 'Some settings failed to update', results });
+                  }
+                  return;
+                }
+                
+                if (globalSetting) {
+                  // Create shop-specific override
+                  db.run(
+                    'INSERT INTO system_settings (setting_key, setting_value, setting_type, category, description, is_encrypted, shop_id, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [key, finalValue, globalSetting.setting_type, globalSetting.category, globalSetting.description, isPassword ? 1 : 0, shopId, req.user.id],
+                    function(insertErr) {
+                      if (insertErr) {
+                        results[index] = { key, error: sanitizeError(insertErr) };
+                        hasError = true;
+                      } else {
+                        results[index] = { key, success: true };
+                        logAudit(req, 'SETTING_CREATED', 'system_settings', this.lastID, { key, category: globalSetting.category, shop_id: shopId });
+                      }
+                      
+                      completed++;
+                      if (completed === settings.length) {
+                        if (hasError) {
+                          return res.status(400).json({ error: 'Some settings failed to update', results });
+                        }
+                        return res.json({ message: 'Settings updated successfully', results });
+                      }
+                    }
+                  );
+                } else {
+                  results[index] = { key, error: 'Setting key not found' };
+                  completed++;
+                  if (completed === settings.length) {
+                    return res.status(400).json({ error: 'Some settings failed to update', results });
+                  }
+                }
+              });
+            } else {
+              // Update existing setting (shop-specific or global for superadmin)
+              db.run(
+                'UPDATE system_settings SET setting_value = ?, is_encrypted = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [finalValue, isPassword ? 1 : 0, req.user.id, existing.id],
+                function(updateErr) {
+                  if (updateErr) {
+                    results[index] = { key, error: sanitizeError(updateErr) };
+                    hasError = true;
+                  } else {
+                    results[index] = { key, success: true };
+                    
+                    // SECURITY: Log setting update
+                    logAudit(req, 'SETTING_UPDATED', 'system_settings', existing.id, { key, category: existing.category, shop_id: existing.shop_id });
+                  }
+                  
+                  completed++;
+                  if (completed === settings.length) {
+                    if (hasError) {
+                      return res.status(400).json({ error: 'Some settings failed to update', results });
+                    }
+                    return res.json({ message: 'Settings updated successfully', results });
+                  }
+                }
+              );
+            }
+          } else {
+            // Create new setting (shouldn't happen for default settings, but handle it)
+            db.get('SELECT * FROM system_settings WHERE setting_key = ? AND shop_id IS NULL LIMIT 1', [key], (getErr, globalSetting) => {
+              if (getErr) {
+                results[index] = { key, error: sanitizeError(getErr) };
+                hasError = true;
+                completed++;
+                if (completed === settings.length) {
+                  return res.status(400).json({ error: 'Some settings failed to update', results });
+                }
+                return;
+              }
+              
+              if (globalSetting) {
+                // Use global setting as template, create shop-specific override
+                db.run(
+                  'INSERT INTO system_settings (setting_key, setting_value, setting_type, category, description, is_encrypted, shop_id, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                  [key, finalValue, globalSetting.setting_type, globalSetting.category, globalSetting.description, isPassword ? 1 : 0, shopId, req.user.id],
+                  function(insertErr) {
+                    if (insertErr) {
+                      results[index] = { key, error: sanitizeError(insertErr) };
+                      hasError = true;
+                    } else {
+                      results[index] = { key, success: true };
+                      logAudit(req, 'SETTING_CREATED', 'system_settings', this.lastID, { key, category: globalSetting.category });
+                    }
+                    
+                    completed++;
+                    if (completed === settings.length) {
+                      if (hasError) {
+                        return res.status(400).json({ error: 'Some settings failed to update', results });
+                      }
+                      return res.json({ message: 'Settings updated successfully', results });
+                    }
+                  }
+                );
+              } else {
+                results[index] = { key, error: 'Setting key not found' };
+                completed++;
+                if (completed === settings.length) {
+                  return res.status(400).json({ error: 'Some settings failed to update', results });
+                }
+              }
+            });
+          }
+        }
+      }
+    );
+  });
+});
+
+app.put('/api/settings/:key', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const key = req.params.key;
+  const { value } = req.body;
+  const shopFilter = getShopFilter(req);
+  const shopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  // Get existing setting
+  db.get('SELECT * FROM system_settings WHERE setting_key = ? AND (shop_id = ? OR (shop_id IS NULL AND ? IS NULL)) ORDER BY shop_id DESC LIMIT 1', 
+    [key, shopId, shopId], (err, existing) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      if (!existing) {
+        // Try to get global setting as template
+        db.get('SELECT * FROM system_settings WHERE setting_key = ? AND shop_id IS NULL LIMIT 1', [key], (getErr, globalSetting) => {
+          if (getErr || !globalSetting) {
+            return res.status(404).json({ error: 'Setting not found' });
+          }
+          
+          // Create shop-specific setting
+          const settingType = globalSetting.setting_type;
+          let stringValue;
+          if (settingType === 'boolean') {
+            stringValue = value ? 'true' : 'false';
+          } else if (settingType === 'number') {
+            stringValue = value !== null && value !== undefined ? String(value) : null;
+          } else if (settingType === 'json') {
+            stringValue = value !== null && value !== undefined ? JSON.stringify(value) : null;
+          } else {
+            stringValue = value !== null && value !== undefined ? String(value) : null;
+          }
+          
+          const isPassword = key.toLowerCase().includes('password') || key.toLowerCase().includes('secret');
+          
+          db.run(
+            'INSERT INTO system_settings (setting_key, setting_value, setting_type, category, description, is_encrypted, shop_id, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [key, stringValue, globalSetting.setting_type, globalSetting.category, globalSetting.description, isPassword ? 1 : 0, shopId, req.user.id],
+            function(insertErr) {
+              if (insertErr) {
+                return res.status(500).json({ error: sanitizeError(insertErr) });
+              }
+              logAudit(req, 'SETTING_CREATED', 'system_settings', this.lastID, { key, category: globalSetting.category, shop_id: shopId });
+              res.json({ message: 'Setting created successfully', id: this.lastID });
+            }
+          );
+        });
+        return;
+      }
+      
+      // If shop admin is editing global setting, create shop-specific override
+      if (shopId && existing.shop_id === null && req.user.role !== 'superadmin') {
+        // Shop admin editing global setting - create shop-specific override
+        const settingType = existing.setting_type;
+        let stringValue;
+        if (settingType === 'boolean') {
+          stringValue = value ? 'true' : 'false';
+        } else if (settingType === 'number') {
+          stringValue = value !== null && value !== undefined ? String(value) : null;
+        } else if (settingType === 'json') {
+          stringValue = value !== null && value !== undefined ? JSON.stringify(value) : null;
+        } else {
+          stringValue = value !== null && value !== undefined ? String(value) : null;
+        }
+        
+        const isPassword = key.toLowerCase().includes('password') || key.toLowerCase().includes('secret');
+        
+        db.run(
+          'INSERT INTO system_settings (setting_key, setting_value, setting_type, category, description, is_encrypted, shop_id, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [key, stringValue, existing.setting_type, existing.category, existing.description, isPassword ? 1 : 0, shopId, req.user.id],
+          function(insertErr) {
+            if (insertErr) {
+              return res.status(500).json({ error: sanitizeError(insertErr) });
+            }
+            logAudit(req, 'SETTING_CREATED', 'system_settings', this.lastID, { key, category: existing.category, shop_id: shopId });
+            res.json({ message: 'Setting created successfully', id: this.lastID });
+          }
+        );
+        return;
+      }
+      
+      // If shop admin is editing global setting, create shop-specific override instead
+      if (shopId && existing.shop_id === null && req.user.role !== 'superadmin') {
+        // Shop admin editing global setting - create shop-specific override
+        const settingType = existing.setting_type;
+        let stringValue;
+        if (settingType === 'boolean') {
+          stringValue = value ? 'true' : 'false';
+        } else if (settingType === 'number') {
+          stringValue = value !== null && value !== undefined ? String(value) : null;
+        } else if (settingType === 'json') {
+          stringValue = value !== null && value !== undefined ? JSON.stringify(value) : null;
+        } else {
+          stringValue = value !== null && value !== undefined ? String(value) : null;
+        }
+        
+        const isPassword = key.toLowerCase().includes('password') || key.toLowerCase().includes('secret');
+        
+        db.run(
+          'INSERT INTO system_settings (setting_key, setting_value, setting_type, category, description, is_encrypted, shop_id, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [key, stringValue, existing.setting_type, existing.category, existing.description, isPassword ? 1 : 0, shopId, req.user.id],
+          function(insertErr) {
+            if (insertErr) {
+              return res.status(500).json({ error: sanitizeError(insertErr) });
+            }
+            logAudit(req, 'SETTING_CREATED', 'system_settings', this.lastID, { key, category: existing.category, shop_id: shopId });
+            res.json({ message: 'Setting created successfully', id: this.lastID });
+          }
+        );
+        return;
+      }
+      
+      // Update existing setting (shop-specific or global for superadmin)
+      const settingType = existing.setting_type;
+      let stringValue;
+      if (settingType === 'boolean') {
+        stringValue = value ? 'true' : 'false';
+      } else if (settingType === 'number') {
+        stringValue = value !== null && value !== undefined ? String(value) : null;
+      } else if (settingType === 'json') {
+        stringValue = value !== null && value !== undefined ? JSON.stringify(value) : null;
+      } else {
+        stringValue = value !== null && value !== undefined ? String(value) : null;
+      }
+      
+      const isPassword = key.toLowerCase().includes('password') || key.toLowerCase().includes('secret');
+      
+      db.run(
+        'UPDATE system_settings SET setting_value = ?, is_encrypted = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [stringValue, isPassword ? 1 : 0, req.user.id, existing.id],
+        function(updateErr) {
+          if (updateErr) {
+            return res.status(500).json({ error: sanitizeError(updateErr) });
+          }
+          if (this.changes === 0) {
+            return res.status(404).json({ error: 'Setting not found' });
+          }
+          
+          logAudit(req, 'SETTING_UPDATED', 'system_settings', existing.id, { key, category: existing.category, shop_id: existing.shop_id });
+          res.json({ message: 'Setting updated successfully' });
+        }
+      );
+    }
+  );
+});
+
+app.post('/api/settings/reset', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const { shop_id } = req.body;
+  const shopFilter = getShopFilter(req);
+  const targetShopId = (req.user.role === 'superadmin' && shop_id) 
+    ? shop_id 
+    : (req.user.role === 'superadmin' && shopFilter.shop_id) 
+      ? shopFilter.shop_id 
+      : (req.user.shop_id || null);
+  
+  if (targetShopId === null) {
+    return res.status(400).json({ error: 'Cannot reset global settings. Please reset individual settings.' });
+  }
+  
+  // Delete all shop-specific settings to revert to global defaults
+  db.run('DELETE FROM system_settings WHERE shop_id = ?', [targetShopId], function(err) {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    logAudit(req, 'SETTINGS_RESET', 'system_settings', null, { shop_id: targetShopId });
+    res.json({ message: 'Settings reset to defaults successfully', deleted_count: this.changes });
+  });
+});
+
+// Export settings
+app.get('/api/settings/export', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = 'SELECT setting_key, setting_value, setting_type, category, description FROM system_settings WHERE 1=1';
+  const params = [];
+  
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(req.user.shop_id);
+  } else if (req.user.role !== 'superadmin' && !req.user.shop_id) {
+    query += ' AND shop_id IS NULL';
+  }
+  
+  query += ' ORDER BY category, setting_key';
+  
+  db.all(query, params, (err, settings) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    const exportData = {
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      exported_by: req.user.username,
+      shop_id: shopFilter.shop_id || req.user.shop_id || null,
+      settings: settings.map(s => ({
+        key: s.setting_key,
+        value: s.setting_value,
+        type: s.setting_type,
+        category: s.category,
+        description: s.description
+      }))
+    };
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="settings-export-${Date.now()}.json"`);
+    res.json(exportData);
+  });
+});
+
+// Import settings
+app.post('/api/settings/import', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const { settings } = req.body;
+  const shopFilter = getShopFilter(req);
+  const targetShopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  if (!Array.isArray(settings)) {
+    return res.status(400).json({ error: 'Settings must be an array' });
+  }
+  
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO system_settings 
+    (setting_key, setting_value, setting_type, category, description, shop_id, updated_by, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `);
+  
+  let imported = 0;
+  let errors = [];
+  
+  settings.forEach((setting, index) => {
+    if (!setting.key) {
+      errors.push(`Setting at index ${index} missing key`);
+      return;
+    }
+    
+    try {
+      stmt.run([
+        setting.key,
+        setting.value !== null && setting.value !== undefined ? String(setting.value) : null,
+        setting.type || 'string',
+        setting.category || 'general',
+        setting.description || null,
+        targetShopId,
+        req.user.id
+      ]);
+      imported++;
+    } catch (err) {
+      errors.push(`Error importing ${setting.key}: ${err.message}`);
+    }
+  });
+  
+  stmt.finalize((err) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    logAudit(req, 'SETTINGS_IMPORT', 'system_settings', null, { 
+      shop_id: targetShopId, 
+      imported_count: imported,
+      errors: errors.length > 0 ? errors : undefined
+    });
+    
+    res.json({ 
+      message: 'Settings imported successfully', 
+      imported_count: imported,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  });
+});
+
+// Test email configuration
+app.post('/api/settings/test-email', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+  const { test_email } = req.body;
+  
+  if (!test_email || !test_email.includes('@')) {
+    return res.status(400).json({ error: 'Valid test email address is required' });
+  }
+  
+  // Get email settings
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT setting_key, setting_value 
+    FROM system_settings 
+    WHERE category = 'email' 
+    AND (shop_id = ? OR shop_id IS NULL)
+    ORDER BY shop_id DESC
+  `;
+  const params = [];
+  
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    params.push(shopFilter.shop_id);
+  } else if (req.user.shop_id) {
+    params.push(req.user.shop_id);
+  } else {
+    params.push(null);
+  }
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Build settings object (shop-specific override global)
+    const emailSettings = {};
+    rows.forEach(row => {
+      if (!emailSettings[row.setting_key] || row.shop_id !== null) {
+        emailSettings[row.setting_key] = row.setting_value;
+      }
+    });
+    
+    // Check required fields
+    if (!emailSettings.email_enabled || emailSettings.email_enabled === 'false') {
+      return res.status(400).json({ error: 'Email notifications are not enabled' });
+    }
+    
+    if (!emailSettings.email_host || !emailSettings.email_username || !emailSettings.email_from) {
+      return res.status(400).json({ error: 'Email configuration is incomplete. Please configure SMTP host, username, and from address.' });
+    }
+    
+    // Note: Actual email sending would require nodemailer or similar
+    // For now, we'll just validate the configuration
+    logAudit(req, 'SETTINGS_TEST_EMAIL', 'system_settings', null, { 
+      test_email,
+      email_host: emailSettings.email_host,
+      email_from: emailSettings.email_from
+    });
+    
+    res.json({ 
+      message: 'Email configuration is valid. Note: Actual email sending requires email service configuration.',
+      test_email,
+      configuration: {
+        host: emailSettings.email_host,
+        port: emailSettings.email_port,
+        secure: emailSettings.email_secure === 'true',
+        from: emailSettings.email_from,
+        from_name: emailSettings.email_from_name
+      }
+    });
+  });
+});
+
+// ==================== INVOICES ROUTES ====================
+
+app.get('/api/invoices', authenticateToken, (req, res) => {
+  const shopFilter = getShopFilter(req);
+  let query = `
+    SELECT i.*, 
+           c.name as customer_name_full,
+           c.email as customer_email_full,
+           c.phone as customer_phone_full,
+           c.address as customer_address_full,
+           u.username as created_by_name,
+           i.shop_id,
+           (SELECT json_group_array(json_object(
+             'id', ii.id,
+             'item_id', ii.item_id,
+             'item_name', ii.item_name,
+             'description', ii.description,
+             'quantity', ii.quantity,
+             'unit_price', ii.unit_price,
+             'discount', ii.discount,
+             'tax_rate', ii.tax_rate,
+             'total_price', ii.total_price
+           ))
+           FROM invoice_items ii
+           WHERE ii.invoice_id = i.id) as items
+    FROM invoices i
+    LEFT JOIN customers c ON i.customer_id = c.id
+    LEFT JOIN users u ON i.created_by = u.id
+  `;
+  const params = [];
+  
+  // Filter by shop_id if provided (for superadmin)
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    query += ' WHERE i.shop_id = ?';
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin') {
+    // Non-superadmin users only see invoices from their shop
+    if (req.user.shop_id) {
+      query += ' WHERE i.shop_id = ?';
+      params.push(req.user.shop_id);
+    } else {
+      // User has no shop_id, show only invoices with null shop_id
+      query += ' WHERE i.shop_id IS NULL';
+    }
+  }
+  // For superadmin without shop filter, show all invoices (no WHERE clause)
+  
+  query += ' ORDER BY i.invoice_date DESC, i.id DESC';
+  
+  db.all(query, params, (err, invoices) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    // Parse items JSON for each invoice
+    invoices.forEach(invoice => {
+      try {
+        invoice.items = JSON.parse(invoice.items || '[]');
+      } catch (e) {
+        invoice.items = [];
+      }
+    });
+    res.json(invoices);
+  });
+});
+
+app.get('/api/invoices/:id', authenticateToken, (req, res) => {
+  const id = req.params.id;
+  const query = `
+    SELECT i.*,
+           c.name as customer_name_full,
+           c.email as customer_email_full,
+           c.phone as customer_phone_full,
+           c.address as customer_address_full,
+           (SELECT json_group_array(json_object(
+             'id', ii.id,
+             'item_id', ii.item_id,
+             'item_name', ii.item_name,
+             'description', ii.description,
+             'quantity', ii.quantity,
+             'unit_price', ii.unit_price,
+             'discount', ii.discount,
+             'tax_rate', ii.tax_rate,
+             'total_price', ii.total_price
+           ))
+           FROM invoice_items ii
+           WHERE ii.invoice_id = i.id) as items
+    FROM invoices i
+    LEFT JOIN customers c ON i.customer_id = c.id
+    WHERE i.id = ?
+  `;
+  db.get(query, [id], (err, invoice) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    try {
+      invoice.items = JSON.parse(invoice.items || '[]');
+    } catch (e) {
+      invoice.items = [];
+    }
+    res.json(invoice);
+  });
+});
+
+app.post('/api/invoices', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const {
+    invoice_number,
+    invoice_date,
+    due_date,
+    customer_id,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    items,
+    subtotal,
+    discount_amount,
+    tax_amount,
+    total_amount,
+    paid_amount,
+    payment_method,
+    payment_terms,
+    notes,
+    terms_conditions,
+    status
+  } = req.body;
+  
+  const created_by = req.user.id;
+  const shopFilter = getShopFilter(req);
+  // Ensure shop_id is always set - use filter for superadmin, otherwise use user's shop_id
+  const shopId = (req.user.role === 'superadmin' && shopFilter.shop_id) 
+    ? shopFilter.shop_id 
+    : (req.user.shop_id || null);
+  
+  const balance_amount = (total_amount || 0) - (paid_amount || 0);
+  const invoiceStatus = status || 'draft';
+  
+  db.run(
+    `INSERT INTO invoices (
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal, discount_amount, tax_amount, total_amount,
+      paid_amount, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, status, created_by, shop_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal || 0, discount_amount || 0, tax_amount || 0, total_amount || 0,
+      paid_amount || 0, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, invoiceStatus, created_by, shopId
+    ],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      const invoice_id = this.lastID;
+      
+      // Insert invoice items
+      if (items && items.length > 0) {
+        let completed = 0;
+        items.forEach((item, index) => {
+          db.run(
+            `INSERT INTO invoice_items (
+              invoice_id, item_id, item_name, description,
+              quantity, unit_price, discount, tax_rate, total_price
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              invoice_id,
+              item.item_id || null,
+              item.item_name || '',
+              item.description || '',
+              item.quantity || 0,
+              item.unit_price || 0,
+              item.discount || 0,
+              item.tax_rate || 0,
+              item.total_price || 0
+            ],
+            function(err) {
+              if (err) {
+                return res.status(500).json({ error: sanitizeError(err) });
+              }
+              completed++;
+              if (completed === items.length) {
+                res.json({ id: invoice_id, message: 'Invoice created successfully' });
+              }
+            }
+          );
+        });
+      } else {
+        res.json({ id: invoice_id, message: 'Invoice created successfully' });
+      }
+    }
+  );
+});
+
+app.put('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  const {
+    invoice_number,
+    invoice_date,
+    due_date,
+    customer_id,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    items,
+    subtotal,
+    discount_amount,
+    tax_amount,
+    total_amount,
+    paid_amount,
+    payment_method,
+    payment_terms,
+    notes,
+    terms_conditions,
+    status
+  } = req.body;
+  
+  const balance_amount = (total_amount || 0) - (paid_amount || 0);
+  
+  db.run(
+    `UPDATE invoices SET
+      invoice_number = ?, invoice_date = ?, due_date = ?, customer_id = ?,
+      customer_name = ?, customer_email = ?, customer_phone = ?, customer_address = ?,
+      subtotal = ?, discount_amount = ?, tax_amount = ?, total_amount = ?,
+      paid_amount = ?, balance_amount = ?, payment_method = ?, payment_terms = ?,
+      notes = ?, terms_conditions = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?`,
+    [
+      invoice_number, invoice_date, due_date, customer_id,
+      customer_name, customer_email, customer_phone, customer_address,
+      subtotal || 0, discount_amount || 0, tax_amount || 0, total_amount || 0,
+      paid_amount || 0, balance_amount, payment_method, payment_terms,
+      notes, terms_conditions, status, id
+    ],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      // Delete existing invoice items and insert new ones
+      db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [id], (err) => {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        
+        if (items && items.length > 0) {
+          let completed = 0;
+          items.forEach((item) => {
+            db.run(
+              `INSERT INTO invoice_items (
+                invoice_id, item_id, item_name, description,
+                quantity, unit_price, discount, tax_rate, total_price
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                id,
+                item.item_id || null,
+                item.item_name || '',
+                item.description || '',
+                item.quantity || 0,
+                item.unit_price || 0,
+                item.discount || 0,
+                item.tax_rate || 0,
+                item.total_price || 0
+              ],
+              function(err) {
+                if (err) {
+                  return res.status(500).json({ error: sanitizeError(err) });
+                }
+                completed++;
+                if (completed === items.length) {
+                  res.json({ message: 'Invoice updated successfully' });
+                }
+              }
+            );
+          });
+        } else {
+          res.json({ message: 'Invoice updated successfully' });
+        }
+      });
+    }
+  );
+});
+
+app.delete('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  const id = req.params.id;
+  
+  db.run('DELETE FROM invoices WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    // Invoice items are automatically deleted due to CASCADE
+    res.json({ message: 'Invoice deleted successfully' });
+  });
+});
+
+app.get('/api/invoices/generate-number', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+  // Generate invoice number: INV-YYYYMMDD-XXX
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const datePrefix = `INV-${year}${month}${day}`;
+  
+  // Find the highest number for today
+  db.get(
+    `SELECT invoice_number FROM invoices 
+     WHERE invoice_number LIKE ? 
+     ORDER BY invoice_number DESC LIMIT 1`,
+    [`${datePrefix}-%`],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      let sequence = 1;
+      if (row && row.invoice_number) {
+        const parts = row.invoice_number.split('-');
+        if (parts.length === 3) {
+          const lastSequence = parseInt(parts[2]);
+          if (!isNaN(lastSequence)) {
+            sequence = lastSequence + 1;
+          }
+        }
+      }
+      
+      const invoice_number = `${datePrefix}-${String(sequence).padStart(3, '0')}`;
+      res.json({ invoice_number });
+    }
+  );
+});
+
 // ==================== REPORTS ROUTES ====================
 
 app.get('/api/reports/stock', authenticateToken, requireRole('admin', 'manager', 'storekeeper', 'sales'), (req, res) => {
@@ -2826,24 +4820,29 @@ app.get('/api/reports/stock', authenticateToken, requireRole('admin', 'manager',
     LEFT JOIN categories c ON i.category_id = c.id
   `;
   
-  // Filter by shop_id if provided (for superadmin)
+  const params = [];
+  const conditions = [];
+  
+  // Filter by shop_id if provided (for superadmin) - filter directly by items.shop_id
   if (shopFilter.shop_id && req.user.role === 'superadmin') {
-    query += ` WHERE EXISTS (
-      SELECT 1 FROM sales_items si
-      JOIN sales s ON si.sale_id = s.id
-      JOIN users u ON s.created_by = u.id
-      WHERE si.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
-      UNION
-      SELECT 1 FROM purchase_items pi
-      JOIN purchases p ON pi.purchase_id = p.id
-      JOIN users u ON p.created_by = u.id
-      WHERE pi.item_id = i.id AND u.shop_id = ${shopFilter.shop_id}
-    )`;
+    conditions.push('i.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Non-superadmin users only see items from their shop
+    conditions.push('i.shop_id = ?');
+    params.push(req.user.shop_id);
+  }
+  
+  // Filter out archived items
+  conditions.push('(i.is_archived IS NULL OR i.is_archived = 0)');
+  
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(' AND ')}`;
   }
   
   query += ` ORDER BY i.stock_quantity ASC`;
   
-  db.all(query, (err, items) => {
+  db.all(query, params, (err, items) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -2938,17 +4937,40 @@ app.get('/api/reports/purchases', authenticateToken, requireRole('admin', 'manag
 });
 
 app.get('/api/reports/fast-moving', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
-  const query = `
+  const shopFilter = getShopFilter(req);
+  let query = `
     SELECT i.id, i.name, i.sku,
            SUM(si.quantity) as total_sold,
            SUM(si.total_price) as total_revenue
     FROM items i
     JOIN sales_items si ON i.id = si.item_id
+  `;
+  const params = [];
+  const conditions = [];
+  
+  // Filter items by shop_id
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    conditions.push('i.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    conditions.push('i.shop_id = ?');
+    params.push(req.user.shop_id);
+  }
+  
+  // Filter out archived items
+  conditions.push('(i.is_archived IS NULL OR i.is_archived = 0)');
+  
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(' AND ')}`;
+  }
+  
+  query += `
     GROUP BY i.id
     ORDER BY total_sold DESC
     LIMIT 10
   `;
-  db.all(query, (err, results) => {
+  
+  db.all(query, params, (err, results) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
@@ -2957,17 +4979,42 @@ app.get('/api/reports/fast-moving', authenticateToken, requireRole('admin', 'man
 });
 
 app.get('/api/reports/slow-moving', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
-  const query = `
+  const shopFilter = getShopFilter(req);
+  let query = `
     SELECT i.id, i.name, i.sku, i.stock_quantity,
            COALESCE(SUM(si.quantity), 0) as total_sold
     FROM items i
     LEFT JOIN sales_items si ON i.id = si.item_id
+    LEFT JOIN sales s ON si.sale_id = s.id
+    LEFT JOIN users u ON s.created_by = u.id
+  `;
+  const params = [];
+  const conditions = [];
+  
+  // Filter items by shop_id
+  if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    conditions.push('i.shop_id = ?');
+    params.push(shopFilter.shop_id);
+  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    conditions.push('i.shop_id = ?');
+    params.push(req.user.shop_id);
+  }
+  
+  // Filter out archived items
+  conditions.push('(i.is_archived IS NULL OR i.is_archived = 0)');
+  
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(' AND ')}`;
+  }
+  
+  query += `
     GROUP BY i.id
     HAVING total_sold = 0 OR total_sold < 5
     ORDER BY total_sold ASC, i.stock_quantity DESC
     LIMIT 10
   `;
-  db.all(query, (err, results) => {
+  
+  db.all(query, params, (err, results) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }

@@ -243,6 +243,198 @@ async function apiRequest(endpoint, options = {}) {
     }
 }
 
+// Settings Helper Utility - Cache settings for quick access
+let settingsCache = null;
+let settingsCacheTimestamp = null;
+const SETTINGS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get a system setting value by key
+ * @param {string} key - The setting key
+ * @param {any} defaultValue - Default value if setting not found
+ * @param {boolean} forceRefresh - Force refresh from server
+ * @returns {Promise<any>} The setting value
+ */
+async function getSetting(key, defaultValue = null, forceRefresh = false) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin');
+    
+    if (!isAdmin) {
+        // Non-admin users can't access settings API, return default
+        return defaultValue;
+    }
+    
+    // Check cache if not forcing refresh
+    if (!forceRefresh && settingsCache && settingsCacheTimestamp) {
+        const cacheAge = Date.now() - settingsCacheTimestamp;
+        if (cacheAge < SETTINGS_CACHE_TTL && settingsCache[key] !== undefined) {
+            return settingsCache[key];
+        }
+    }
+    
+    try {
+        const response = await apiRequest(`/settings/${key}`);
+        const value = response.value !== null && response.value !== undefined ? response.value : defaultValue;
+        
+        // Update cache
+        if (!settingsCache) {
+            settingsCache = {};
+        }
+        settingsCache[key] = value;
+        settingsCacheTimestamp = Date.now();
+        
+        return value;
+    } catch (error) {
+        console.warn(`Failed to get setting ${key}:`, error);
+        return defaultValue;
+    }
+}
+
+/**
+ * Get multiple settings at once
+ * @param {string[]} keys - Array of setting keys
+ * @param {boolean} forceRefresh - Force refresh from server
+ * @returns {Promise<Object>} Object with keys as properties and values
+ */
+async function getSettings(keys, forceRefresh = false) {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin');
+    
+    if (!isAdmin) {
+        return {};
+    }
+    
+    try {
+        const allSettings = await apiRequest('/settings');
+        const result = {};
+        
+        keys.forEach(key => {
+            // Search through all categories
+            let found = false;
+            Object.keys(allSettings).forEach(category => {
+                if (!found) {
+                    const setting = allSettings[category].find(s => s.key === key);
+                    if (setting) {
+                        result[key] = setting.value;
+                        found = true;
+                    }
+                }
+            });
+            if (!found) {
+                result[key] = null;
+            }
+        });
+        
+        // Update cache
+        if (!settingsCache) {
+            settingsCache = {};
+        }
+        Object.keys(result).forEach(key => {
+            settingsCache[key] = result[key];
+        });
+        settingsCacheTimestamp = Date.now();
+        
+        return result;
+    } catch (error) {
+        console.warn('Failed to get settings:', error);
+        return {};
+    }
+}
+
+/**
+ * Clear settings cache (useful after settings are updated)
+ */
+function clearSettingsCache() {
+    settingsCache = null;
+    settingsCacheTimestamp = null;
+}
+
+/**
+ * Get the display system name for the current shop
+ * Returns shop_system_name if set, otherwise returns system_name
+ * This works for all users, not just admins
+ * @returns {Promise<string>} The display system name
+ */
+async function getDisplaySystemName() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const authToken = localStorage.getItem('authToken');
+    
+    // If not logged in or no auth token, return default
+    if (!currentUser || !authToken) {
+        return 'Inventory Management System';
+    }
+    
+    try {
+        // Use the display-name endpoint which is accessible to all authenticated users
+        const response = await apiRequest('/settings/display-name');
+        return response?.displayName || 'Inventory Management System';
+    } catch (error) {
+        // Silently fail and return default - don't log warnings for expected cases
+        // (e.g., when settings haven't been initialized yet)
+        if (error.status !== 404 && error.status !== 401 && error.status !== 403) {
+            console.warn('Failed to get display system name:', error);
+        }
+        return 'Inventory Management System';
+    }
+}
+
+/**
+ * Update the nav-brand element with the shop-specific system name
+ * This should be called after login on all pages except index.html
+ */
+async function updateSystemNameDisplay() {
+    // Don't update on login page
+    if (window.location.pathname === '/index.html' || window.location.pathname === '/') {
+        return;
+    }
+    
+    // Don't update if user is not authenticated
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const authToken = localStorage.getItem('authToken');
+    if (!currentUser || !authToken) {
+        return;
+    }
+    
+    const navBrand = document.querySelector('.nav-brand');
+    if (!navBrand) {
+        return;
+    }
+    
+    try {
+        const displayName = await getDisplaySystemName();
+        
+        // Update the nav-brand text (keep the icon)
+        const icon = navBrand.querySelector('i');
+        if (icon) {
+            navBrand.innerHTML = `<i class="${icon.className}"></i> ${displayName}`;
+        } else {
+            navBrand.textContent = displayName;
+        }
+        
+        // Update aria-label
+        navBrand.setAttribute('aria-label', displayName);
+        
+        // Update page title if it contains "Inventory Management System"
+        const pageTitle = document.querySelector('title');
+        if (pageTitle && pageTitle.textContent.includes('Inventory Management System')) {
+            pageTitle.textContent = pageTitle.textContent.replace(/Inventory Management System/g, displayName);
+        }
+    } catch (error) {
+        // Silently fail - don't log warnings for expected cases
+        // (e.g., when settings haven't been initialized yet or user not authenticated)
+        if (error.status !== 404 && error.status !== 401 && error.status !== 403) {
+            console.warn('Failed to update system name display:', error);
+        }
+    }
+}
+
+// Expose to global scope
+window.getSetting = getSetting;
+window.getSettings = getSettings;
+window.clearSettingsCache = clearSettingsCache;
+window.getDisplaySystemName = getDisplaySystemName;
+window.updateSystemNameDisplay = updateSystemNameDisplay;
+
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -284,6 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
             navUser.textContent = `${currentUser.full_name || currentUser.username} (${currentUser.role})`;
         }
         loadAndApplyRolePermissions(currentUser.role);
+        
+        // Update system name display after login
+        updateSystemNameDisplay();
     }
 });
 
@@ -407,8 +602,27 @@ function toggleMobileMenu(e) {
         return;
     }
     
+    // Save scroll position before toggling
+    const savedScrollTop = navbar.scrollTop;
+    sessionStorage.setItem('navbarScrollTop', savedScrollTop.toString());
+    
     navbar.classList.toggle('mobile-open');
     const isOpen = navbar.classList.contains('mobile-open');
+    
+    // Restore scroll position after DOM updates complete
+    if (savedScrollTop > 0) {
+        // Use multiple attempts to ensure scroll position is restored
+        const restoreScroll = () => {
+            if (navbar.scrollTop !== savedScrollTop) {
+                navbar.scrollTop = savedScrollTop;
+            }
+        };
+        requestAnimationFrame(() => {
+            restoreScroll();
+            setTimeout(restoreScroll, 50);
+            setTimeout(restoreScroll, 100);
+        });
+    }
     
     // Only apply mobile transforms on mobile screens (width <= 768px)
     const isMobile = window.innerWidth <= 768;
@@ -577,11 +791,82 @@ function setupMobileMenuToggle() {
     }, { passive: false });
 }
 
+// Preserve navbar scroll position
+function preserveNavbarScroll() {
+    const navbar = document.querySelector('.navbar');
+    if (!navbar) return;
+    
+    let isRestoringScroll = false;
+    
+    // Save scroll position to sessionStorage when scrolling (but not when we're restoring)
+    navbar.addEventListener('scroll', () => {
+        if (!isRestoringScroll) {
+            sessionStorage.setItem('navbarScrollTop', navbar.scrollTop.toString());
+        }
+    }, { passive: true });
+    
+    // Restore scroll position on page load
+    const restoreScrollPosition = () => {
+        const savedScroll = sessionStorage.getItem('navbarScrollTop');
+        if (savedScroll !== null) {
+            const scrollValue = parseInt(savedScroll, 10);
+            if (scrollValue > 0 && scrollValue !== navbar.scrollTop) {
+                isRestoringScroll = true;
+                navbar.scrollTop = scrollValue;
+                // Reset flag after a short delay
+                setTimeout(() => {
+                    isRestoringScroll = false;
+                }, 100);
+            }
+        }
+    };
+    
+    // Try to restore immediately if DOM is ready
+    if (document.readyState === 'complete') {
+        requestAnimationFrame(restoreScrollPosition);
+    } else {
+        window.addEventListener('load', () => {
+            requestAnimationFrame(restoreScrollPosition);
+        });
+    }
+    
+    // Also restore after a short delay to handle dynamic content
+    setTimeout(() => {
+        requestAnimationFrame(restoreScrollPosition);
+    }, 200);
+    
+    // Prevent automatic scrolling when links are clicked
+    const navLinks = navbar.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            // Save current scroll position before navigation
+            sessionStorage.setItem('navbarScrollTop', navbar.scrollTop.toString());
+        });
+    });
+    
+    // Watch for dynamic content changes and preserve scroll
+    const observer = new MutationObserver(() => {
+        // Only restore if we're not currently scrolling
+        if (!isRestoringScroll && navbar.scrollTop === 0) {
+            restoreScrollPosition();
+        }
+    });
+    
+    observer.observe(navbar, {
+        childList: true,
+        subtree: true
+    });
+}
+
 // Setup on DOM ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupMobileMenuToggle);
+    document.addEventListener('DOMContentLoaded', () => {
+        setupMobileMenuToggle();
+        preserveNavbarScroll();
+    });
 } else {
     setupMobileMenuToggle();
+    preserveNavbarScroll();
 }
 
 async function loadAndApplyRolePermissions(userRole) {
@@ -606,6 +891,7 @@ async function loadAndApplyRolePermissions(userRole) {
             'categories': document.getElementById('categoriesLink') || document.querySelector('a[href="categories.html"]'),
             'customers': document.getElementById('customersLink') || document.querySelector('a[href="customers.html"]'),
             'terms-and-service': document.getElementById('termsAndServiceLink') || document.querySelector('a[href="terms-and-service.html"]'),
+            'settings': document.getElementById('settingsLink') || document.querySelector('a[href="settings.html"]'),
             'users': document.getElementById('usersLink') || document.querySelector('a[href="users.html"]'),
             'shops': document.getElementById('shopsLink') || document.querySelector('a[href="shops.html"]'),
             'shop-statistics': document.getElementById('shopStatsLink') || document.querySelector('a[href="shop-statistics.html"]'),
@@ -614,6 +900,16 @@ async function loadAndApplyRolePermissions(userRole) {
         
         // For superadmin, show all pages regardless of permissions
         const isSuperadmin = userRole === 'superadmin';
+        
+        // Settings link is only visible to admin and superadmin
+        const settingsLink = pageLinks['settings'];
+        if (settingsLink) {
+            if (userRole === 'admin' || userRole === 'superadmin') {
+                settingsLink.style.display = '';
+            } else {
+                settingsLink.style.display = 'none';
+            }
+        }
         
         Object.keys(pageLinks).forEach(page => {
             const link = pageLinks[page];

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>System Settings - Inventory Management System | IMS</title>
+    <meta name="description" content="Manage system settings, security configurations, email settings, backup options, and technical preferences for the IMS system.">
+    <meta name="keywords" content="system settings, configuration, security settings, email settings, backup settings, technical settings">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <!-- Mobile Web App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IMS Settings">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Mobile Optimizations -->
+    <link rel="stylesheet" href="settings-mobile.css">
+    
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    
+    <!-- Form Validation -->
+    <script src="form-validation.js"></script>
+    
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+    
+    <!-- Mobile Menu Handler -->
+    <script>
+        window.toggleMobileMenuHandler = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (typeof toggleMobileMenu === 'function') {
+                toggleMobileMenu(e);
+            } else {
+                setTimeout(function() {
+                    if (typeof toggleMobileMenu === 'function') {
+                        toggleMobileMenu(e);
+                    } else {
+                        console.error('toggleMobileMenu function not available');
+                    }
+                }, 100);
+            }
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <!-- Skip to main content link for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-file-contract fa-icon-primary"></i> Terms and Service</a>
+            <a href="settings.html" class="nav-link active" id="settingsLink" role="menuitem" aria-current="page" style="display: none;"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>System Settings</h1>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="exportSettings()" aria-label="Export settings">
+                    <i class="fas fa-download"></i> <span class="btn-text">Export</span>
+                </button>
+                <button class="btn btn-secondary" onclick="importSettings()" aria-label="Import settings">
+                    <i class="fas fa-upload"></i> <span class="btn-text">Import</span>
+                </button>
+                <button class="btn btn-secondary" onclick="resetToDefaults()" aria-label="Reset settings to defaults">
+                    <i class="fas fa-undo"></i> <span class="btn-text">Reset to Defaults</span>
+                </button>
+                <button class="btn btn-primary" onclick="saveAllSettings()" aria-label="Save all settings">
+                    <i class="fas fa-save"></i> <span class="btn-text">Save All Settings</span>
+                </button>
+            </div>
+        </header>
+        
+        <!-- Search Settings -->
+        <div class="settings-search-container" style="margin-bottom: 1rem;">
+            <div class="search-box" style="position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                <input type="text" id="settingsSearch" placeholder="Search settings..." 
+                       style="width: 100%; padding: 0.75rem 1rem 0.75rem 3rem; border: 1px solid var(--border-color); border-radius: 0; font-size: 1rem;"
+                       oninput="filterSettings(this.value)">
+            </div>
+        </div>
+
+        <!-- Settings Categories Tabs -->
+        <nav class="settings-tabs" role="tablist" aria-label="Settings categories">
+            <button class="tab-btn active" data-category="general" role="tab" aria-selected="true">
+                <i class="fas fa-cog"></i> General
+            </button>
+            <button class="tab-btn" data-category="security" role="tab" aria-selected="false">
+                <i class="fas fa-shield-alt"></i> Security
+            </button>
+            <button class="tab-btn" data-category="currency" role="tab" aria-selected="false">
+                <i class="fas fa-dollar-sign"></i> Currency
+            </button>
+            <button class="tab-btn" data-category="datetime" role="tab" aria-selected="false">
+                <i class="fas fa-clock"></i> Date & Time
+            </button>
+            <button class="tab-btn" data-category="display" role="tab" aria-selected="false">
+                <i class="fas fa-desktop"></i> Display
+            </button>
+            <button class="tab-btn" data-category="email" role="tab" aria-selected="false">
+                <i class="fas fa-envelope"></i> Email
+            </button>
+            <button class="tab-btn" data-category="backup" role="tab" aria-selected="false">
+                <i class="fas fa-database"></i> Backup
+            </button>
+            <button class="tab-btn" data-category="notification" role="tab" aria-selected="false">
+                <i class="fas fa-bell"></i> Notifications
+            </button>
+        </nav>
+        
+        <!-- Unsaved Changes Indicator -->
+        <div id="unsavedChangesIndicator" style="display: none; background: var(--warning-color); color: white; padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>You have unsaved changes</span>
+        </div>
+
+        <!-- Settings Content -->
+        <div id="settingsContent" class="settings-content">
+            <!-- Settings will be dynamically loaded here -->
+            <div class="text-center" style="padding: 3rem;">
+                <div class="loading-spinner"></div>
+                <p>Loading settings...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>
+
