@@ -8,14 +8,145 @@
         height: 100vh;
         max-height: 100vh;
         margin: 0;
+        margin-top: 6rem !important; /* Shift modal down to avoid menu button (3rem + 3rem) */
         border-radius: 0;
         padding: 1rem;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
     
+    /* Ensure modal is positioned correctly */
+    #newPurchaseModal .modal-content.large {
+        margin-top: 6rem !important;
+        padding-top: 1.5rem;
+    }
+    
     .purchase-items-section {
         margin: 1rem 0;
+    }
+    
+    /* Fix Total row alignment in modal */
+    #newPurchaseModal .table-container {
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: auto;
+    }
+    
+    #newPurchaseModal .data-table {
+        width: 100%;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    
+    /* Hide Actions column header on small screens */
+    #newPurchaseModal .data-table thead th:last-child {
+        display: none;
+    }
+    
+    /* Make table rows display as blocks on small screens */
+    #newPurchaseModal .data-table tbody tr {
+        display: grid;
+        grid-template-columns: 1fr;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.75rem 0;
+        margin-bottom: 0.5rem;
+        gap: 0.25rem;
+    }
+    
+    /* Make table cells display as blocks */
+    #newPurchaseModal .data-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.25rem 0;
+        text-align: left;
+        border: none;
+    }
+    
+    /* Show label before each cell */
+    #newPurchaseModal .data-table tbody td:first-child:before {
+        content: 'Item:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    #newPurchaseModal .data-table tbody td:nth-child(2):before {
+        content: 'Qty:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    #newPurchaseModal .data-table tbody td:nth-child(3):before {
+        content: 'Unit Price:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    #newPurchaseModal .data-table tbody td:nth-child(4):before {
+        content: 'Total:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    /* Actions cell - display below other cells */
+    #newPurchaseModal .data-table tbody td:last-child {
+        display: flex;
+        justify-content: flex-start;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border-color);
+        text-align: left;
+    }
+    
+    #newPurchaseModal .data-table tbody td:last-child:before {
+        content: 'Actions:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    /* Align Total row with modal's right margin */
+    #newPurchaseModal .data-table tfoot tr {
+        width: 100%;
+        display: table-row;
+    }
+    
+    #newPurchaseModal .data-table tfoot td {
+        padding: 0.75rem 0 !important;
+        text-align: right !important;
+        display: table-cell;
+    }
+    
+    #newPurchaseModal .data-table tfoot td.text-right {
+        text-align: right !important;
+        padding-right: 0 !important;
+    }
+    
+    /* Total amount cell - align with right edge of modal */
+    #newPurchaseModal .data-table tfoot td #purchaseTotal {
+        display: inline-block;
+    }
+    
+    #newPurchaseModal .data-table tfoot td:nth-child(4) {
+        padding-right: 0 !important;
+        text-align: right !important;
+    }
+    
+    /* Empty Actions cell in footer */
+    #newPurchaseModal .data-table tfoot td:last-child {
+        padding: 0 !important;
+        width: 0;
+        min-width: 0;
+        display: none;
+    }
+    
+    /* Ensure table cells don't overflow */
+    #newPurchaseModal .data-table tfoot td {
+        max-width: 100%;
+        overflow: hidden;
     }
 }
 
@@ -47,25 +178,80 @@
     }
 }
 
-/* Purchase Items Entry Mobile */
+/* New Purchase Modal Mobile Layout */
 @media (max-width: 768px) {
-    .add-item-row {
-        flex-direction: column;
-        gap: 0.75rem;
+    /* Supplier and Delivery Date in one row */
+    #newPurchaseModal .form-group:nth-child(1),
+    #newPurchaseModal .form-group:nth-child(2) {
+        display: inline-block;
+        width: 48%;
+        vertical-align: top;
+        margin-right: 2%;
     }
     
-    .item-select,
-    .qty-input,
-    .price-input {
+    #newPurchaseModal .form-group:nth-child(2) {
+        margin-right: 0;
+    }
+    
+    #newPurchaseModal .form-group:nth-child(1) label,
+    #newPurchaseModal .form-group:nth-child(2) label {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    #newPurchaseModal .form-group:nth-child(1) select,
+    #newPurchaseModal .form-group:nth-child(2) input {
         width: 100%;
-        min-width: auto;
         min-height: 44px;
-        font-size: 16px; /* Prevents iOS zoom */
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    /* Items heading centered */
+    #newPurchaseModal #purchaseItemsHeading {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    /* Select Item and Quantity in one row, Price and Add in another row */
+    .add-item-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    /* Select Item and Quantity - first row */
+    .add-item-row .item-select {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    .add-item-row .qty-input {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    /* Price and Add button - second row */
+    .add-item-row .price-input {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
     }
     
     .add-item-row .btn {
-        width: 100%;
-        min-height: 48px;
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
         touch-action: manipulation;
     }
 }
@@ -88,6 +274,66 @@
         font-size: 1.1rem;
         margin-top: 0.75rem;
         touch-action: manipulation;
+    }
+}
+
+/* Table Controls Mobile - Show and Search in one row */
+@media (max-width: 768px) {
+    .table-controls {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    .table-controls-left {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    
+    .table-controls-left label {
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+    
+    .table-controls-left .entries-select {
+        min-width: 70px;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        padding: 0.5rem;
+    }
+    
+    .table-controls-left span {
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+    
+    .table-controls-right {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    
+    .table-controls-right label {
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+    
+    .table-controls-right .search-input {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
     }
 }
 

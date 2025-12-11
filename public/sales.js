@@ -874,10 +874,10 @@ function renderSaleItems() {
     
     tbody.innerHTML = saleItems.map((item, index) => `
         <tr>
-            <td>${item.item_name}</td>
-            <td class="col-quantity numeric">${item.quantity}</td>
-            <td class="col-price numeric">${formatCurrency(item.unit_price)}</td>
-            <td class="col-total numeric">${formatCurrency(item.total_price)}</td>
+            <td><span class="cell-value">${item.item_name}</span></td>
+            <td class="col-quantity numeric"><span class="cell-value">${item.quantity}</span></td>
+            <td class="col-price numeric"><span class="cell-value">${formatCurrency(item.unit_price)}</span></td>
+            <td class="col-total numeric"><span class="cell-value">${formatCurrency(item.total_price)}</span></td>
             <td>
                 <button class="btn btn-sm btn-danger" onclick="removeSaleItem(${index})">Remove</button>
             </td>
@@ -956,53 +956,76 @@ async function viewSale(saleId) {
         const items = Array.isArray(sale.items) ? sale.items : JSON.parse(sale.items || '[]');
         
         const details = `
-            <div class="sale-detail-header">
-                <div class="sale-detail-title-row">
-                    <h3>Sale Details</h3>
-                    <button class="btn btn-primary" onclick="printReceipt(${sale.id})">🖨️ Print Receipt</button>
+            <div class="receipt-view-container">
+                <div class="receipt-view-header">
+                    <div class="receipt-view-title-row">
+                        <h3>Sales Receipt</h3>
+                        <button class="btn btn-primary" onclick="printReceipt(${sale.id})">
+                            <i class="fas fa-print"></i> Print Receipt
+                        </button>
+                    </div>
+                    <div class="receipt-view-info">
+                        <div class="receipt-info-row">
+                            <span class="receipt-info-label">Receipt #:</span>
+                            <span class="receipt-info-value">#${sale.id}</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span class="receipt-info-label">Date:</span>
+                            <span class="receipt-info-value">${formatDate(sale.sale_date)}</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span class="receipt-info-label">Customer:</span>
+                            <span class="receipt-info-value">${sale.customer_name || 'Walk-in Customer'}</span>
+                        </div>
+                        <div class="receipt-info-row">
+                            <span class="receipt-info-label">Cashier:</span>
+                            <span class="receipt-info-value">${sale.created_by_name || 'System'}</span>
+                        </div>
+                        ${sale.notes ? `
+                        <div class="receipt-info-row receipt-notes">
+                            <span class="receipt-info-label">Notes:</span>
+                            <span class="receipt-info-value">${sale.notes}</span>
+                        </div>
+                        ` : ''}
+                    </div>
                 </div>
-                <p><strong>Sale ID:</strong> #${sale.id}</p>
-                <p><strong>Date:</strong> ${formatDate(sale.sale_date)}</p>
-                <p><strong>Customer:</strong> ${sale.customer_name || 'Walk-in'}</p>
-                <p><strong>Created By:</strong> ${sale.created_by_name || '-'}</p>
-                ${sale.notes ? `<p><strong>Notes:</strong> ${sale.notes}</p>` : ''}
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map((item, index) => {
-                            const barcodeValue = item.sku || `ITEM-${item.item_id}`;
-                            const barcodeId = `viewItemBarcode${sale.id}-${index}`;
-                            return `
+                <div class="receipt-view-table-container">
+                    <table class="receipt-view-table">
+                        <thead>
                             <tr>
-                                <td>
-                                    ${item.item_name}
-                                    <div style="margin-top: 5px;">
-                                        <canvas id="${barcodeId}" data-barcode="${barcodeValue}" style="max-width: 120px; height: 35px;"></canvas>
-                                    </div>
-                                </td>
-                                <td>${item.quantity}</td>
-                                <td>${formatCurrency(item.unit_price)}</td>
-                                <td>${formatCurrency(item.total_price)}</td>
+                                <th class="col-item">Item</th>
+                                <th class="col-qty">Qty</th>
+                                <th class="col-price">Unit Price</th>
+                                <th class="col-total">Total</th>
                             </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="text-right"><strong>Total:</strong></td>
-                            <td class="col-total numeric"><strong>${formatCurrency(sale.total_amount)}</strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
+                        </thead>
+                        <tbody>
+                            ${items.map((item, index) => {
+                                const barcodeValue = item.sku || `ITEM-${item.item_id}`;
+                                const barcodeId = `viewItemBarcode${sale.id}-${index}`;
+                                return `
+                                <tr>
+                                    <td class="col-item">
+                                        <div class="item-name">${item.item_name}</div>
+                                        <div class="item-barcode-container">
+                                            <canvas id="${barcodeId}" data-barcode="${barcodeValue}" class="item-barcode-canvas"></canvas>
+                                        </div>
+                                    </td>
+                                    <td class="col-qty numeric">${item.quantity}</td>
+                                    <td class="col-price numeric">${formatCurrency(item.unit_price)}</td>
+                                    <td class="col-total numeric">${formatCurrency(item.total_price)}</td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="receipt-total-row">
+                                <td colspan="3" class="text-right"><strong>Total:</strong></td>
+                                <td class="col-total numeric"><strong>${formatCurrency(sale.total_amount)}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
         `;
         
@@ -1045,7 +1068,8 @@ async function printReceipt(saleId) {
         const currentDate = new Date();
         
         // Open print window - handle pop-up blockers
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        // Use larger dimensions to ensure receipt displays properly on all devices
+        const printWindow = window.open('', '_blank', 'width=800,height=800,scrollbars=yes,resizable=yes');
         
         if (!printWindow) {
             showNotification('Pop-up blocked. Please allow pop-ups for this site to print receipts.', 'error');
@@ -1056,8 +1080,18 @@ async function printReceipt(saleId) {
             <!DOCTYPE html>
             <html>
             <head>
+                <meta name="viewport" content="width=800, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
                 <title>Receipt #${sale.id}</title>
                 <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+                    html, body {
+                        width: 100%;
+                        min-width: 600px;
+                        margin: 0;
+                        padding: 0;
+                    }
                     @media print {
                         @page {
                             size: A4;
@@ -1071,18 +1105,52 @@ async function printReceipt(saleId) {
                             display: none;
                         }
                     }
+                    /* Force desktop layout on all devices - no responsive changes */
+                    html {
+                        width: 800px !important;
+                        min-width: 800px !important;
+                        max-width: 800px !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        overflow-x: auto;
+                    }
                     body {
                         font-family: Arial, sans-serif;
-                        max-width: 600px;
-                        margin: 0 auto;
-                        padding: 20px;
+                        width: 600px !important;
+                        max-width: 600px !important;
+                        min-width: 600px !important;
+                        margin: 0 auto !important;
+                        padding: 20px !important;
                         color: #000;
+                        background: #fff;
+                        overflow-x: visible;
+                    }
+                    /* Override any mobile-specific styles */
+                    @media screen and (max-width: 768px) {
+                        html {
+                            width: 800px !important;
+                            min-width: 800px !important;
+                            max-width: 800px !important;
+                            zoom: 1 !important;
+                            -webkit-text-size-adjust: 100% !important;
+                        }
+                        body {
+                            width: 600px !important;
+                            min-width: 600px !important;
+                            max-width: 600px !important;
+                            zoom: 1 !important;
+                            -webkit-text-size-adjust: 100% !important;
+                        }
                     }
                     .receipt-header {
                         text-align: center;
                         border-bottom: 3px solid #000;
                         padding-bottom: 20px;
                         margin-bottom: 25px;
+                        width: 100% !important;
+                        min-width: 100% !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box;
                     }
                     .receipt-header h1 {
                         margin: 0 0 10px 0;
@@ -1100,12 +1168,18 @@ async function printReceipt(saleId) {
                     .receipt-info {
                         margin-bottom: 20px;
                         line-height: 1.8;
+                        width: 100% !important;
+                        min-width: 100% !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box;
                     }
                     .receipt-info p {
                         margin: 6px 0;
                         font-size: 14px;
-                        display: flex;
+                        display: flex !important;
                         justify-content: space-between;
+                        width: 100% !important;
+                        flex-wrap: nowrap !important;
                     }
                     .receipt-info p strong {
                         min-width: 100px;
@@ -1117,8 +1191,11 @@ async function printReceipt(saleId) {
                     }
                     .receipt-items {
                         width: 100%;
+                        min-width: 100%;
                         border-collapse: collapse;
                         margin-bottom: 20px;
+                        table-layout: fixed;
+                        display: table !important;
                     }
                     .receipt-items th {
                         background: #f0f0f0;
@@ -1127,12 +1204,16 @@ async function printReceipt(saleId) {
                         border-bottom: 2px solid #000;
                         font-size: 14px;
                         font-weight: bold;
+                        display: table-cell !important;
+                        white-space: nowrap;
                     }
                     .receipt-items td {
                         padding: 10px 8px;
                         border-bottom: 1px solid #ddd;
                         font-size: 14px;
                         vertical-align: top;
+                        display: table-cell !important;
+                        white-space: normal;
                     }
                     .item-barcode {
                         margin-top: 5px;
@@ -1147,9 +1228,8 @@ async function printReceipt(saleId) {
                         font-weight: bold;
                         padding: 12px 8px;
                         font-size: 16px;
-                    }
-                    .receipt-items {
-                        table-layout: fixed;
+                        display: table-cell !important;
+                        white-space: nowrap;
                     }
                     .receipt-items th.col-item {
                         width: 45%;
@@ -1175,6 +1255,52 @@ async function printReceipt(saleId) {
                     .receipt-items tbody tr:last-child td {
                         border-bottom: 2px solid #ddd;
                     }
+                    .receipt-items tbody tr {
+                        display: table-row !important;
+                    }
+                    /* Prevent responsive changes on small screens */
+                    @media screen and (max-width: 768px) {
+                        body {
+                            min-width: 600px !important;
+                            width: 600px !important;
+                        }
+                    html {
+                        width: 800px !important;
+                        min-width: 800px !important;
+                        max-width: 800px !important;
+                    }
+                    body {
+                        width: 600px !important;
+                        min-width: 600px !important;
+                        max-width: 600px !important;
+                        padding: 20px !important;
+                    }
+                    .receipt-header,
+                    .receipt-info,
+                    .receipt-items,
+                    .receipt-footer {
+                        width: 100% !important;
+                        min-width: 100% !important;
+                        max-width: 100% !important;
+                    }
+                    .receipt-items {
+                        display: table !important;
+                        table-layout: fixed !important;
+                    }
+                    .receipt-items th,
+                    .receipt-items td {
+                        display: table-cell !important;
+                        white-space: normal !important;
+                    }
+                    .receipt-items thead,
+                    .receipt-items tbody,
+                    .receipt-items tfoot {
+                        display: table-row-group !important;
+                    }
+                    .receipt-items tr {
+                        display: table-row !important;
+                    }
+                    }
                     .text-right {
                         text-align: right;
                     }
@@ -1189,6 +1315,10 @@ async function printReceipt(saleId) {
                         font-size: 13px;
                         color: #666;
                         line-height: 1.8;
+                        width: 100% !important;
+                        min-width: 100% !important;
+                        max-width: 100% !important;
+                        box-sizing: border-box;
                     }
                     .receipt-footer p {
                         margin: 8px 0;

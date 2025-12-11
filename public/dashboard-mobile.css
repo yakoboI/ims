@@ -1,35 +1,173 @@
 /* Dashboard Mobile Optimizations */
 
-/* Stats Grid Optimization */
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
+/* Large Screens - Dashboard sections in one row with equal dimensions */
+@media (min-width: 769px) {
+    /* Make dashboard sections display in one row with equal columns */
+    .dashboard-sections {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 1.5rem;
+        align-items: stretch; /* Make all grid items stretch to same height */
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+        padding-right: 0 !important;
     }
     
-    .stat-card {
-        padding: 1rem 0.75rem;
+    /* Ensure all section cards have equal dimensions and stretch to fill grid cell */
+    .dashboard-sections .section-card {
+        display: flex !important;
         flex-direction: column;
-        text-align: center;
+        height: 100%;
+        margin-bottom: 0 !important;
+        margin-right: 0 !important;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
     }
     
-    .stat-icon {
-        margin-bottom: 0.5rem;
+    /* Ensure the last card (rightmost) aligns to the right edge - no extra padding */
+    .dashboard-sections .section-card:last-child {
+        margin-right: 0 !important;
     }
     
-    .stat-content h3 {
-        font-size: 1.25rem;
+    /* Ensure grid container doesn't have extra margins that prevent right alignment */
+    #adminDashboard .dashboard-sections,
+    #storekeeperDashboard .dashboard-sections,
+    #salesDashboard .dashboard-sections,
+    #managerDashboard .dashboard-sections {
+        width: 100%;
+        max-width: 100%;
     }
     
-    .stat-content p {
-        font-size: 0.875rem;
+    /* Make section card content grow to fill available space */
+    .dashboard-sections .section-card h2 {
+        flex: 0 0 auto;
+        margin-bottom: 1rem;
+    }
+    
+    /* Make list containers equal height and fill remaining space */
+    .dashboard-sections .section-card .alert-list,
+    .dashboard-sections .section-card .recent-list {
+        flex: 1 1 auto;
+        min-height: 300px;
+        max-height: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Stats Grid Optimization - Override main styles.css rules */
+/* Target both 768px and 575.98px breakpoints to ensure override */
+@media (max-width: 768px) {
+    /* Force 2 columns layout with higher specificity */
+    #adminStatsGrid.stats-grid,
+    #storekeeperStatsGrid.stats-grid,
+    #salesStatsGrid.stats-grid,
+    #managerKPIs.stats-grid,
+    .stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+        grid-auto-flow: row !important;
+    }
+    
+    /* Ensure proper order: Total Items (1) and Low Stock (2) in first row */
+    /* Today's Sales (3) and Today's Purchases (4) in second row */
+    .stats-grid .stat-card:nth-child(1),
+    .stats-grid .stat-card:nth-child(2) {
+        grid-row: 1 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(1) {
+        grid-column: 1 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(2) {
+        grid-column: 2 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(3),
+    .stats-grid .stat-card:nth-child(4) {
+        grid-row: 2 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(3) {
+        grid-column: 1 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(4) {
+        grid-column: 2 !important;
+    }
+    
+    .stats-grid .stat-card {
+        padding: 1rem 0.75rem !important;
+        flex-direction: column !important;
+        text-align: center !important;
+    }
+    
+    .stats-grid .stat-icon {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .stats-grid .stat-content h3 {
+        font-size: 1.25rem !important;
+    }
+    
+    .stats-grid .stat-content p {
+        font-size: 0.875rem !important;
+    }
+}
+
+/* Override styles.css rule at 575.98px breakpoint */
+@media (max-width: 575.98px) {
+    /* Force 2 columns layout for small screens */
+    #adminStatsGrid.stats-grid,
+    #storekeeperStatsGrid.stats-grid,
+    #salesStatsGrid.stats-grid,
+    #managerKPIs.stats-grid,
+    .stats-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+        grid-auto-flow: row !important;
+    }
+    
+    /* Ensure proper order */
+    .stats-grid .stat-card:nth-child(1) {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(2) {
+        grid-row: 1 !important;
+        grid-column: 2 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(3) {
+        grid-row: 2 !important;
+        grid-column: 1 !important;
+    }
+    
+    .stats-grid .stat-card:nth-child(4) {
+        grid-row: 2 !important;
+        grid-column: 2 !important;
     }
 }
 
 @media (max-width: 480px) {
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: 0.5rem;
+    }
+    
+    /* Reset grid positioning on very small screens - stack vertically */
+    .stats-grid .stat-card:nth-child(1),
+    .stats-grid .stat-card:nth-child(2),
+    .stats-grid .stat-card:nth-child(3),
+    .stats-grid .stat-card:nth-child(4) {
+        grid-row: auto;
+        grid-column: auto;
     }
     
     .stat-card {
@@ -104,9 +242,42 @@
         margin-bottom: 0;
     }
     
-    .page-header .btn {
+    /* Keep buttons in page header actions in one row */
+    .page-header > div {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    .page-header > div .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 48px;
+    }
+    
+    /* For other buttons outside the action div, keep them full width */
+    .page-header .btn:not(.page-header > div .btn) {
         width: 100%;
         min-height: 48px;
+    }
+}
+
+/* Override styles.css rule at 575.98px breakpoint to keep buttons in row */
+@media (max-width: 575.98px) {
+    .page-header > div {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem !important;
+        width: 100%;
+    }
+    
+    .page-header > div .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 48px !important;
     }
 }
 

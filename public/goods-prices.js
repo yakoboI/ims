@@ -359,9 +359,10 @@ function escapeHtml(text) {
 }
 
 function formatCurrency(amount) {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
+    // Format as Tanzanian Shillings (Tshs) with 2 decimal places
+    return 'Tshs ' + new Intl.NumberFormat('en-TZ', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     }).format(amount);
 }
 

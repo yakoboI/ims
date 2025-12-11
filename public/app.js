@@ -1,8 +1,38 @@
 const API_BASE_URL = window.location.origin + '/api';
 
-let authToken = localStorage.getItem('authToken');
-let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-let refreshToken = localStorage.getItem('refreshToken');
+// Safe storage access wrapper to handle tracking prevention
+function safeStorageGet(key, defaultValue = null) {
+    try {
+        return localStorage.getItem(key) || defaultValue;
+    } catch (error) {
+        console.warn(`Storage access blocked for key: ${key}`, error);
+        return defaultValue;
+    }
+}
+
+function safeStorageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        console.warn(`Storage write blocked for key: ${key}`, error);
+        return false;
+    }
+}
+
+function safeStorageRemove(key) {
+    try {
+        localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        console.warn(`Storage remove blocked for key: ${key}`, error);
+        return false;
+    }
+}
+
+let authToken = safeStorageGet('authToken');
+let currentUser = JSON.parse(safeStorageGet('currentUser', 'null') || 'null');
+let refreshToken = safeStorageGet('refreshToken');
 
 if (window.location.pathname !== '/index.html' && window.location.pathname !== '/') {
     if (!authToken) {
@@ -31,19 +61,19 @@ async function refreshAccessToken() {
         
         const data = await response.json();
         authToken = data.token;
-        localStorage.setItem('authToken', authToken);
+        safeStorageSet('authToken', authToken);
         
         if (data.user) {
             currentUser = data.user;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            safeStorageSet('currentUser', JSON.stringify(currentUser));
         }
         
         return authToken;
     } catch (error) {
         // Refresh failed - clear tokens and redirect to login
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('refreshToken');
+        safeStorageRemove('authToken');
+        safeStorageRemove('currentUser');
+        safeStorageRemove('refreshToken');
         authToken = null;
         currentUser = null;
         refreshToken = null;
@@ -58,14 +88,14 @@ async function refreshAccessToken() {
 
 async function apiRequest(endpoint, options = {}) {
     // Check if superadmin has selected a shop and add shop_id filter
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const currentUser = JSON.parse(safeStorageGet('currentUser', 'null') || 'null');
     const isSuperadmin = currentUser && currentUser.role === 'superadmin';
     // Get shopId from window.selectedShopId first (most up-to-date), then localStorage, then null
     let shopId = null;
     if (isSuperadmin) {
         shopId = window.selectedShopId !== undefined && window.selectedShopId !== null 
             ? window.selectedShopId 
-            : (localStorage.getItem('selectedShopId') ? parseInt(localStorage.getItem('selectedShopId')) : null);
+            : (safeStorageGet('selectedShopId') ? parseInt(safeStorageGet('selectedShopId')) : null);
     }
     
     let url = API_BASE_URL + endpoint;
@@ -173,9 +203,9 @@ async function apiRequest(endpoint, options = {}) {
                     }
                 } else {
                     // No refresh token or refresh failed - clear storage and redirect to login
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('currentUser');
-                    localStorage.removeItem('refreshToken');
+                    safeStorageRemove('authToken');
+                    safeStorageRemove('currentUser');
+                    safeStorageRemove('refreshToken');
                     authToken = null;
                     currentUser = null;
                     refreshToken = null;
@@ -265,10 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentUser = response.user;
                 if (response.refreshToken) {
                     refreshToken = response.refreshToken;
-                    localStorage.setItem('refreshToken', refreshToken);
+                    safeStorageSet('refreshToken', refreshToken);
                 }
-                localStorage.setItem('authToken', authToken);
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                safeStorageSet('authToken', authToken);
+                safeStorageSet('currentUser', JSON.stringify(currentUser));
 
                 window.location.href = '/dashboard.html';
             } catch (error) {
@@ -288,8 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
+    safeStorageRemove('authToken');
+    safeStorageRemove('currentUser');
     authToken = null;
     currentUser = null;
     window.location.href = '/index.html';

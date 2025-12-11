@@ -1,5 +1,380 @@
 /* Sales Page Mobile Optimizations */
 
+/* Receipt View Modal Styling - Smart and Professional */
+#viewSaleModal .receipt-view-container {
+    width: 100%;
+    max-width: 100%;
+}
+
+#viewSaleModal .receipt-view-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#viewSaleModal .receipt-view-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+#viewSaleModal .receipt-view-title-row h3 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#viewSaleModal .receipt-view-title-row .btn {
+    background: white;
+    color: #667eea;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+#viewSaleModal .receipt-view-title-row .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+#viewSaleModal .receipt-view-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+#viewSaleModal .receipt-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+#viewSaleModal .receipt-info-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#viewSaleModal .receipt-info-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+}
+
+#viewSaleModal .receipt-notes {
+    grid-column: 1 / -1;
+}
+
+#viewSaleModal .receipt-view-table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: white;
+}
+
+#viewSaleModal .receipt-view-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+#viewSaleModal .receipt-view-table thead {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+#viewSaleModal .receipt-view-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #334155;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+#viewSaleModal .receipt-view-table th.col-qty,
+#viewSaleModal .receipt-view-table th.col-price,
+#viewSaleModal .receipt-view-table th.col-total {
+    text-align: right;
+}
+
+#viewSaleModal .receipt-view-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.2s ease;
+}
+
+#viewSaleModal .receipt-view-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+#viewSaleModal .receipt-view-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+#viewSaleModal .receipt-view-table td {
+    padding: 1rem;
+    vertical-align: top;
+}
+
+#viewSaleModal .receipt-view-table .col-item {
+    max-width: 300px;
+}
+
+#viewSaleModal .receipt-view-table .item-name {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+#viewSaleModal .receipt-view-table .item-barcode-container {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+#viewSaleModal .receipt-view-table .item-barcode-canvas {
+    max-width: 120px;
+    height: 35px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 4px;
+    background: white;
+}
+
+#viewSaleModal .receipt-view-table .col-qty,
+#viewSaleModal .receipt-view-table .col-price,
+#viewSaleModal .receipt-view-table .col-total {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #475569;
+}
+
+#viewSaleModal .receipt-view-table tfoot {
+    background: #f8fafc;
+}
+
+#viewSaleModal .receipt-total-row {
+    border-top: 3px solid #cbd5e1;
+    background: #f1f5f9 !important;
+}
+
+#viewSaleModal .receipt-total-row td {
+    padding: 1.25rem 1rem;
+    font-size: 1.125rem;
+}
+
+#viewSaleModal .receipt-total-row .col-total {
+    font-size: 1.25rem;
+    color: #1e293b;
+    font-weight: 700;
+}
+
+/* Large Screen Optimizations */
+@media (min-width: 769px) {
+    #viewSaleModal .receipt-view-info {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    #viewSaleModal .receipt-view-table {
+        font-size: 0.9375rem;
+    }
+}
+
+/* Small Screen Optimizations */
+@media (max-width: 768px) {
+    #viewSaleModal .receipt-view-header {
+        padding: 1.5rem;
+    }
+    
+    #viewSaleModal .receipt-view-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    #viewSaleModal .receipt-view-title-row .btn {
+        width: 100%;
+    }
+    
+    #viewSaleModal .receipt-view-info {
+        grid-template-columns: 1fr;
+    }
+    
+    #viewSaleModal .receipt-view-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #viewSaleModal .receipt-view-table {
+        min-width: 600px;
+    }
+}
+
+/* Large Screens - Sales Modal Item Entry in One Row */
+@media (min-width: 769px) {
+    /* Make sale-items-section use flexbox with wrap */
+    #newSaleModal .sale-items-section {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        gap: 1.5rem !important;
+    }
+    
+    /* Items heading takes full width */
+    #newSaleModal .sale-items-section > h3#saleItemsHeading {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+        order: 1;
+    }
+    
+    /* Three form groups in one row - each takes equal space */
+    #newSaleModal .sale-items-section > .form-group {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 calc(33.333% - 1rem) !important;
+        min-width: 250px !important;
+        max-width: none !important;
+        margin-bottom: 0 !important;
+        margin-right: 0 !important;
+        box-sizing: border-box !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+    }
+    
+    /* Override inline styles with higher specificity */
+    #newSaleModal .sale-items-section > .form-group[style*="margin-bottom"] {
+        margin-bottom: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    /* All form group labels */
+    #newSaleModal .sale-items-section > .form-group > label {
+        display: block !important;
+        margin-bottom: 0.75rem !important;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: var(--text-primary);
+    }
+    
+    /* Scan with Camera section - First form group */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) {
+        order: 2;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) > div[style*="display: flex"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) button {
+        width: 100% !important;
+        min-height: 44px !important;
+        white-space: nowrap;
+        box-sizing: border-box;
+        margin: 0 !important;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) #cameraStatus {
+        font-size: 0.8125rem !important;
+        color: var(--text-secondary) !important;
+        margin-top: 0.25rem;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) #cameraPreview {
+        margin-top: 0.75rem !important;
+    }
+    
+    /* Barcode Input section - Second form group */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(2) {
+        order: 3;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(2) input#saleBarcodeInput {
+        width: 100% !important;
+        min-height: 44px !important;
+        box-sizing: border-box;
+        font-size: 1rem !important;
+        padding: 0.625rem 0.75rem !important;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(2) input#saleBarcodeInput[style*="font-size"] {
+        font-size: 1rem !important;
+        padding: 0.625rem 0.75rem !important;
+    }
+    
+    /* Item Select section - Third form group */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(3) {
+        order: 4;
+    }
+    
+    /* Item Select section - Select Item on top, Quantity and Add in one row */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(3) .add-item-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    /* Select Item takes full width on its own row */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(3) .item-select {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-height: 44px !important;
+        box-sizing: border-box;
+        font-size: 1rem;
+        padding: 0.625rem 0.75rem;
+    }
+    
+    /* Quantity and Add button equally divide the full row */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(3) .qty-input {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: calc(50% - 0.25rem) !important;
+        min-width: 0;
+        min-height: 44px !important;
+        box-sizing: border-box;
+        font-size: 1rem;
+        padding: 0.625rem 0.75rem;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(3) .btn {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: calc(50% - 0.25rem) !important;
+        min-width: 0;
+        min-height: 44px !important;
+        box-sizing: border-box;
+        font-size: 0.9375rem;
+        padding: 0.625rem 0.75rem;
+    }
+    
+    /* Table container takes full width */
+    #newSaleModal .sale-items-section > .table-container {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        margin-top: 1.5rem !important;
+        order: 5;
+    }
+}
+
 /* New Sale Modal Mobile Layout */
 @media (max-width: 768px) {
     .modal-content.large {
@@ -8,19 +383,68 @@
         height: 100vh;
         max-height: 100vh;
         margin: 0;
+        margin-top: 6rem !important; /* Shift modal down to avoid menu button */
         border-radius: 0;
         padding: 1rem;
+        padding-top: 1.5rem;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Ensure modal is positioned correctly */
+    #newSaleModal .modal-content.large {
+        margin-top: 6rem !important;
+        padding-top: 1.5rem;
     }
     
     .sale-items-section {
         margin: 1rem 0;
     }
+    
+    /* Items heading centered */
+    #newSaleModal #saleItemsHeading {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    /* Stack form groups vertically on small screens */
+    #newSaleModal .sale-items-section > .form-group {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Override inline styles */
+    #newSaleModal .sale-items-section > .form-group[style*="margin-bottom"] {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* All labels */
+    #newSaleModal .sale-items-section > .form-group > label {
+        display: block !important;
+        margin-bottom: 0.5rem !important;
+    }
 }
 
 /* Camera Scanning Mobile UI */
 @media (max-width: 768px) {
+    /* Camera section - full width */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) > div:first-of-type {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(1) button {
+        width: 100% !important;
+        min-height: 44px !important;
+        font-size: 16px !important;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
     #cameraPreview {
         margin: 1rem 0;
     }
@@ -34,44 +458,283 @@
     #cameraScanBtn,
     #stopCameraBtn {
         width: 100%;
-        min-height: 48px;
+        min-height: 44px;
         margin-bottom: 0.5rem;
-        font-size: 1rem;
+        font-size: 16px !important;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+    }
+    
+    #cameraStatus {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
     }
     
     .camera-status {
         font-size: 0.875rem;
         margin-top: 0.5rem;
     }
+    
+    /* Barcode input section - full width */
+    #newSaleModal .sale-items-section > .form-group:nth-of-type(2) input#saleBarcodeInput {
+        width: 100% !important;
+        min-height: 44px !important;
+        font-size: 16px !important;
+        padding: 0.625rem 0.75rem !important;
+        box-sizing: border-box;
+    }
 }
 
 /* Item Selection Row Mobile */
 @media (max-width: 768px) {
-    .add-item-row {
-        flex-direction: column;
-        gap: 0.75rem;
+    /* Select Item and Quantity in one row, Add button in same row */
+    #newSaleModal .sale-items-section .add-item-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem;
+        width: 100%;
     }
     
-    .item-select,
-    .qty-input,
-    .price-input {
-        width: 100%;
-        min-width: auto;
+    /* Select Item takes full width on its own row */
+    #newSaleModal .sale-items-section .add-item-row .item-select {
+        flex: 1 1 100% !important;
+        width: 100% !important;
         min-height: 44px;
-        font-size: 16px; /* Prevents iOS zoom */
+        font-size: 16px !important; /* Prevents iOS zoom */
     }
     
-    .add-item-row .btn {
-        width: 100%;
-        min-height: 48px;
+    /* Quantity and Add button in one row - equally divide */
+    #newSaleModal .sale-items-section .add-item-row .qty-input {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    #newSaleModal .sale-items-section .add-item-row .btn {
+        flex: 1 1 calc(50% - 0.25rem) !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important;
         touch-action: manipulation;
     }
 }
 
 /* Sale Items Table Mobile */
 @media (max-width: 768px) {
+    /* Fix table container */
+    #newSaleModal .sale-items-section .table-container {
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: auto;
+    }
+    
+    #newSaleModal .sale-items-section .data-table {
+        width: 100%;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    
+    /* Hide Actions column header on small screens */
+    #newSaleModal .sale-items-section .data-table thead th:last-child {
+        display: none;
+    }
+    
+    /* Make table rows display as blocks on small screens */
+    #newSaleModal .sale-items-section .data-table tbody tr {
+        display: grid;
+        grid-template-columns: 1fr;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.75rem 0;
+        margin-bottom: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    /* Use CSS Grid with precise mathematical calculations for perfect alignment */
+    #newSaleModal .sale-items-section .data-table tbody td {
+        display: grid;
+        /* Column 1: Auto-sized for label (max-content ensures it fits the longest label) */
+        /* Column 2: Takes remaining space (1fr) with minimum 0 to allow shrinking */
+        grid-template-columns: minmax(max-content, max-content) minmax(0, 1fr);
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        width: 100%;
+        box-sizing: border-box;
+        /* Gap between label and value: calculated as 1rem for consistent spacing */
+        gap: calc(1rem);
+    }
+    
+    /* Show label before each cell - positioned in first grid column */
+    #newSaleModal .sale-items-section .data-table tbody td:first-child:before {
+        content: 'Item:';
+        font-weight: 600;
+        color: var(--text-secondary);
+        grid-column: 1;
+        grid-row: 1;
+        text-align: left;
+        white-space: nowrap;
+        /* Use max-content to ensure label takes only needed space */
+        width: max-content;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(2):before {
+        content: 'Qty:';
+        font-weight: 600;
+        color: var(--text-secondary);
+        grid-column: 1;
+        grid-row: 1;
+        text-align: left;
+        white-space: nowrap;
+        width: max-content;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(3):before {
+        content: 'Unit Price:';
+        font-weight: 600;
+        color: var(--text-secondary);
+        grid-column: 1;
+        grid-row: 1;
+        text-align: left;
+        white-space: nowrap;
+        width: max-content;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(4):before {
+        content: 'Total:';
+        font-weight: 600;
+        color: var(--text-secondary);
+        grid-column: 1;
+        grid-row: 1;
+        text-align: left;
+        white-space: nowrap;
+        width: max-content;
+    }
+    
+    /* Right-align the actual text content in cells - positioned in second grid column */
+    /* Use CSS to wrap the text content in a span-like structure */
+    #newSaleModal .sale-items-section .data-table tbody td:first-child,
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(2),
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(3),
+    #newSaleModal .sale-items-section .data-table tbody td:nth-child(4) {
+        /* The cell itself doesn't need text-align, but its content does */
+    }
+    
+    /* Position cell value spans in second grid column with right alignment */
+    #newSaleModal .sale-items-section .data-table tbody td .cell-value {
+        grid-column: 2;
+        grid-row: 1;
+        text-align: right;
+        justify-self: end;
+        /* Use mathematical calculation: 100% width minus gap ensures perfect alignment */
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure numeric classes are right-aligned */
+    #newSaleModal .sale-items-section .data-table tbody td.numeric {
+        text-align: right !important;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tbody td.numeric .cell-value {
+        text-align: right !important;
+    }
+    
+    /* Actions cell - display below other cells */
+    #newSaleModal .sale-items-section .data-table tbody td:last-child {
+        display: flex;
+        justify-content: flex-start;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border-color);
+        text-align: left;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tbody td:last-child:before {
+        content: 'Actions:';
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }
+    
+    /* Align Total row with modal's right margin - keep in one row */
+    #newSaleModal .sale-items-section .data-table tfoot {
+        display: table-footer-group !important;
+        width: 100%;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tfoot tr {
+        width: 100%;
+        display: table-row !important;
+        white-space: nowrap;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tfoot td {
+        padding: 0.75rem 0 !important;
+        text-align: right !important;
+        display: table-cell !important;
+        white-space: nowrap !important;
+        vertical-align: middle;
+        border: none;
+    }
+    
+    /* First cell with "Total:" text - spans 3 columns */
+    #newSaleModal .sale-items-section .data-table tfoot td:first-child {
+        text-align: right !important;
+        padding-right: 0.5rem !important;
+        white-space: nowrap !important;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tfoot td.text-right {
+        text-align: right !important;
+        padding-right: 0.5rem !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Total amount cell - align with right edge of modal */
+    #newSaleModal .sale-items-section .data-table tfoot td #saleTotal {
+        display: inline !important;
+        white-space: nowrap !important;
+    }
+    
+    #newSaleModal .sale-items-section .data-table tfoot td:nth-child(4) {
+        padding-right: 0 !important;
+        text-align: right !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Empty Actions cell in footer */
+    #newSaleModal .sale-items-section .data-table tfoot td:last-child {
+        padding: 0 !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        display: none !important;
+    }
+    
+    /* Ensure table cells don't overflow and stay in one row */
+    #newSaleModal .sale-items-section .data-table tfoot td {
+        max-width: none !important;
+        overflow: visible !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Make sure the "Total:" text and amount stay together */
+    #newSaleModal .sale-items-section .data-table tfoot td strong {
+        white-space: nowrap !important;
+        display: inline !important;
+    }
+    
+    /* Prevent any wrapping in footer */
+    #newSaleModal .sale-items-section .data-table tfoot {
+        white-space: nowrap !important;
+    }
+    
     .sale-items-table {
         font-size: 0.875rem;
     }

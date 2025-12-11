@@ -1,5 +1,111 @@
 /* Stock Management Page Mobile Optimizations */
 
+/* Large Screens - Well-spaced header layout */
+@media (min-width: 769px) {
+    /* Make page-header-content use flexbox to space title and button across the row */
+    .page-header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 2rem;
+    }
+    
+    /* Header title styling */
+    .page-header-content h1 {
+        flex: 0 0 auto;
+        margin-bottom: 0;
+    }
+    
+    /* Header actions group - button well-positioned */
+    .header-actions {
+        display: flex;
+        flex-direction: row;
+        gap: 1rem;
+        flex: 0 0 auto;
+        align-items: center;
+    }
+    
+    /* Button in header actions */
+    .header-actions .btn {
+        flex: 0 0 auto;
+        min-width: 140px;
+        white-space: nowrap;
+    }
+    
+    /* Filters - All elements in one row on large screens */
+    .filters {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+    }
+    
+    /* Merge filters-row and form-actions into single row */
+    .filters-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 1rem;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    
+    /* Search input - takes more space */
+    .filters-row .search-input {
+        flex: 2 1 0 !important;
+        min-width: 200px;
+        max-width: none;
+        width: auto !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        box-sizing: border-box;
+    }
+    
+    /* Filter selects - equal spacing */
+    .filters-row .filter-select {
+        flex: 1 1 0 !important;
+        min-width: 150px;
+        max-width: 250px;
+        width: auto !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        box-sizing: border-box;
+    }
+    
+    /* Form actions - buttons in same row */
+    .filters .form-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.75rem;
+        flex: 0 0 auto;
+        margin-top: 0 !important;
+        align-items: center;
+    }
+    
+    /* Filter and Clear buttons - equal height with other elements */
+    .filters .form-actions .btn {
+        flex: 0 0 auto !important;
+        min-width: 120px !important;
+        width: auto !important;
+        min-height: 44px !important;
+        height: 44px !important;
+        white-space: nowrap;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Ensure Filter button is wide enough */
+    .filters .form-actions .btn:first-child {
+        min-width: 130px !important;
+    }
+}
+
 /* Stock Cards Mobile */
 @media (max-width: 768px) {
     .stock-card {
@@ -88,9 +194,129 @@
         font-size: 1.25rem;
     }
     
-    .page-header .btn {
+    /* Keep header actions buttons in one row on small screens */
+    .page-header-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .header-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    .header-actions .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .header-actions .btn .btn-text {
+        white-space: nowrap;
+    }
+    
+    /* Fallback for other buttons in page-header if they exist outside header-actions */
+    .page-header > .btn:not(.header-actions .btn) {
         width: 100%;
         min-height: 48px;
+    }
+}
+
+/* Filters Mobile - Keep filter selects in one row */
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    /* Use flexbox with wrap: search on top row (full width), two selects on second row */
+    .filters-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    /* Search input takes full width on its own row */
+    .filters-row .search-input {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-width: 100%;
+    }
+    
+    /* Override the 100% width for filter selects and keep them in a row */
+    .filters-row #categoryStockFilter,
+    .filters-row #stockStatusFilter {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    /* Also target by class for consistency */
+    .filters-row .filter-select {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+    
+    /* Filter and Clear buttons in one row */
+    .filters .form-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem;
+        width: 100%;
+        margin-top: 0;
+        justify-content: stretch;
+    }
+    
+    .filters .form-actions .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Small Screens - Override styles.css rules at 575.98px breakpoint */
+@media (max-width: 575.98px) {
+    /* Ensure header actions stay in row even at this breakpoint */
+    .header-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    .header-actions .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0;
+    }
+    
+    /* Keep filter selects in row at this breakpoint */
+    .filters-row .filter-select {
+        flex: 1 1 0 !important;
+        width: auto !important;
+    }
+    
+    .filters .form-actions {
+        flex-direction: row !important;
+    }
+    
+    .filters .form-actions .btn {
+        flex: 1 1 0 !important;
+        width: auto !important;
     }
 }
 
@@ -101,6 +327,42 @@
         max-width: 100%;
         margin: 0;
         border-radius: 0;
+    }
+    
+    /* Optimize button spacing on very small screens */
+    .header-actions {
+        gap: 0.375rem;
+    }
+    
+    .header-actions .btn {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        min-height: 40px;
+    }
+    
+    .header-actions .btn i {
+        margin-right: 0.25rem;
+    }
+    
+    .header-actions .btn .btn-text {
+        font-size: 0.8125rem;
+    }
+    
+    /* Optimize filter selects spacing on very small screens */
+    .filters-row .filter-select {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        min-height: 40px;
+    }
+    
+    .filters .form-actions {
+        gap: 0.375rem;
+    }
+    
+    .filters .form-actions .btn {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        min-height: 40px;
     }
 }
 

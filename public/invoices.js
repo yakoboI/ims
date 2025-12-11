@@ -27,8 +27,12 @@ function formatDate(dateString) {
 }
 
 function formatCurrency(amount) {
-    if (amount == null) return '0.00';
-    return parseFloat(amount).toFixed(2);
+    // Format as Tanzanian Shillings (Tshs) with 2 decimal places
+    if (amount == null) return 'Tshs 0.00';
+    return 'Tshs ' + new Intl.NumberFormat('en-TZ', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
 }
 
 async function loadInvoices() {

@@ -10,8 +10,12 @@ function escapeHtml(text) {
 
 // Format currency
 function formatCurrency(amount) {
-    if (amount === null || amount === undefined) return '0.00';
-    return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Format as Tanzanian Shillings (Tshs) with 2 decimal places
+    if (amount === null || amount === undefined) return 'Tshs 0.00';
+    return 'Tshs ' + new Intl.NumberFormat('en-TZ', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
 }
 
 let currentShopId = null;

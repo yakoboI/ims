@@ -165,7 +165,11 @@ function renderExpensesTable(expensesList) {
     
     // Check if formatCurrency exists, if not define a simple one
     const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+        // Format as Tanzanian Shillings (Tshs) with 2 decimal places
+        return 'Tshs ' + new Intl.NumberFormat('en-TZ', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount || 0);
     };
     
     const html = sortedExpenses.map(expense => {
@@ -268,7 +272,11 @@ function updateExpenseSummary() {
     
     // Check if formatCurrency exists, if not define a simple one
     const formatCurrencyFunc = typeof formatCurrency === 'function' ? formatCurrency : (amount) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+        // Format as Tanzanian Shillings (Tshs) with 2 decimal places
+        return 'Tshs ' + new Intl.NumberFormat('en-TZ', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount || 0);
     };
     
     const todayExpensesEl = document.getElementById('todayExpenses');

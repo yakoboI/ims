@@ -3591,6 +3591,39 @@ body.menu-open {
     flex-shrink: 0;
 }
 
+/* Large Screens - Shop Selector full width */
+@media (min-width: 769px) {
+    .shop-selector-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .shop-selector-label {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    
+    .shop-selector {
+        flex: 1 1 0 !important;
+        min-width: 300px;
+        max-width: none !important;
+        width: auto !important;
+    }
+    
+    .shop-selector-container .btn {
+        flex: 0 0 auto;
+        min-width: 140px;
+        white-space: nowrap;
+    }
+}
+
 @media (max-width: 575.98px) {
     .shop-selector-container {
         flex-direction: column;
