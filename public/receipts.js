@@ -649,11 +649,6 @@ async function printAllReceipts() {
             return div.innerHTML;
         };
         
-        // Get display system name
-        const systemDisplayName = window.getDisplaySystemName 
-            ? await window.getDisplaySystemName() 
-            : 'INVENTORY MANAGEMENT SYSTEM';
-        
         // Format all data before generating HTML
         const formattedReceipts = receiptsWithDetails.map(sale => {
             let items = [];
@@ -807,7 +802,7 @@ async function printAllReceipts() {
             </head>
             <body>
                 <div class="summary">
-                    <h1>${systemDisplayName}</h1>
+                    <h1>INVENTORY MANAGEMENT SYSTEM</h1>
                     <p><strong>All Receipts Report</strong></p>
                     <p>Date Range: ${startDate} to ${endDate}</p>
                     <p>Total Receipts: ${receiptsWithDetails.length}</p>

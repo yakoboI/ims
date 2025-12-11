@@ -1,12 +1,5 @@
 let users = [];
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
@@ -65,61 +58,6 @@ function setupEventListeners() {
     document.getElementById('changePasswordForm').addEventListener('submit', handleChangePasswordSubmit);
 }
 
-async function loadShopOptions() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    const shopSelect = document.getElementById('userShop');
-    const shopDisplay = document.getElementById('shopDisplay');
-    const shopDisplayText = document.getElementById('shopDisplayText');
-    
-    if (!shopSelect || !shopDisplay || !shopDisplayText) return;
-    
-    if (currentUser && currentUser.role === 'superadmin') {
-        // Superadmin can select any shop
-        try {
-            const shops = await apiRequest('/shops');
-            shopSelect.innerHTML = '<option value="">-- Select Shop (Optional) --</option>' +
-                shops.map(shop => `<option value="${shop.id}">${escapeHtml(shop.shop_name)} (${escapeHtml(shop.shop_code)})</option>`).join('');
-            shopSelect.style.display = 'block';
-            shopDisplay.style.display = 'none';
-        } catch (error) {
-            console.error('Error loading shops:', error);
-            shopDisplayText.textContent = 'Error loading shops';
-        }
-    } else if (currentUser && currentUser.shop_id) {
-        // Non-superadmin: display their shop (read-only)
-        try {
-            // Try to get shop info from shopsList if available, otherwise fetch it
-            let shop = null;
-            if (window.shopsList) {
-                shop = window.shopsList.find(s => s.id === currentUser.shop_id);
-            }
-            
-            if (!shop) {
-                // Fetch shop info
-                shop = await apiRequest(`/shops/${currentUser.shop_id}`);
-                if (!window.shopsList) window.shopsList = [];
-                window.shopsList.push(shop);
-            }
-            
-            if (shop) {
-                shopDisplayText.innerHTML = `<strong>${escapeHtml(shop.shop_name)}</strong> (Code: <code>${escapeHtml(shop.shop_code)}</code>)`;
-            } else {
-                shopDisplayText.textContent = 'Shop information not available';
-            }
-            shopSelect.style.display = 'none';
-            shopDisplay.style.display = 'block';
-        } catch (error) {
-            console.error('Error loading shop info:', error);
-            shopDisplayText.textContent = 'Error loading shop information';
-        }
-    } else {
-        // User has no shop assigned
-        shopDisplayText.textContent = 'No shop assigned';
-        shopSelect.style.display = 'none';
-        shopDisplay.style.display = 'block';
-    }
-}
-
 function openUserModal(userId = null) {
     const modal = document.getElementById('userModal');
     const form = document.getElementById('userForm');
@@ -141,9 +79,6 @@ function openUserModal(userId = null) {
             document.getElementById('userFullName').value = user.full_name || '';
             document.getElementById('userRole').value = user.role;
             document.getElementById('userStatus').value = user.is_active ? '1' : '0';
-            
-            // Load shop information for edit mode
-            loadShopOptionsForEdit(user);
         }
     } else {
         title.textContent = 'Add User';
@@ -152,9 +87,6 @@ function openUserModal(userId = null) {
         statusGroup.style.display = 'none';
         form.reset();
         document.getElementById('userId').value = '';
-        
-        // Load shop options for new user
-        loadShopOptions();
     }
     
     const firstInput = document.getElementById('userUsername');
@@ -168,21 +100,6 @@ function closeUserModal() {
     document.getElementById('passwordGroup').style.display = 'block';
     document.getElementById('passwordGroup').querySelector('input').setAttribute('required', 'required');
     document.getElementById('statusGroup').style.display = 'none';
-    
-    // Reset shop display
-    const shopDisplay = document.getElementById('shopDisplay');
-    const shopSelect = document.getElementById('userShop');
-    if (shopDisplay) {
-        shopDisplay.style.display = 'block';
-        const shopDisplayText = document.getElementById('shopDisplayText');
-        if (shopDisplayText) {
-            shopDisplayText.textContent = 'Loading shop information...';
-        }
-    }
-    if (shopSelect) {
-        shopSelect.style.display = 'none';
-        shopSelect.value = '';
-    }
 }
 
 async function handleUserSubmit(e) {
@@ -214,23 +131,6 @@ async function handleUserSubmit(e) {
         full_name: document.getElementById('userFullName').value || null,
         role: document.getElementById('userRole').value
     };
-    
-    // Handle shop_id assignment
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    
-    // If superadmin role is selected, shop_id should be null
-    if (userData.role === 'superadmin') {
-        userData.shop_id = null;
-    } else if (currentUser && currentUser.role === 'superadmin') {
-        // Superadmin can assign users to shops
-        const shopSelect = document.getElementById('userShop');
-        if (shopSelect && shopSelect.style.display !== 'none') {
-            // Shop selector is visible, include shop_id
-            const selectedShopId = shopSelect.value;
-            userData.shop_id = selectedShopId ? parseInt(selectedShopId) : null;
-        }
-    }
-    // For non-superadmin creating/updating users, backend automatically assigns their shop_id
     
     if (userId) {
         userData.is_active = parseInt(document.getElementById('userStatus').value);
@@ -580,118 +480,10 @@ async function saveAllPermissions() {
     }
 }
 
-// Load shop options for edit mode
-async function loadShopOptionsForEdit(user) {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    const shopSelect = document.getElementById('userShop');
-    const shopDisplay = document.getElementById('shopDisplay');
-    const shopDisplayText = document.getElementById('shopDisplayText');
-    
-    if (!shopSelect || !shopDisplay || !shopDisplayText) return;
-    
-    // If editing a superadmin user, hide shop selection
-    if (user.role === 'superadmin') {
-        shopSelect.style.display = 'none';
-        shopDisplay.style.display = 'none';
-        return;
-    }
-    
-    if (currentUser && currentUser.role === 'superadmin') {
-        // Superadmin can change shop assignment
-        try {
-            if (!window.shopsList) {
-                window.shopsList = await apiRequest('/shops');
-            }
-            shopSelect.innerHTML = '<option value="">-- Select Shop (Optional) --</option>' +
-                window.shopsList.map(shop => `<option value="${shop.id}" ${shop.id === user.shop_id ? 'selected' : ''}>${escapeHtml(shop.shop_name)} (${escapeHtml(shop.shop_code)})</option>`).join('');
-            shopSelect.style.display = 'block';
-            shopDisplay.style.display = 'none';
-        } catch (error) {
-            console.error('Error loading shops:', error);
-            shopDisplayText.textContent = 'Error loading shops';
-            shopSelect.style.display = 'none';
-            shopDisplay.style.display = 'block';
-        }
-    } else {
-        // Non-superadmin: display their shop (read-only)
-        try {
-            let shop = null;
-            if (window.shopsList) {
-                shop = window.shopsList.find(s => s.id === (user.shop_id || currentUser?.shop_id));
-            }
-            
-            if (!shop && (user.shop_id || currentUser?.shop_id)) {
-                const shopId = user.shop_id || currentUser.shop_id;
-                shop = await apiRequest(`/shops/${shopId}`);
-                if (!window.shopsList) window.shopsList = [];
-                if (!window.shopsList.find(s => s.id === shop.id)) {
-                    window.shopsList.push(shop);
-                }
-            }
-            
-            if (shop) {
-                shopDisplayText.innerHTML = `<strong>${escapeHtml(shop.shop_name)}</strong> (Code: <code>${escapeHtml(shop.shop_code)}</code>)`;
-            } else {
-                shopDisplayText.textContent = 'No shop assigned';
-            }
-            shopSelect.style.display = 'none';
-            shopDisplay.style.display = 'block';
-        } catch (error) {
-            console.error('Error loading shop info:', error);
-            shopDisplayText.textContent = 'Error loading shop information';
-            shopSelect.style.display = 'none';
-            shopDisplay.style.display = 'block';
-        }
-    }
-}
-
-// Handle role change - hide shop selector if superadmin role is selected
-function handleRoleChange() {
-    const roleSelect = document.getElementById('userRole');
-    const shopSelect = document.getElementById('userShop');
-    const shopDisplay = document.getElementById('shopDisplay');
-    
-    if (!roleSelect || !shopSelect || !shopDisplay) return;
-    
-    const selectedRole = roleSelect.value;
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    
-    // If superadmin role selected, hide shop selection (superadmin users don't have shops)
-    if (selectedRole === 'superadmin') {
-        shopSelect.style.display = 'none';
-        shopDisplay.style.display = 'none';
-    } else {
-        // Restore shop display based on current user role
-        if (currentUser && currentUser.role === 'superadmin') {
-            shopSelect.style.display = 'block';
-            shopDisplay.style.display = 'none';
-        } else {
-            shopSelect.style.display = 'none';
-            shopDisplay.style.display = 'block';
-        }
-    }
-}
-
-// Load shops list for superadmin (used for shop selector)
-async function loadShopsList() {
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    if (currentUser && currentUser.role === 'superadmin') {
-        try {
-            window.shopsList = await apiRequest('/shops');
-        } catch (error) {
-            console.error('Error loading shops list:', error);
-        }
-    }
-}
-
-// Expose handleRoleChange globally
-window.handleRoleChange = handleRoleChange;
-
 document.addEventListener('DOMContentLoaded', async () => {
     await loadUsers();
     await loadBackups();
     await loadRolePermissions();
-    await loadShopsList();
     setupEventListeners();
 });
 

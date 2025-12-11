@@ -1044,11 +1044,6 @@ async function printReceipt(saleId) {
         const items = Array.isArray(sale.items) ? sale.items : JSON.parse(sale.items || '[]');
         const currentDate = new Date();
         
-        // Get display system name
-        const systemDisplayName = window.getDisplaySystemName 
-            ? await window.getDisplaySystemName() 
-            : 'INVENTORY MANAGEMENT SYSTEM';
-        
         // Open print window - handle pop-up blockers
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         
@@ -1226,7 +1221,7 @@ async function printReceipt(saleId) {
             </head>
             <body>
                 <div class="receipt-header">
-                    <h1>${systemDisplayName}</h1>
+                    <h1>INVENTORY MANAGEMENT SYSTEM</h1>
                     <p>Sales Receipt</p>
                     <div style="margin-top: 15px;">
                         <canvas id="receiptBarcode" style="max-width: 200px; height: 50px;"></canvas>
