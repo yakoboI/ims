@@ -61,10 +61,9 @@ function hideEmptyState(container) {
     
     if (!containerEl) return;
 
-    const emptyStateEl = containerEl.querySelector('.empty-state');
-    if (emptyStateEl) {
-        emptyStateEl.remove();
-    }
+    // Remove both .empty-state and .empty-state-small elements
+    const emptyStateEls = containerEl.querySelectorAll('.empty-state, .empty-state-small');
+    emptyStateEls.forEach(el => el.remove());
 }
 
 /**

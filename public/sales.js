@@ -64,10 +64,31 @@ async function loadSales() {
     try {
         const sales = await apiRequest('/sales');
         if (tableContainer) hideTableSkeleton(tableContainer);
-        renderSalesTable(sales);
+        
+        // Ensure sales is an array
+        let salesArray = [];
+        if (Array.isArray(sales)) {
+            salesArray = sales;
+        } else if (sales && typeof sales === 'object') {
+            salesArray = [sales];
+        } else if (sales === null || sales === undefined) {
+            salesArray = [];
+        }
+        
+        // Sort sales by date (newest first) to show the most recent sales at the top
+        if (salesArray.length > 0) {
+            salesArray.sort((a, b) => {
+                const dateA = new Date(a.sale_date || a.date || 0);
+                const dateB = new Date(b.sale_date || b.date || 0);
+                return dateB - dateA; // Newest first
+            });
+        }
+        
+        renderSalesTable(salesArray);
     } catch (error) {
+        console.error('Error loading sales:', error);
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading sales', 'error');
+        showNotification('Error loading sales: ' + (error.message || 'Unknown error'), 'error');
         renderSalesTable([]);
     }
 }
@@ -76,25 +97,105 @@ function renderSalesTable(sales) {
     const tbody = document.getElementById('salesTableBody');
     const tableContainer = document.querySelector('.table-container');
     
-    if (sales.length === 0) {
+    if (!tbody) {
+        console.error('Sales table body not found');
+        return;
+    }
+    
+    // Ensure sales is an array
+    let salesArray = [];
+    if (Array.isArray(sales)) {
+        salesArray = sales;
+    } else if (sales && typeof sales === 'object') {
+        salesArray = [sales];
+    } else {
+        salesArray = [];
+    }
+    
+    if (salesArray.length === 0) {
         tbody.innerHTML = '';
-        showEmptyState(tableContainer, EmptyStates.sales);
+        if (tableContainer) {
+            showEmptyState(tableContainer, EmptyStates.sales);
+        }
         return;
     }
 
-    hideEmptyState(tableContainer);
-    tbody.innerHTML = sales.map(sale => `
+    if (tableContainer) {
+        hideEmptyState(tableContainer);
+    }
+    
+    // Render the table rows
+    try {
+        const hasFormatDate = typeof formatDate === 'function';
+        const hasFormatCurrency = typeof formatCurrency === 'function';
+        
+        const rows = salesArray.map((sale) => {
+            try {
+                // Ensure sale has required fields
+                const saleId = sale.id || sale.sale_id || sale.ID || 'N/A';
+                const saleDate = sale.sale_date || sale.date || sale.saleDate || sale.created_at || new Date().toISOString();
+                const customerName = sale.customer_name || sale.customer || sale.customerName || 'Walk-in';
+                const totalAmount = sale.total_amount || sale.total || sale.totalAmount || sale.amount || 0;
+                const createdByName = sale.created_by_name || sale.created_by || sale.createdBy || sale.username || '-';
+                
+                // Format date
+                let formattedDate;
+                try {
+                    if (hasFormatDate) {
+                        formattedDate = formatDate(saleDate);
+                    } else {
+                        const date = new Date(saleDate);
+                        formattedDate = date.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                } catch (dateError) {
+                    formattedDate = saleDate || 'N/A';
+                }
+                
+                // Format currency
+                let formattedAmount;
+                try {
+                    if (hasFormatCurrency) {
+                        formattedAmount = formatCurrency(totalAmount);
+                    } else {
+                        formattedAmount = 'Tshs ' + parseFloat(totalAmount || 0).toFixed(2);
+                    }
+                } catch (currencyError) {
+                    formattedAmount = 'Tshs ' + parseFloat(totalAmount || 0).toFixed(2);
+                }
+                
+                return `
         <tr>
-            <td data-label="Sale ID">#${sale.id}</td>
-            <td data-label="Date">${formatDate(sale.sale_date)}</td>
-            <td data-label="Customer">${sale.customer_name || 'Walk-in'}</td>
-            <td data-label="Total Amount" class="col-amount numeric"><strong>${formatCurrency(sale.total_amount)}</strong></td>
-            <td data-label="Created By">${sale.created_by_name || '-'}</td>
+            <td data-label="Sale ID">#${saleId}</td>
+            <td data-label="Date">${formattedDate}</td>
+            <td data-label="Customer">${customerName}</td>
+            <td data-label="Total Amount" class="col-amount numeric"><strong>${formattedAmount}</strong></td>
+            <td data-label="Created By">${createdByName}</td>
             <td data-label="Actions">
-                <button class="btn btn-sm btn-secondary" onclick="viewSale(${sale.id})">View</button>
+                <button class="btn btn-sm btn-secondary" onclick="viewSale(${saleId})">View</button>
             </td>
         </tr>
-    `).join('');
+    `;
+            } catch (rowError) {
+                console.error('Error processing sale:', rowError);
+                return `
+        <tr>
+            <td colspan="6" class="text-center">Error rendering sale</td>
+        </tr>
+    `;
+            }
+        });
+        
+        tbody.innerHTML = rows.join('');
+    } catch (error) {
+        console.error('Error rendering sales table:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Error rendering sales data</td></tr>';
+    }
 }
 
 function setupEventListeners() {
@@ -810,6 +911,9 @@ async function handleSaleSubmit(e) {
             body: saleData
         });
         
+        // Get the sale ID from response
+        const saleId = response.id || response.sale_id || (response.data && response.data.id);
+        
         showNotification('Sale recorded successfully');
         closeNewSaleModal();
         
@@ -820,10 +924,26 @@ async function handleSaleSubmit(e) {
             });
         }
         
+        // Wait a brief moment to ensure the database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Reload sales to show the new sale in the table
+        console.log('Reloading sales table...');
         await loadSales();
         
+        // Scroll to top of table to show the new sale
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
         if (confirm('Sale completed successfully! Would you like to print the receipt?')) {
-            printReceipt(response.id);
+            if (saleId) {
+                printReceipt(saleId);
+            } else {
+                console.warn('Sale ID not found in response:', response);
+                showNotification('Sale ID not found. Please print from the sales list.', 'error');
+            }
         }
     } catch (error) {
         showNotification(error.message || 'Error recording sale', 'error');
@@ -924,7 +1044,14 @@ async function printReceipt(saleId) {
         const items = Array.isArray(sale.items) ? sale.items : JSON.parse(sale.items || '[]');
         const currentDate = new Date();
         
-        const printWindow = window.open('', '_blank');
+        // Open print window - handle pop-up blockers
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        
+        if (!printWindow) {
+            showNotification('Pop-up blocked. Please allow pop-ups for this site to print receipts.', 'error');
+            return;
+        }
+        
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
@@ -1180,7 +1307,7 @@ async function printReceipt(saleId) {
                             
                             // Item barcodes
                             ${items.map((item, index) => {
-                                const barcodeValue = item.sku || `ITEM-${item.item_id}`;
+                                const barcodeValue = item.sku || ('ITEM-' + item.item_id);
                                 return `
                                 const itemBarcode${index} = document.getElementById('itemBarcode${index}');
                                 if (itemBarcode${index}) {
@@ -1204,9 +1331,17 @@ async function printReceipt(saleId) {
             </body>
             </html>
         `);
+        
+        // Wait for the document to be ready before closing
         printWindow.document.close();
+        
+        // Focus the print window
+        if (printWindow) {
+            printWindow.focus();
+        }
     } catch (error) {
-        showNotification(error.message || 'Error generating receipt', 'error');
+        console.error('Error generating receipt:', error);
+        showNotification(error.message || 'Error generating receipt. Please check if pop-ups are blocked.', 'error');
     }
 }
 
