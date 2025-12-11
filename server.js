@@ -58,10 +58,16 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 // SECURITY: Configure CORS to only allow specific origins
+// Automatically detect Railway domain from environment variables
+const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL;
+const railwayOrigins = railwayDomain 
+  ? [`https://${railwayDomain}`, `http://${railwayDomain}`]
+  : [];
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : process.env.NODE_ENV === 'production' 
-    ? [] // In production, require ALLOWED_ORIGINS to be set
+    ? railwayOrigins // Use Railway domain if available
     : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
 app.use(cors({
@@ -69,22 +75,34 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // In production, if ALLOWED_ORIGINS is not set, allow all origins (for Railway)
-    // This is less secure but necessary for Railway deployments
-    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
-      return callback(null, true);
-    }
-    
+    // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
-    } else {
-      // In development, be strict. In production, log but allow for Railway compatibility
-      if (process.env.NODE_ENV === 'production') {
-        console.warn(`CORS: Origin ${origin} not in allowed list, but allowing for Railway compatibility`);
-        return callback(null, true);
-      }
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+    
+    // Automatically allow Railway domains (for dynamic Railway URLs)
+    if (process.env.NODE_ENV === 'production' && origin.includes('.railway.app')) {
+      callback(null, true);
+      return;
+    }
+    
+    // In production, if ALLOWED_ORIGINS is not set and no Railway domain detected,
+    // allow all origins (for Railway compatibility - fallback)
+    if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+      callback(null, true);
+      return;
+    }
+    
+    // In development, be strict
+    if (process.env.NODE_ENV !== 'production') {
+      callback(new Error('Not allowed by CORS'));
+      return;
+    }
+    
+    // Production fallback - allow but log warning
+    console.warn(`CORS: Origin ${origin} not in allowed list, but allowing for Railway compatibility`);
+    callback(null, true);
   },
   credentials: true
 }));
