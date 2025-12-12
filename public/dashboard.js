@@ -85,7 +85,8 @@ async function refreshDashboard() {
     
     // Show button loading state
     if (refreshBtn) {
-        showButtonLoading(refreshBtn, 'Refreshing...');
+        const refreshingText = window.i18n ? window.i18n.t('common.refreshing') : 'Refreshing...';
+        showButtonLoading(refreshBtn, refreshingText);
     }
     
     try {
@@ -236,10 +237,12 @@ async function loadAdminRecentPurchases() {
         
         if (recentPurchases.length === 0) {
             hideEmptyState(container);
+            const emptyTitle = window.i18n ? window.i18n.t('messages.noRecentPurchases') : 'No Recent Purchases';
+            const emptyMessage = window.i18n ? window.i18n.t('messages.noPurchasesRecordedToday') : 'No purchases recorded today.';
             showEmptyState(container, {
                 icon: '<i class="fas fa-shopping-cart fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'No Recent Purchases',
-                message: 'No purchases recorded today.',
+                title: emptyTitle,
+                message: emptyMessage,
                 actionLabel: null,
                 actionCallback: null,
                 className: 'empty-state-small'

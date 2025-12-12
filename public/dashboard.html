@@ -23,6 +23,9 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Normalize CSS - Ensures consistent styling across browsers -->
+    <link rel="stylesheet" href="css/normalize.css">
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/all.min.css">
     
@@ -80,38 +83,38 @@
         <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
         <div class="nav-footer">
             <span class="nav-user" id="navUser" aria-label="Current user"></span>
-            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system" data-i18n="nav.logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
         <div class="nav-menu" role="menubar">
-            <a href="dashboard.html" class="nav-link active" role="menuitem" aria-current="page"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
-            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
-            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
-            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
-            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
-            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
-            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
-            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
-            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
-            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
-            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
-            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
-            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
-            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
-            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
-            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-file-contract fa-icon-primary"></i> Terms and Service</a>
-            <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
-            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
-            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
-            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
-            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+            <a href="dashboard.html" class="nav-link active" role="menuitem" aria-current="page" data-i18n="nav.dashboard"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem" data-i18n="nav.inventoryItems"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem" data-i18n="nav.stockManage"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem" data-i18n="nav.inventoryOperations"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem" data-i18n="nav.goodsPrices"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem" data-i18n="nav.goodsBarcodes"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem" data-i18n="nav.purchases"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem" data-i18n="nav.sales"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem" data-i18n="nav.invoices"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem" data-i18n="nav.receipts"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem" data-i18n="nav.expenses"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="reports.html" class="nav-link " role="menuitem" data-i18n="nav.reports"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem" data-i18n="nav.categories"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem" data-i18n="nav.suppliers"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem" data-i18n="nav.customers"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="installment-payments.html" class="nav-link " id="installmentPaymentsLink" role="menuitem" data-i18n="nav.installmentPayments"><i class="fas fa-credit-card fa-icon-primary"></i> Installment Payments</a>
+            <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem" data-i18n="nav.settings"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem" data-i18n="nav.users"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem" data-i18n="nav.shops"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem" data-i18n="nav.shopStatistics"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem" data-i18n="nav.subscriptionPlans"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
         </div>
     </nav>
 
     <main id="main-content" class="container" role="main">
         <header class="page-header">
-            <h1>Dashboard</h1>
+            <h1 data-i18n="dashboard.title">Dashboard</h1>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <button class="btn btn-primary" onclick="refreshDashboard()" id="refreshBtn" style="display: none;" aria-label="Refresh dashboard data"><i class="fas fa-sync-alt fa-icon-white"></i> Refresh</button>
+                <button class="btn btn-primary" onclick="refreshDashboard()" id="refreshBtn" style="display: none;" aria-label="Refresh dashboard data" data-i18n="common.refresh"><i class="fas fa-sync-alt fa-icon-white"></i> Refresh</button>
                 <button class="btn btn-danger" onclick="initiateClearData()" id="initiateClearDataBtn" style="display: none;" aria-label="Initiate clear data process"><i class="fas fa-trash-alt fa-icon-white"></i> Clear Data</button>
             </div>
         </header>
@@ -127,42 +130,42 @@
                     <div class="stat-icon" aria-hidden="true"><i class="fas fa-boxes fa-icon-info" style="font-size: 2.5rem;"></i></div>
                     <div class="stat-content">
                         <h3 id="adminTotalItems" aria-live="polite">-</h3>
-                        <p>Total Items</p>
+                        <p data-i18n="dashboard.totalItems">Total Items</p>
                     </div>
                 </article>
                 <article class="stat-card warning" role="article" aria-label="Low stock items statistic">
                     <div class="stat-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle fa-icon-warning" style="font-size: 2.5rem;"></i></div>
                     <div class="stat-content">
                         <h3 id="adminLowStockItems" aria-live="polite">-</h3>
-                        <p>Low Stock Items</p>
+                        <p data-i18n="dashboard.lowStock">Low Stock Items</p>
                     </div>
                 </article>
                 <article class="stat-card success" role="article" aria-label="Today's sales statistic">
                     <div class="stat-icon" aria-hidden="true"><i class="fas fa-dollar-sign fa-icon-success" style="font-size: 2.5rem;"></i></div>
                     <div class="stat-content">
                         <h3 id="adminTodaySales" aria-live="polite">-</h3>
-                        <p>Today's Sales</p>
+                        <p data-i18n="dashboard.todaySales">Today's Sales</p>
                     </div>
                 </article>
                 <article class="stat-card info" role="article" aria-label="Today's purchases statistic">
                     <div class="stat-icon" aria-hidden="true"><i class="fas fa-shopping-cart fa-icon-info" style="font-size: 2.5rem;"></i></div>
                     <div class="stat-content">
                         <h3 id="adminTodayPurchases" aria-live="polite">-</h3>
-                        <p>Today's Purchases</p>
+                        <p data-i18n="dashboard.todayPurchases">Today's Purchases</p>
                     </div>
                 </article>
             </div>
             <div class="dashboard-sections">
                 <section class="section-card" aria-labelledby="low-stock-heading">
-                    <h2 id="low-stock-heading">Low Stock Alerts</h2>
+                    <h2 id="low-stock-heading" data-i18n="inventory.lowStock">Low Stock Alerts</h2>
                     <div id="adminLowStockList" class="alert-list" role="list" aria-live="polite" aria-label="Low stock items list"></div>
                 </section>
                 <section class="section-card" aria-labelledby="recent-sales-heading">
-                    <h2 id="recent-sales-heading">Recent Sales</h2>
+                    <h2 id="recent-sales-heading" data-i18n="dashboard.recentSales">Recent Sales</h2>
                     <div id="adminRecentSales" class="recent-list" role="list" aria-live="polite" aria-label="Recent sales list"></div>
                 </section>
                 <section class="section-card" aria-labelledby="recent-purchases-heading">
-                    <h2 id="recent-purchases-heading">Recent Purchases</h2>
+                    <h2 id="recent-purchases-heading" data-i18n="dashboard.recentPurchases">Recent Purchases</h2>
                     <div id="adminRecentPurchases" class="recent-list" role="list" aria-live="polite" aria-label="Recent purchases list"></div>
                 </section>
             </div>
@@ -607,6 +610,9 @@
         </div>
     </div>
 
+    <!-- Internationalization (i18n) -->
+    <script src="i18n.js"></script>
+    
     <script src="app.js"></script>
     <script src="dashboard.js"></script>
     <script src="clear-data.js"></script>

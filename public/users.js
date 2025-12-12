@@ -66,7 +66,7 @@ function openUserModal(userId = null) {
     const statusGroup = document.getElementById('statusGroup');
     
     if (userId) {
-        title.textContent = 'Edit User';
+        title.textContent = window.i18n ? window.i18n.t('users.editUser') : 'Edit User';
         passwordGroup.style.display = 'none';
         passwordGroup.querySelector('input').removeAttribute('required');
         statusGroup.style.display = 'block';
@@ -81,7 +81,7 @@ function openUserModal(userId = null) {
             document.getElementById('userStatus').value = user.is_active ? '1' : '0';
         }
     } else {
-        title.textContent = 'Add User';
+        title.textContent = window.i18n ? window.i18n.t('users.addUser') : 'Add User';
         passwordGroup.style.display = 'block';
         passwordGroup.querySelector('input').setAttribute('required', 'required');
         statusGroup.style.display = 'none';
@@ -210,7 +210,7 @@ async function handleChangePasswordSubmit(e) {
     
     // Validate passwords match
     if (newPassword !== confirmPassword) {
-        showNotification('Passwords do not match', 'error');
+        showNotification(window.i18n ? window.i18n.t('messages.passwordsDoNotMatch') : 'Passwords do not match', 'error');
         return;
     }
     
@@ -232,10 +232,11 @@ async function handleChangePasswordSubmit(e) {
             body: { newPassword }
         });
         
-        showNotification('Password changed successfully');
+        showNotification(window.i18n ? window.i18n.t('messages.passwordChanged') : 'Password changed successfully');
         closeChangePasswordModal();
     } catch (error) {
-        showNotification(error.message || 'Error changing password', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorChangingPassword') : 'Error changing password');
+        showNotification(errorMsg, 'error');
     } finally {
         hideFormLoading(form);
     }
@@ -250,12 +251,15 @@ async function loadBackups() {
     try {
         const backups = await apiRequest('/backups');
         renderBackupsTable(backups);
-        showNotification('Backup list refreshed', 'success');
+        showNotification(window.i18n ? window.i18n.t('messages.backupListRefreshed') : 'Backup list refreshed', 'success');
     } catch (error) {
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center">Error loading backups: ' + (error.message || 'Unknown error') + '</td></tr>';
+            const errorText = window.i18n ? window.i18n.t('messages.errorLoadingBackups') : 'Error loading backups';
+            const unknownError = window.i18n ? window.i18n.t('messages.unknownError') : 'Unknown error';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">' + errorText + ': ' + (error.message || unknownError) + '</td></tr>';
         }
-        showNotification('Error loading backups: ' + (error.message || 'Unknown error'), 'error');
+        const errorMsg = (window.i18n ? window.i18n.t('messages.errorLoadingBackups') : 'Error loading backups') + ': ' + (error.message || (window.i18n ? window.i18n.t('messages.unknownError') : 'Unknown error'));
+        showNotification(errorMsg, 'error');
     }
 }
 
@@ -265,7 +269,8 @@ function renderBackupsTable(backups) {
     if (!tbody) return;
     
     if (backups.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No backups found</td></tr>';
+        const noBackups = window.i18n ? window.i18n.t('messages.noBackupsFound') : 'No backups found';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center">' + noBackups + '</td></tr>';
         return;
     }
 
@@ -275,17 +280,22 @@ function renderBackupsTable(backups) {
             <td data-label="Size">${formatFileSize(backup.size)}</td>
             <td data-label="Created At">${formatDate(backup.created_at)}</td>
             <td data-label="Actions">
-                <button class="btn btn-sm btn-primary" onclick="restoreBackup('${backup.filename}')">Restore</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteBackup('${backup.filename}')">Delete</button>
+                <button class="btn btn-sm btn-primary" onclick="restoreBackup('${backup.filename}')">${window.i18n ? window.i18n.t('messages.restore') : 'Restore'}</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteBackup('${backup.filename}')">${window.i18n ? window.i18n.t('common.delete') : 'Delete'}</button>
             </td>
         </tr>
     `).join('');
 }
 
 function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return window.i18n ? window.i18n.t('messages.zeroBytes') : '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = window.i18n ? [
+        window.i18n.t('messages.bytes'),
+        window.i18n.t('messages.kb'),
+        window.i18n.t('messages.mb'),
+        window.i18n.t('messages.gb')
+    ] : ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
@@ -294,7 +304,7 @@ async function createBackup() {
     const messageDiv = document.getElementById('backupMessage');
     messageDiv.style.display = 'block';
     messageDiv.className = 'success-message';
-    messageDiv.textContent = 'Creating backup...';
+    messageDiv.textContent = window.i18n ? window.i18n.t('messages.creatingBackup') : 'Creating backup...';
     
     try {
         const result = await apiRequest('/backup', {
@@ -302,7 +312,8 @@ async function createBackup() {
         });
         
         messageDiv.className = 'success-message show';
-        messageDiv.textContent = `Backup created successfully: ${result.filename} (${formatFileSize(result.size)})`;
+        const successMsg = window.i18n ? window.i18n.t('messages.backupCreated') : 'Backup created successfully';
+        messageDiv.textContent = `${successMsg}: ${result.filename} (${formatFileSize(result.size)})`;
         
         setTimeout(() => {
             messageDiv.style.display = 'none';
@@ -311,7 +322,8 @@ async function createBackup() {
         await loadBackups();
     } catch (error) {
         messageDiv.className = 'error-message show';
-        messageDiv.textContent = error.message || 'Error creating backup';
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorCreatingBackup') : 'Error creating backup');
+        messageDiv.textContent = errorMsg;
     }
 }
 
@@ -330,7 +342,8 @@ async function restoreBackup(filename) {
             body: { filename }
         });
         
-        showNotification(`Database restored successfully from ${filename}. ${result.warning ? result.warning : ''}`, 'success');
+        const restoreMsg = window.i18n ? window.i18n.t('messages.backupRestored') : 'Database restored successfully';
+        showNotification(`${restoreMsg} from ${filename}. ${result.warning ? result.warning : ''}`, 'success');
         await loadBackups();
         
         setTimeout(() => {
@@ -339,7 +352,8 @@ async function restoreBackup(filename) {
             }
         }, 2000);
     } catch (error) {
-        showNotification(error.message || 'Error restoring backup', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorRestoringBackup') : 'Error restoring backup');
+        showNotification(errorMsg, 'error');
     }
 }
 
@@ -353,10 +367,11 @@ async function deleteBackup(filename) {
             method: 'DELETE'
         });
         
-        showNotification('Backup deleted successfully');
+        showNotification(window.i18n ? window.i18n.t('messages.backupDeleted') : 'Backup deleted successfully');
         await loadBackups();
     } catch (error) {
-        showNotification(error.message || 'Error deleting backup', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorDeletingBackup') : 'Error deleting backup');
+        showNotification(errorMsg, 'error');
     }
 }
 

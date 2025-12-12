@@ -52,6 +52,8 @@
       ]
     }
     </script>
+    <!-- Normalize CSS - Ensures consistent styling across browsers -->
+    <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="css/fontawesome/all.min.css">
     <!-- Mobile Optimizations -->
@@ -87,7 +89,7 @@
             <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
             <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
             <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
-            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-file-contract fa-icon-primary"></i> Terms and Service</a>
+            <a href="installment-payments.html" class="nav-link " id="installmentPaymentsLink" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Installment Payments</a>
             <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
             <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
             <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
@@ -155,7 +157,7 @@
 
     <!-- Invoice Modal -->
     <div id="invoiceModal" class="modal" role="dialog" aria-labelledby="invoiceModalTitle" aria-modal="true" aria-hidden="true">
-        <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-content large" style="max-width: 900px;">
             <button class="close" onclick="closeInvoiceModal()" aria-label="Close modal">&times;</button>
             <h2 id="invoiceModalTitle">Create Invoice</h2>
             <form id="invoiceForm" role="form" aria-label="Create or edit invoice form">
@@ -163,10 +165,10 @@
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div class="form-group">
-                        <label for="invoiceNumber">Invoice Number *</label>
+                        <label for="invoiceNumber">Invoice Number * <span style="font-size: 0.875rem; font-weight: normal; color: var(--text-secondary);">(Auto-generated)</span></label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="text" id="invoiceNumber" required aria-required="true" aria-label="Invoice number">
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="generateInvoiceNumber()" aria-label="Generate invoice number"><i class="fas fa-sync"></i></button>
+                            <input type="text" id="invoiceNumber" required aria-required="true" aria-label="Invoice number" placeholder="Will be generated automatically">
+                            <button type="button" class="btn btn-sm btn-secondary" id="regenerateInvoiceNumberBtn" onclick="generateInvoiceNumber()" aria-label="Regenerate invoice number" style="display: none;"><i class="fas fa-sync"></i></button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -305,6 +307,9 @@
         </div>
     </div>
 
+    <!-- Internationalization (i18n) -->
+    <script src="i18n.js"></script>
+    
     <script src="app.js"></script>
     <script src="shop-selector.js"></script>
     <script src="invoices.js"></script>

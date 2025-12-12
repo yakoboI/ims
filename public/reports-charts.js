@@ -38,9 +38,12 @@ function destroyChart(chartId) {
 }
 
 // Common Chart.js configuration
-const chartConfig = {
+// Check if mobile screen
+const isMobile = () => window.innerWidth <= 768;
+
+const getChartConfig = () => ({
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: !isMobile(), // Disable on mobile for better width utilization
     plugins: {
         legend: {
             position: 'top',
@@ -63,7 +66,10 @@ const chartConfig = {
             }
         }
     }
-};
+});
+
+// Keep chartConfig for backward compatibility (will use mobile-aware config)
+const chartConfig = getChartConfig();
 
 // Sales Trends Chart (Line Chart)
 async function loadSalesTrendsChart() {
@@ -125,7 +131,7 @@ async function loadSalesTrendsChart() {
                 }]
             },
             options: {
-                ...chartConfig,
+                ...getChartConfig(),
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -232,7 +238,7 @@ async function loadRevenueAnalysisChart() {
                 }]
             },
             options: {
-                ...chartConfig,
+                ...getChartConfig(),
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -378,8 +384,7 @@ async function loadCategoryPerformanceChart() {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: true,
+                ...getChartConfig(),
                 plugins: {
                     legend: {
                         position: 'right',
@@ -500,7 +505,7 @@ async function loadMonthlyComparisonChart() {
                 }]
             },
             options: {
-                ...chartConfig,
+                ...getChartConfig(),
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -650,7 +655,7 @@ async function loadProfitAnalysisChart() {
                 }]
             },
             options: {
-                ...chartConfig,
+                ...getChartConfig(),
                 scales: {
                     y: {
                         beginAtZero: true,

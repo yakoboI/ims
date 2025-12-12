@@ -22,19 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
     
-    // Setup sidebar navigation buttons
-    const sidebarNavButtons = document.querySelectorAll('.sidebar-nav-btn');
-    sidebarNavButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const reportType = btn.getAttribute('data-report');
-            showReport(reportType);
-            // Update sidebar active state
-            sidebarNavButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
-    });
-    
     // Setup filter button listeners
     const salesFilterBtn = document.getElementById('salesFilterBtn');
     if (salesFilterBtn) {
@@ -175,7 +162,7 @@ function showReport(reportType) {
                 loadRevenueAnalysisChart().catch(err => {
                     console.error('Error loading revenue analysis chart:', err);
                     if (typeof showNotification === 'function') {
-                        showNotification('Error loading revenue analysis chart', 'error');
+                        showNotification(window.i18n ? window.i18n.t('messages.errorLoadingChart') : 'Error loading revenue analysis chart', 'error');
                     }
                 });
             } else {
@@ -191,7 +178,7 @@ function showReport(reportType) {
                 loadCategoryPerformanceChart().catch(err => {
                     console.error('Error loading category performance chart:', err);
                     if (typeof showNotification === 'function') {
-                        showNotification('Error loading category performance chart', 'error');
+                        showNotification(window.i18n ? window.i18n.t('messages.errorLoadingChart') : 'Error loading category performance chart', 'error');
                     }
                 });
             } else {
@@ -595,18 +582,6 @@ function setupMobileSidebar() {
         }
     });
     
-    // Close sidebar when clicking on a nav button (mobile)
-    const sidebarNavButtons = document.querySelectorAll('.sidebar-nav-btn');
-    sidebarNavButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (window.innerWidth <= 768) {
-                setTimeout(() => {
-                    sidebar.classList.remove('mobile-open');
-                    document.body.style.overflow = '';
-                }, 300);
-            }
-        });
-    });
     
     // Handle window resize
     window.addEventListener('resize', updateCloseButton);

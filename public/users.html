@@ -23,6 +23,9 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Normalize CSS - Ensures consistent styling across browsers -->
+    <link rel="stylesheet" href="css/normalize.css">
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/all.min.css">
     
@@ -95,7 +98,7 @@
             <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
             <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
             <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
-            <a href="terms-and-service.html" class="nav-link " id="termsAndServiceLink" role="menuitem"><i class="fas fa-file-contract fa-icon-primary"></i> Terms and Service</a>
+            <a href="installment-payments.html" class="nav-link " id="installmentPaymentsLink" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Installment Payments</a>
             <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
             <a href="users.html" class="nav-link active" id="usersLink" style="display: none;" role="menuitem" aria-current="page"><i class="fas fa-users fa-icon-primary"></i> Users</a>
             <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
@@ -296,6 +299,9 @@
         </div>
     </div>
 
+    <!-- Internationalization (i18n) -->
+    <script src="i18n.js"></script>
+    
     <script src="app.js"></script>
     <script src="users.js"></script>
     <script src="shop-selector.js"></script>
@@ -348,7 +354,7 @@
             
             if (!username || !password) {
                 if (errorDiv) {
-                    errorDiv.textContent = 'Please enter both username and password';
+                    errorDiv.textContent = window.i18n ? window.i18n.t('messages.pleaseEnterBothUsernameAndPassword') : 'Please enter both username and password';
                     errorDiv.classList.add('show');
                 }
                 return;
@@ -372,7 +378,8 @@
                 
             } catch (error) {
                 if (errorDiv) {
-                    errorDiv.textContent = error.message || 'Login failed. Please check your credentials.';
+                    const loginErrorMsg = error.message || (window.i18n ? window.i18n.t('messages.loginFailed') : 'Login failed. Please check your credentials.');
+                    errorDiv.textContent = loginErrorMsg;
                     errorDiv.classList.add('show');
                 }
                 console.error('Login error:', error);
@@ -413,7 +420,8 @@
             if (!allowedRoles.includes(user.role)) {
                 // User doesn't have permission to access users.html
                 // Redirect to dashboard
-                showNotification('You do not have permission to access this page. Redirecting to dashboard...', 'info');
+                const noPermMsg = window.i18n ? window.i18n.t('messages.noPermission') + '. ' + window.i18n.t('messages.redirectingToDashboard') : 'You do not have permission to access this page. Redirecting to dashboard...';
+                showNotification(noPermMsg, 'info');
                 setTimeout(() => {
                     window.location.href = '/dashboard.html';
                 }, 2000);
@@ -438,7 +446,12 @@
             }
             
             // Show success message
-            showNotification(`Welcome, ${user.full_name || user.username}! Shop ID: ${user.shop_id || 'N/A'}, Role: ${user.role}`);
+            const welcomeMsg = window.i18n ? window.i18n.t('messages.welcomeUser', {
+                name: user.full_name || user.username,
+                shopId: user.shop_id || 'N/A',
+                role: user.role
+            }) : `Welcome, ${user.full_name || user.username}! Shop ID: ${user.shop_id || 'N/A'}, Role: ${user.role}`;
+            showNotification(welcomeMsg);
             
             // Load user management data if users.js is loaded
             if (typeof loadUsers === 'function') {

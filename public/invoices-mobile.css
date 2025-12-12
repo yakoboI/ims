@@ -1,5 +1,221 @@
 /* Invoices Page Mobile Optimizations */
 
+/* Apply Purchase Mobile Patterns */
+@media (max-width: 768px) {
+    .modal-content.large {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        margin: 0;
+        margin-top: 6rem !important; /* Shift modal down to avoid menu button (3rem + 3rem) */
+        border-radius: 0;
+        padding: 1rem;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Ensure modal is positioned correctly */
+    #invoiceModal .modal-content.large {
+        margin-top: 6rem !important;
+        padding-top: 1.5rem;
+    }
+    
+    /* Invoice Items List Mobile */
+    #invoiceItemsList {
+        margin: 1rem 0;
+    }
+    
+    /* Make invoice items responsive */
+    #invoiceItemsList > div {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 4px !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    #invoiceItemsList > div > div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    #invoiceItemsList > div > div:last-child {
+        flex-direction: row;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    #invoiceItemsList label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    #invoiceItemsList .form-control {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    #invoiceItemsList .btn {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Filters Mobile */
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .filters input[type="date"],
+    .filters select,
+    .filters input[type="text"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: unset !important;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        padding: 0.75rem;
+    }
+    
+    .filters .btn {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important;
+        touch-action: manipulation;
+    }
+}
+
+/* Filters Large Screen - All 6 elements in one row with equal dimensions */
+@media (min-width: 769px) {
+    .filters {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filters select,
+    .filters input[type="date"],
+    .filters input[type="text"],
+    .filters .filter-btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+        padding: 0.75rem;
+        font-size: 1rem;
+        min-height: 44px;
+    }
+    
+    .filters .filter-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    
+    /* Ensure all filter elements have equal dimensions */
+    .filters #invoiceStatusFilter,
+    .filters #invoiceDateFrom,
+    .filters #invoiceDateTo,
+    .filters #searchInvoices {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+}
+
+/* Invoice Modal Mobile Layout */
+@media (max-width: 768px) {
+    /* Form groups in grid layout - make them stack on mobile */
+    #invoiceModal .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    /* Grid layouts become single column */
+    #invoiceModal [style*="grid-template-columns"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    
+    /* Form inputs */
+    #invoiceModal .form-group input,
+    #invoiceModal .form-group select,
+    #invoiceModal .form-group textarea {
+        width: 100%;
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+    
+    /* Date inputs */
+    #invoiceModal input[type="date"] {
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+    }
+    
+    /* Form actions */
+    #invoiceModal .form-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    
+    #invoiceModal .form-actions .btn {
+        width: 100%;
+        min-height: 48px;
+        font-size: 16px !important;
+        touch-action: manipulation;
+    }
+    
+    /* Invoice Number input with button */
+    #invoiceModal #invoiceNumber {
+        flex: 1;
+        min-height: 44px;
+        font-size: 16px !important;
+    }
+    
+    #invoiceModal .btn-sm {
+        min-height: 44px;
+        min-width: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* Page Header Mobile */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0;
+    }
+    
+    .page-header .btn {
+        width: 100%;
+        min-height: 48px;
+    }
+    
+    .header-actions {
+        width: 100%;
+    }
+}
+
 /* Invoice List Mobile */
 @media (max-width: 768px) {
     .data-table-card {
@@ -35,6 +251,153 @@
         min-height: 44px;
         touch-action: manipulation;
     }
+    
+    /* Make invoice table responsive - Use card layout to avoid horizontal overflow */
+    .table-container {
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        padding: 0 !important;
+        background: transparent !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Remove min-width to allow card layout */
+    .data-table {
+        min-width: auto !important;
+        width: 100% !important;
+        display: block !important;
+    }
+    
+    /* Ensure table header is hidden on mobile */
+    .data-table thead {
+        display: none !important;
+    }
+    
+    /* Ensure table body uses block layout */
+    .data-table tbody {
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    /* Ensure table rows are displayed as cards */
+    .data-table tbody tr {
+        display: block !important;
+        width: 100% !important;
+        margin-bottom: 1rem !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 0 !important;
+        padding: 1rem !important;
+        background: var(--card-bg) !important;
+        box-shadow: var(--shadow) !important;
+    }
+    
+    /* Ensure table cells use flex layout with labels */
+    .data-table td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 0.875rem 0 !important;
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        text-align: right !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    .data-table td:last-child {
+        border-bottom: none !important;
+    }
+    
+    /* Ensure labels are shown */
+    .data-table td::before {
+        content: attr(data-label) ":" !important;
+        font-weight: 700 !important;
+        text-align: left !important;
+        color: var(--primary-color) !important;
+        margin-right: 1rem !important;
+        flex-shrink: 0 !important;
+        min-width: 130px !important;
+        display: block !important;
+        font-size: 0.875rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    /* Actions column on mobile */
+    .data-table td[data-label="Actions"] {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        align-items: stretch !important;
+        margin-top: 0.5rem !important;
+        padding-top: 0.75rem !important;
+        border-top: 1px solid var(--border-color) !important;
+    }
+    
+    .data-table td[data-label="Actions"]::before {
+        display: none !important;
+    }
+    
+    .data-table td[data-label="Actions"] .btn {
+        width: 100% !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
+        margin: 0.25rem 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0.75rem 1rem !important;
+    }
+}
+
+/* Ensure Action Column is Visible on Large Screens */
+@media (min-width: 769px) {
+    /* Ensure table container allows horizontal scroll if needed */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+    
+    /* Ensure action column header is visible */
+    .data-table th[data-column="actions"] {
+        display: table-cell !important;
+        visibility: visible !important;
+        width: auto;
+        min-width: 150px;
+        white-space: nowrap;
+    }
+    
+    /* Ensure action column cells are visible */
+    .data-table td[data-label="Actions"] {
+        display: table-cell !important;
+        visibility: visible !important;
+        width: auto;
+        min-width: 150px;
+        white-space: nowrap;
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Ensure action buttons are displayed inline */
+    .data-table td[data-label="Actions"] .btn {
+        display: inline-flex !important;
+        width: auto !important;
+        min-width: auto !important;
+        margin: 0 0.25rem;
+        vertical-align: middle;
+    }
+    
+    /* Prevent action column from being hidden */
+    .data-table th:last-child,
+    .data-table td:last-child {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure table shows all columns */
+    .data-table {
+        table-layout: auto;
+        width: 100%;
+    }
 }
 
 /* Invoice Preview Mobile */
@@ -63,6 +426,31 @@
         font-size: 1rem;
         margin-top: 1rem;
     }
+    
+    /* View Invoice Modal */
+    #viewInvoiceModal .modal-content {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        margin: 0;
+        margin-top: 6rem !important;
+        border-radius: 0;
+        padding: 1rem;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #viewInvoiceModal .form-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    #viewInvoiceModal .form-actions .btn {
+        width: 100%;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
 }
 
 /* PDF Mobile */
@@ -86,21 +474,13 @@
     }
 }
 
-/* Page Header Mobile */
-@media (max-width: 768px) {
-    .page-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
+/* Very Small Screens */
+@media (max-width: 480px) {
+    .modal-content.large {
+        padding: 0.75rem;
     }
     
-    .page-header h1 {
-        font-size: 1.25rem;
-    }
-    
-    .page-header .btn {
-        width: 100%;
-        min-height: 48px;
+    .filters {
+        gap: 0.5rem;
     }
 }
-

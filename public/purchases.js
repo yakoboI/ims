@@ -77,8 +77,8 @@ async function loadPurchases() {
             id: purchase.id,
             order_no: `ORDER-${purchase.id}`,
             supplier_name: purchase.supplier_name || '-',
-            created_on: purchase.purchase_date,
-            delivery_date: purchase.delivery_date || purchase.purchase_date,
+            created_on: purchase.purchase_date || purchase.created_at,
+            delivery_date: purchase.delivery_date || purchase.purchase_date || purchase.created_at,
             status: purchase.status || 'received', // Default to 'received'
             total_amount: purchase.total_amount,
             created_by_name: purchase.created_by_name || '-',
@@ -90,7 +90,7 @@ async function loadPurchases() {
         applyFiltersAndRender();
     } catch (error) {
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading purchase orders', 'error');
+        showNotification('Error loading purchase orders: ' + (error.message || error), 'error');
         allOrders = [];
         filteredOrders = [];
         renderOrdersTable();
@@ -386,13 +386,15 @@ async function handlePurchaseSubmit(e) {
     e.preventDefault();
     
     if (purchaseItems.length === 0) {
-        showNotification('Please add at least one item', 'error');
+        const msg = window.i18n ? window.i18n.t('messages.pleaseAddAtLeastOneItem') : 'Please add at least one item';
+        showNotification(msg, 'error');
         return;
     }
     
     const supplierId = document.getElementById('purchaseSupplier').value;
     if (!supplierId) {
-        showNotification('Please select a supplier', 'error');
+        const msg = window.i18n ? window.i18n.t('messages.pleaseSelectSupplier') : 'Please select a supplier';
+        showNotification(msg, 'error');
         return;
     }
     
@@ -417,7 +419,7 @@ async function handlePurchaseSubmit(e) {
             body: purchaseData
         });
         
-        showNotification('Purchase order created successfully');
+        showNotification(window.i18n ? window.i18n.t('messages.purchaseCreated') : 'Purchase order created successfully');
         closeNewPurchaseModal();
         
         // Notify product flow of purchase (affects stock)
@@ -427,10 +429,22 @@ async function handlePurchaseSubmit(e) {
             });
         }
         
+        // Reset pagination and search to show the new purchase
+        currentPage = 1;
+        searchQuery = '';
+        const searchInput = document.getElementById('searchOrders');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         await loadPurchases();
         await loadItems();
     } catch (error) {
-        showNotification(error.message || 'Error creating purchase order', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorCreating', { item: window.i18n.t('purchases.title') }) : 'Error creating purchase order');
+        showNotification(errorMsg, 'error');
     }
 }
 
@@ -488,17 +502,284 @@ function closeViewPurchaseModal() {
     closeModal('viewPurchaseModal');
 }
 
-function downloadOrder(orderId) {
-    viewPurchase(orderId);
-    // In a real implementation, this would generate and download a PDF
-    showNotification('Order download feature coming soon', 'info');
+async function downloadOrder(orderId) {
+    try {
+        const purchase = await apiRequest(`/purchases/${orderId}`);
+        const items = Array.isArray(purchase.items) ? purchase.items : JSON.parse(purchase.items || '[]');
+        
+        // Check if jsPDF is available
+        let jsPDF;
+        if (typeof window.jspdf !== 'undefined') {
+            jsPDF = window.jspdf.jsPDF;
+        } else if (typeof window.jsPDF !== 'undefined') {
+            jsPDF = window.jsPDF;
+        } else {
+            showNotification('PDF library not loaded. Please refresh the page.', 'error');
+            return;
+        }
+        
+        const doc = new jsPDF();
+        
+        // Company/Header Information
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('PURCHASE ORDER', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        
+        // Purchase Order Details
+        let yPos = 35;
+        doc.setFont(undefined, 'bold');
+        doc.text('Order Number:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(`ORDER-${purchase.id}`, 70, yPos);
+        
+        yPos += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text('Date:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(formatDate(purchase.purchase_date), 70, yPos);
+        
+        yPos += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text('Supplier:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(purchase.supplier_name || '-', 70, yPos);
+        
+        if (purchase.delivery_date) {
+            yPos += 7;
+            doc.setFont(undefined, 'bold');
+            doc.text('Delivery Date:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(formatDate(purchase.delivery_date), 70, yPos);
+        }
+        
+        // Items Table
+        yPos += 15;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        
+        // Table Header
+        doc.setFillColor(240, 240, 240);
+        doc.rect(20, yPos - 5, 170, 8, 'F');
+        doc.text('Item', 22, yPos);
+        doc.text('Qty', 100, yPos);
+        doc.text('Unit Price', 120, yPos);
+        doc.text('Total', 160, yPos);
+        
+        yPos += 5;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, yPos, 190, yPos);
+        
+        // Table Rows
+        doc.setFont(undefined, 'normal');
+        items.forEach((item, index) => {
+            yPos += 7;
+            if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+            }
+            doc.text(item.item_name || '-', 22, yPos);
+            doc.text(item.quantity.toString(), 100, yPos);
+            doc.text(formatCurrency(item.unit_price), 120, yPos);
+            doc.text(formatCurrency(item.total_price), 160, yPos);
+        });
+        
+        // Total
+        yPos += 10;
+        doc.line(20, yPos, 190, yPos);
+        yPos += 8;
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Amount:', 120, yPos);
+        doc.setFontSize(12);
+        doc.text(formatCurrency(purchase.total_amount), 160, yPos);
+        
+        // Notes
+        if (purchase.notes) {
+            yPos += 15;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Notes:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            const notesLines = doc.splitTextToSize(purchase.notes, 170);
+            notesLines.forEach((line, index) => {
+                yPos += 6;
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.text(line, 20, yPos);
+            });
+        }
+        
+        // Footer
+        const pageCount = doc.internal.pages.length - 1;
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+            doc.text(`Generated on ${new Date().toLocaleString()}`, 105, 290, { align: 'center' });
+        }
+        
+        // Download PDF
+        doc.save(`Purchase-Order-${purchase.id}.pdf`);
+        showNotification('Purchase order downloaded successfully', 'success');
+    } catch (error) {
+        showNotification(error.message || 'Error downloading purchase order', 'error');
+    }
 }
 
-function downloadPI(orderId) {
-    // Proforma Invoice download
-    viewPurchase(orderId);
-    // In a real implementation, this would generate and download a Proforma Invoice PDF
-    showNotification('Proforma Invoice download feature coming soon', 'info');
+async function downloadPI(orderId) {
+    try {
+        const purchase = await apiRequest(`/purchases/${orderId}`);
+        const items = Array.isArray(purchase.items) ? purchase.items : JSON.parse(purchase.items || '[]');
+        
+        // Check if jsPDF is available
+        let jsPDF;
+        if (typeof window.jspdf !== 'undefined') {
+            jsPDF = window.jspdf.jsPDF;
+        } else if (typeof window.jsPDF !== 'undefined') {
+            jsPDF = window.jsPDF;
+        } else {
+            showNotification('PDF library not loaded. Please refresh the page.', 'error');
+            return;
+        }
+        
+        const doc = new jsPDF();
+        
+        // Company/Header Information
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bold');
+        doc.text('PROFORMA INVOICE', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'italic');
+        doc.text('This is a proforma invoice and does not constitute a request for payment', 105, 28, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        
+        // Invoice Details
+        let yPos = 40;
+        doc.setFont(undefined, 'bold');
+        doc.text('Invoice Number:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(`PI-${purchase.id}`, 70, yPos);
+        
+        yPos += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text('Date:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(formatDate(purchase.purchase_date), 70, yPos);
+        
+        yPos += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text('Supplier:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(purchase.supplier_name || '-', 70, yPos);
+        
+        if (purchase.delivery_date) {
+            yPos += 7;
+            doc.setFont(undefined, 'bold');
+            doc.text('Expected Delivery:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(formatDate(purchase.delivery_date), 70, yPos);
+        }
+        
+        // Items Table
+        yPos += 15;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        
+        // Table Header
+        doc.setFillColor(240, 240, 240);
+        doc.rect(20, yPos - 5, 170, 8, 'F');
+        doc.text('Description', 22, yPos);
+        doc.text('Qty', 100, yPos);
+        doc.text('Unit Price', 120, yPos);
+        doc.text('Amount', 160, yPos);
+        
+        yPos += 5;
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, yPos, 190, yPos);
+        
+        // Table Rows
+        doc.setFont(undefined, 'normal');
+        items.forEach((item, index) => {
+            yPos += 7;
+            if (yPos > 270) {
+                doc.addPage();
+                yPos = 20;
+            }
+            doc.text(item.item_name || '-', 22, yPos);
+            doc.text(item.quantity.toString(), 100, yPos);
+            doc.text(formatCurrency(item.unit_price), 120, yPos);
+            doc.text(formatCurrency(item.total_price), 160, yPos);
+        });
+        
+        // Subtotal and Total
+        yPos += 10;
+        doc.line(20, yPos, 190, yPos);
+        yPos += 8;
+        doc.setFont(undefined, 'bold');
+        doc.text('Subtotal:', 120, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(formatCurrency(purchase.total_amount), 160, yPos);
+        
+        yPos += 7;
+        doc.setFont(undefined, 'bold');
+        doc.text('Total Amount:', 120, yPos);
+        doc.setFontSize(12);
+        doc.text(formatCurrency(purchase.total_amount), 160, yPos);
+        
+        // Payment Terms
+        yPos += 15;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text('Payment Terms:', 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text('As per agreement', 70, yPos);
+        
+        // Notes
+        if (purchase.notes) {
+            yPos += 15;
+            doc.setFont(undefined, 'bold');
+            doc.text('Additional Notes:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            const notesLines = doc.splitTextToSize(purchase.notes, 170);
+            notesLines.forEach((line, index) => {
+                yPos += 6;
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.text(line, 20, yPos);
+            });
+        }
+        
+        // Footer
+        yPos += 10;
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'italic');
+        doc.text('This is a proforma invoice for information purposes only.', 105, yPos, { align: 'center' });
+        yPos += 5;
+        doc.text('It is not a tax invoice and does not represent a demand for payment.', 105, yPos, { align: 'center' });
+        
+        const pageCount = doc.internal.pages.length - 1;
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+            doc.text(`Generated on ${new Date().toLocaleString()}`, 105, 290, { align: 'center' });
+        }
+        
+        // Download PDF
+        doc.save(`Proforma-Invoice-${purchase.id}.pdf`);
+        showNotification('Proforma invoice downloaded successfully', 'success');
+    } catch (error) {
+        showNotification(error.message || 'Error downloading proforma invoice', 'error');
+    }
 }
 
 function openSupplierModal() {

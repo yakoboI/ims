@@ -29,16 +29,21 @@ async function loadSuppliers() {
         renderSuppliersTable(suppliers);
     } catch (error) {
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading suppliers', 'error');
+        const errorMsg = window.i18n ? window.i18n.t('messages.errorLoadingSuppliers') : 'Error loading suppliers';
+        showNotification(errorMsg, 'error');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Error loading suppliers</td></tr>';
+            const errorText = window.i18n ? window.i18n.t('messages.errorLoadingSuppliers') : 'Error loading suppliers';
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center">${errorText}</td></tr>`;
         }
         if (suppliers.length === 0 && tableContainer) {
+            const emptyTitle = window.i18n ? window.i18n.t('messages.noSuppliers') : 'No Suppliers';
+            const emptyMessage = window.i18n ? window.i18n.t('messages.noSuppliersMessage') : 'No suppliers have been added yet.';
+            const emptyAction = window.i18n ? window.i18n.t('suppliers.addSupplier') : 'Add Supplier';
             showEmptyState(tableContainer, EmptyStates.suppliers || {
                 icon: '<i class="fas fa-truck fa-icon-primary" style="font-size: 4rem;"></i>',
-                title: 'No Suppliers',
-                message: 'No suppliers have been added yet.',
-                actionLabel: 'Add Supplier',
+                title: emptyTitle,
+                message: emptyMessage,
+                actionLabel: emptyAction,
                 actionCallback: () => openSupplierModal()
             });
         }
@@ -53,11 +58,14 @@ function renderSuppliersTable(suppliersList) {
     
     if (suppliersList.length === 0) {
         tbody.innerHTML = '';
+        const emptyTitle = window.i18n ? window.i18n.t('messages.noSuppliers') : 'No Suppliers';
+        const emptyMessage = window.i18n ? window.i18n.t('messages.noSuppliersMessage') : 'No suppliers have been added yet.';
+        const emptyAction = window.i18n ? window.i18n.t('suppliers.addSupplier') : 'Add Supplier';
         if (tableContainer) showEmptyState(tableContainer, EmptyStates.suppliers || {
             icon: '<i class="fas fa-truck fa-icon-primary" style="font-size: 4rem;"></i>',
-            title: 'No Suppliers',
-            message: 'No suppliers have been added yet.',
-            actionLabel: 'Add Supplier',
+            title: emptyTitle,
+            message: emptyMessage,
+            actionLabel: emptyAction,
             actionCallback: () => openSupplierModal()
         });
         return;
@@ -102,7 +110,7 @@ async function openSupplierModal(supplierId = null) {
     }
     
     if (supplierId) {
-        title.textContent = 'Edit Supplier';
+        title.textContent = window.i18n ? window.i18n.t('suppliers.editSupplier') : 'Edit Supplier';
         const supplier = suppliers.find(s => s.id === supplierId);
         if (supplier) {
             const supplierIdEl = document.getElementById('supplierId');
@@ -120,7 +128,7 @@ async function openSupplierModal(supplierId = null) {
             if (supplierAddressEl) supplierAddressEl.value = supplier.address || '';
         }
     } else {
-        title.textContent = 'Add Supplier';
+        title.textContent = window.i18n ? window.i18n.t('suppliers.addSupplier') : 'Add Supplier';
         form.reset();
         const supplierIdEl = document.getElementById('supplierId');
         if (supplierIdEl) supplierIdEl.value = '';
@@ -183,19 +191,20 @@ async function handleSupplierSubmit(e) {
                 method: 'PUT',
                 body: supplierData
             });
-            showNotification('Supplier updated successfully');
+            showNotification(window.i18n ? window.i18n.t('messages.supplierUpdated') : 'Supplier updated successfully');
         } else {
             await apiRequest('/suppliers', {
                 method: 'POST',
                 body: supplierData
             });
-            showNotification('Supplier added successfully');
+            showNotification(window.i18n ? window.i18n.t('messages.supplierCreated') : 'Supplier created successfully');
         }
         
         closeSupplierModal();
         await loadSuppliers();
     } catch (error) {
-        showNotification(error.message || 'Error saving supplier', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorSaving', { item: window.i18n.t('suppliers.title') }) : 'Error saving supplier');
+        showNotification(errorMsg, 'error');
     } finally {
         hideFormLoading(form);
     }

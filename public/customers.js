@@ -26,16 +26,21 @@ async function loadCustomers() {
         renderCustomersTable(customers);
     } catch (error) {
         if (tableContainer) hideTableSkeleton(tableContainer);
-        showNotification('Error loading customers', 'error');
+        const errorMsg = window.i18n ? window.i18n.t('messages.errorLoadingCustomers') : 'Error loading customers';
+        showNotification(errorMsg, 'error');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Error loading customers</td></tr>';
+            const errorText = window.i18n ? window.i18n.t('messages.errorLoadingCustomers') : 'Error loading customers';
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center">${errorText}</td></tr>`;
         }
         if (customers.length === 0 && tableContainer) {
+            const emptyTitle = window.i18n ? window.i18n.t('messages.noCustomers') : 'No Customers';
+            const emptyMessage = window.i18n ? window.i18n.t('messages.noCustomersMessage') : 'No customers have been added yet.';
+            const emptyAction = window.i18n ? window.i18n.t('customers.addCustomer') : 'Add Customer';
             showEmptyState(tableContainer, EmptyStates.customers || {
                 icon: '<i class="fas fa-users fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'No Customers',
-                message: 'No customers have been added yet.',
-                actionLabel: 'Add Customer',
+                title: emptyTitle,
+                message: emptyMessage,
+                actionLabel: emptyAction,
                 actionCallback: () => openCustomerModal()
             });
         }
@@ -50,11 +55,14 @@ function renderCustomersTable(customersList) {
     
     if (customersList.length === 0) {
         tbody.innerHTML = '';
+        const emptyTitle = window.i18n ? window.i18n.t('messages.noCustomers') : 'No Customers';
+        const emptyMessage = window.i18n ? window.i18n.t('messages.noCustomersMessage') : 'No customers have been added yet.';
+        const emptyAction = window.i18n ? window.i18n.t('customers.addCustomer') : 'Add Customer';
         if (tableContainer) showEmptyState(tableContainer, EmptyStates.customers || {
             icon: '<i class="fas fa-users fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'No Customers',
-            message: 'No customers have been added yet.',
-            actionLabel: 'Add Customer',
+            title: emptyTitle,
+            message: emptyMessage,
+            actionLabel: emptyAction,
             actionCallback: () => openCustomerModal()
         });
         return;
@@ -94,7 +102,7 @@ async function openCustomerModal(customerId = null) {
     }
     
     if (customerId) {
-        title.textContent = 'Edit Customer';
+        title.textContent = window.i18n ? window.i18n.t('customers.editCustomer') : 'Edit Customer';
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
             const customerIdEl = document.getElementById('customerId');
@@ -110,7 +118,7 @@ async function openCustomerModal(customerId = null) {
             if (customerAddressEl) customerAddressEl.value = customer.address || '';
         }
     } else {
-        title.textContent = 'Add Customer';
+        title.textContent = window.i18n ? window.i18n.t('customers.addCustomer') : 'Add Customer';
         form.reset();
         const customerIdEl = document.getElementById('customerId');
         if (customerIdEl) customerIdEl.value = '';
@@ -171,19 +179,20 @@ async function handleCustomerSubmit(e) {
                 method: 'PUT',
                 body: customerData
             });
-            showNotification('Customer updated successfully');
+            showNotification(window.i18n ? window.i18n.t('messages.customerUpdated') : 'Customer updated successfully');
         } else {
             await apiRequest('/customers', {
                 method: 'POST',
                 body: customerData
             });
-            showNotification('Customer added successfully');
+            showNotification(window.i18n ? window.i18n.t('messages.customerCreated') : 'Customer created successfully');
         }
         
         closeCustomerModal();
         await loadCustomers();
     } catch (error) {
-        showNotification(error.message || 'Error saving customer', 'error');
+        const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.errorSaving', { item: window.i18n.t('customers.title') }) : 'Error saving customer');
+        showNotification(errorMsg, 'error');
     } finally {
         hideFormLoading(form);
     }
@@ -196,7 +205,8 @@ function editCustomer(customerId) {
 async function deleteCustomer(customerId) {
     const customer = customers.find(c => c.id === customerId);
     if (!customer) {
-        showNotification('Customer not found', 'error');
+        const notFoundMsg = window.i18n ? window.i18n.t('messages.errorLoading', { item: window.i18n.t('customers.title') }) : 'Customer not found';
+        showNotification(notFoundMsg, 'error');
         return;
     }
     

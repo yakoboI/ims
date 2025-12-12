@@ -247,23 +247,76 @@ async function openReturnReceiptModal(saleId) {
             <div><strong>Total Amount:</strong> ${formatCurrency(sale.total_amount)}</div>
         `;
         
-        // Display items for return selection
+        // Display items for return selection in a structured table
         if (sale.items && sale.items.length > 0) {
-            returnItemsList.innerHTML = sale.items.map(item => `
-                <div style="display: flex; align-items: center; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; margin-bottom: 0.5rem;">
-                    <input type="checkbox" id="returnItem_${item.item_id}" data-item-id="${item.item_id}" data-item-name="${escapeHtml(item.item_name)}" data-unit-price="${item.unit_price}" data-item-quantity="${item.quantity}" style="margin-right: 1rem;" onchange="updateReturnItems()">
-                    <div style="flex: 1;">
-                        <strong>${escapeHtml(item.item_name)}</strong><br>
-                        <small style="color: var(--text-secondary);">Quantity: ${item.quantity} × ${formatCurrency(item.unit_price)} = ${formatCurrency(item.total_price)}</small>
-                    </div>
-                    <div id="returnQty_${item.item_id}" style="display: none; margin-left: 1rem;">
-                        <label>Qty:</label>
-                        <input type="number" min="1" max="${item.quantity}" value="${item.quantity}" style="width: 80px; margin-left: 0.5rem;" onchange="updateReturnItems()">
-                    </div>
+            const itemsHTML = sale.items.map(item => {
+                const itemTotal = (item.quantity || 0) * (item.unit_price || 0);
+                return `
+                    <tr>
+                        <td style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="returnItem_${item.item_id}" 
+                                   data-item-id="${item.item_id}" 
+                                   data-item-name="${escapeHtml(item.item_name)}" 
+                                   data-unit-price="${item.unit_price || 0}" 
+                                   data-item-quantity="${item.quantity || 0}" 
+                                   onchange="updateReturnItems()"
+                                   style="cursor: pointer;">
+                        </td>
+                        <td><strong>${escapeHtml(item.item_name || 'N/A')}</strong></td>
+                        <td class="text-right" style="width: 100px;">
+                            <div id="returnQty_${item.item_id}" style="display: none;">
+                                <input type="number" 
+                                       min="1" 
+                                       max="${item.quantity || 0}" 
+                                       value="${item.quantity || 0}" 
+                                       class="form-control" 
+                                       style="width: 80px; text-align: right; padding: 0.375rem;"
+                                       onchange="updateReturnItems()"
+                                       aria-label="Return quantity for ${escapeHtml(item.item_name)}">
+                            </div>
+                            <span id="returnQtyDisplay_${item.item_id}">${item.quantity || 0}</span>
+                        </td>
+                        <td class="text-right" style="width: 120px;">${formatCurrency(item.unit_price || 0)}</td>
+                        <td class="text-right" style="width: 120px;">
+                            <strong id="returnItemTotal_${item.item_id}">${formatCurrency(itemTotal)}</strong>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Calculate total
+            const grandTotal = sale.items.reduce((sum, item) => {
+                return sum + ((item.quantity || 0) * (item.unit_price || 0));
+            }, 0);
+            
+            returnItemsList.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; margin-bottom: 1rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">Select</th>
+                                <th>Item Name</th>
+                                <th class="text-right" style="width: 100px;">Quantity</th>
+                                <th class="text-right" style="width: 120px;">Unit Price</th>
+                                <th class="text-right" style="width: 120px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML}
+                            <tr style="background: var(--bg-secondary); font-weight: 600;">
+                                <td colspan="4" class="text-right"><strong>Original Total:</strong></td>
+                                <td class="text-right"><strong>${formatCurrency(grandTotal)}</strong></td>
+                            </tr>
+                            <tr id="returnTotalRow" style="display: none; background: #fee2e2; font-weight: 600;">
+                                <td colspan="4" class="text-right"><strong style="color: var(--danger-color);">Return Total:</strong></td>
+                                <td class="text-right"><strong id="returnTotalAmount" style="color: var(--danger-color);">${formatCurrency(0)}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            `).join('');
+            `;
         } else {
-            returnItemsList.innerHTML = '<p style="color: var(--text-secondary);">No items found for this sale.</p>';
+            returnItemsList.innerHTML = '<p style="color: var(--text-secondary); padding: 1rem; text-align: center;">No items found for this sale.</p>';
         }
         
         // Reset form
@@ -281,13 +334,63 @@ async function openReturnReceiptModal(saleId) {
 
 function updateReturnItems() {
     const checkboxes = document.querySelectorAll('#returnItemsList input[type="checkbox"]');
+    let returnTotal = 0;
+    let hasSelectedItems = false;
+    
     checkboxes.forEach(checkbox => {
         const itemId = checkbox.dataset.itemId;
         const qtyDiv = document.getElementById(`returnQty_${itemId}`);
-        if (qtyDiv) {
-            qtyDiv.style.display = checkbox.checked ? 'block' : 'none';
+        const qtyDisplay = document.getElementById(`returnQtyDisplay_${itemId}`);
+        const qtyInput = qtyDiv ? qtyDiv.querySelector('input[type="number"]') : null;
+        const itemTotalEl = document.getElementById(`returnItemTotal_${itemId}`);
+        
+        if (checkbox.checked) {
+            hasSelectedItems = true;
+            // Show quantity input, hide display
+            if (qtyDiv) qtyDiv.style.display = 'block';
+            if (qtyDisplay) qtyDisplay.style.display = 'none';
+            
+            // Get quantity and calculate total
+            const quantity = qtyInput ? parseInt(qtyInput.value) || 0 : parseInt(checkbox.dataset.itemQuantity || '0');
+            const unitPrice = parseFloat(checkbox.dataset.unitPrice || '0');
+            const itemTotal = quantity * unitPrice;
+            returnTotal += itemTotal;
+            
+            // Update item total display
+            if (itemTotalEl) {
+                itemTotalEl.textContent = formatCurrency(itemTotal);
+                itemTotalEl.style.color = 'var(--danger-color)';
+            }
+        } else {
+            // Hide quantity input, show display
+            if (qtyDiv) qtyDiv.style.display = 'none';
+            if (qtyDisplay) qtyDisplay.style.display = 'inline';
+            
+            // Reset item total to original
+            const originalQty = parseInt(checkbox.dataset.itemQuantity || '0');
+            const unitPrice = parseFloat(checkbox.dataset.unitPrice || '0');
+            const originalTotal = originalQty * unitPrice;
+            
+            if (itemTotalEl) {
+                itemTotalEl.textContent = formatCurrency(originalTotal);
+                itemTotalEl.style.color = '';
+            }
         }
     });
+    
+    // Update return total row
+    const returnTotalRow = document.getElementById('returnTotalRow');
+    const returnTotalAmount = document.getElementById('returnTotalAmount');
+    
+    if (returnTotalRow && returnTotalAmount) {
+        if (hasSelectedItems) {
+            returnTotalRow.style.display = '';
+            returnTotalAmount.textContent = formatCurrency(returnTotal);
+        } else {
+            returnTotalRow.style.display = 'none';
+            returnTotalAmount.textContent = formatCurrency(0);
+        }
+    }
 }
 
 function closeReturnReceiptModal() {
@@ -374,14 +477,18 @@ async function handleReturnReceiptSubmit(e) {
         const itemId = checkbox.dataset.itemId;
         const qtyDiv = document.getElementById(`returnQty_${itemId}`);
         const qtyInput = qtyDiv ? qtyDiv.querySelector('input[type="number"]') : null;
-        const quantity = qtyInput ? parseInt(qtyInput.value) : parseInt(checkbox.dataset.itemQuantity || '1');
-        const unitPrice = parseFloat(checkbox.dataset.unitPrice);
+        const quantity = qtyInput ? parseInt(qtyInput.value) || 0 : parseInt(checkbox.dataset.itemQuantity || '0');
+        const unitPrice = parseFloat(checkbox.dataset.unitPrice || '0');
         
-        selectedItems.push({
-            item_id: parseInt(itemId),
-            quantity: quantity,
-            unit_price: unitPrice
-        });
+        // Only add if quantity is valid
+        if (quantity > 0 && unitPrice >= 0) {
+            selectedItems.push({
+                item_id: parseInt(itemId),
+                quantity: quantity,
+                unit_price: unitPrice,
+                total_price: quantity * unitPrice
+            });
+        }
     });
     
     // Show loading state

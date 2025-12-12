@@ -37,6 +37,9 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Normalize CSS - Ensures consistent styling across browsers -->
+    <link rel="stylesheet" href="css/normalize.css">
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/all.min.css">
     
@@ -65,7 +68,7 @@
             </header>
             <form id="loginForm" role="form" aria-label="Login form">
                 <div class="form-group">
-                    <label for="username">Username</label>
+                    <label for="username" data-i18n="login.username">Username</label>
                     <input 
                         type="text" 
                         id="username" 
@@ -73,10 +76,11 @@
                         required 
                         autocomplete="username"
                         aria-required="true"
-                        aria-label="Enter your username">
+                        aria-label="Enter your username"
+                        data-i18n-placeholder="login.username">
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password" data-i18n="login.password">Password</label>
                     <input 
                         type="password" 
                         id="password" 
@@ -84,13 +88,17 @@
                         required 
                         autocomplete="current-password"
                         aria-required="true"
-                        aria-label="Enter your password">
+                        aria-label="Enter your password"
+                        data-i18n-placeholder="login.password">
                 </div>
-                <button type="submit" class="btn btn-primary" aria-label="Submit login form">Login</button>
+                <button type="submit" class="btn btn-primary" aria-label="Submit login form" data-i18n="login.login">Login</button>
                 <div id="loginError" class="error-message" role="alert" aria-live="polite" aria-atomic="true"></div>
             </form>
         </div>
     </main>
+    <!-- Internationalization (i18n) -->
+    <script src="i18n.js"></script>
+    
     <script src="app.js"></script>
 </body>
 </html>

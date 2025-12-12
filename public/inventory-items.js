@@ -30,7 +30,7 @@ function renderBarcode(canvas, value) {
             container.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
                     <span style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">N/A</span>
-                    <small style="color: var(--text-secondary); font-size: 10px;">No barcode</small>
+                    <small style="color: var(--text-secondary); font-size: 10px;">${window.i18n ? window.i18n.t('messages.noBarcode') : 'No barcode'}</small>
                 </div>
             `;
         }
@@ -53,7 +53,7 @@ function renderBarcode(canvas, value) {
                     container.innerHTML = `
                         <div style="display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
                             <span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${value}</span>
-                            <small style="color: var(--warning-color); font-size: 10px;">Library not loaded</small>
+                            <small style="color: var(--warning-color); font-size: 10px;">${window.i18n ? window.i18n.t('messages.libraryNotLoaded') : 'Library not loaded'}</small>
                         </div>
                     `;
                 }
@@ -86,7 +86,7 @@ function renderBarcode(canvas, value) {
                         container.innerHTML = `
                             <div style="display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
                                 <span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${value}</span>
-                                <small style="color: var(--warning-color); font-size: 10px;">Invalid barcode</small>
+                                <small style="color: var(--warning-color); font-size: 10px;">${window.i18n ? window.i18n.t('messages.invalidBarcode') : 'Invalid barcode'}</small>
                             </div>
                         `;
                     }
@@ -112,7 +112,7 @@ function renderBarcode(canvas, value) {
             container.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
                     <span style="font-family: monospace; font-size: 12px; color: var(--text-primary);">${value}</span>
-                    <small style="color: var(--danger-color); font-size: 10px;">Error: ${error.message}</small>
+                    <small style="color: var(--danger-color); font-size: 10px;">${window.i18n ? window.i18n.t('messages.errorGeneratingBarcode', { error: error.message }) : 'Error: ' + error.message}</small>
                 </div>
             `;
         }
@@ -231,7 +231,7 @@ async function loadItems() {
     } catch (error) {
         hideTableSkeleton(tableContainer);
         // Extract error message from various possible error formats
-        let errorMessage = 'Error loading items';
+        let errorMessage = window.i18n ? window.i18n.t('messages.errorLoadingItems') : 'Error loading items';
         if (error && typeof error === 'object') {
             errorMessage = error.error || error.message || error.toString();
         } else if (error) {
@@ -262,10 +262,10 @@ async function saveItemTemplate(name, description, itemData) {
             description,
             item_data: itemData
         });
-        showNotification('Template saved successfully', 'success');
+        showNotification(window.i18n ? window.i18n.t('messages.saved') : 'Template saved successfully', 'success');
         await loadItemTemplates();
     } catch (error) {
-        showNotification('Error saving template', 'error');
+        showNotification(window.i18n ? window.i18n.t('messages.errorSaving', { item: 'Template' }) : 'Error saving template', 'error');
     }
 }
 
@@ -273,12 +273,13 @@ async function loadItemTemplate(templateId) {
     try {
         const id = parseInt(templateId);
         if (isNaN(id)) {
-            showNotification('Invalid template ID', 'error');
+            showNotification(window.i18n ? window.i18n.t('messages.invalidInput') : 'Invalid template ID', 'error');
             return;
         }
         const template = itemTemplates.find(t => t.id === id);
         if (!template || !template.item_data) {
-            showNotification('Template not found', 'error');
+            const notFoundMsg = window.i18n ? window.i18n.t('messages.errorLoading', { item: 'Template' }) : 'Template not found';
+            showNotification(notFoundMsg, 'error');
             return;
         }
         

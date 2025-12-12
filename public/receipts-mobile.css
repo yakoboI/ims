@@ -88,3 +88,320 @@
     }
 }
 
+/* Tabs Mobile - Keep buttons in one row */
+@media (max-width: 768px) {
+    .tabs {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .tab-btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+        padding: 0.75rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .tab-btn i {
+        font-size: 0.875rem;
+    }
+    
+    /* Ensure text doesn't wrap */
+    .tab-btn .btn-text-mobile,
+    .tab-btn span {
+        white-space: nowrap;
+    }
+}
+
+/* Filters Mobile - Organize date inputs and action buttons in rows */
+@media (max-width: 768px) {
+    .filters {
+        display: grid !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        padding: 0;
+    }
+    
+    /* Ensure all children use border-box */
+    .filters * {
+        box-sizing: border-box;
+    }
+    
+    /* Date inputs - first row, each takes 3 columns (half the width) */
+    .filters #receiptDateFrom {
+        grid-column: 1 / span 3;
+        grid-row: 1;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 0.625rem 0.5rem;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    
+    .filters #receiptDateTo {
+        grid-column: 4 / span 3;
+        grid-row: 1;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 0.625rem 0.5rem;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    
+    /* Search input - second row, full width (all 6 columns) */
+    .filters #searchReceipts {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0.625rem 0.5rem;
+        font-size: 16px !important; /* Prevents iOS zoom */
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    
+    /* Action buttons - third row, each takes 2 columns (equal width) */
+    .filters .btn {
+        grid-row: 3;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0.625rem 0.375rem !important;
+        font-size: 0.75rem !important;
+        min-height: 44px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        touch-action: manipulation;
+        box-sizing: border-box;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Position each button - each takes 2 columns */
+    .filters .btn:nth-of-type(1) {
+        grid-column: 1 / span 2;
+    }
+    
+    .filters .btn:nth-of-type(2) {
+        grid-column: 3 / span 2;
+    }
+    
+    .filters .btn:nth-of-type(3) {
+        grid-column: 5 / span 2;
+    }
+    
+    /* Button icons - smaller on mobile */
+    .filters .btn i {
+        font-size: 0.75rem !important;
+        flex-shrink: 0;
+    }
+    
+    /* Hide button text on very small screens if needed */
+    .filters .btn .btn-text-mobile {
+        display: none;
+    }
+}
+
+/* Very small screens - reduce further */
+@media (max-width: 480px) {
+    .filters {
+        gap: 0.375rem;
+    }
+    
+    .filters .btn {
+        padding: 0.625rem 0.25rem !important;
+        font-size: 0.7rem !important;
+        gap: 0.2rem;
+    }
+    
+    .filters .btn i {
+        font-size: 0.7rem !important;
+    }
+    
+    /* Show only icons on very small screens for long button text */
+    .filters .btn:nth-of-type(3) {
+        font-size: 0.65rem !important;
+    }
+}
+
+/* Action buttons in table - Keep View and Return buttons in one row on small screens */
+@media (max-width: 768px) {
+    .data-table td[data-label="Actions"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 0.75rem 0 !important;
+    }
+    
+    .data-table td[data-label="Actions"] .btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: auto !important;
+        max-width: 100% !important;
+        padding: 0.625rem 0.5rem !important;
+        font-size: 0.875rem !important;
+        min-height: 44px;
+        margin: 0 !important;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        touch-action: manipulation;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure buttons don't overflow */
+    .data-table td[data-label="Actions"] .btn {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Very small screens - adjust button sizing */
+@media (max-width: 480px) {
+    .data-table td[data-label="Actions"] {
+        gap: 0.375rem !important;
+    }
+    
+    .data-table td[data-label="Actions"] .btn {
+        padding: 0.625rem 0.375rem !important;
+        font-size: 0.8rem !important;
+        gap: 0.25rem;
+    }
+}
+
+/* Return Receipt Modal Table - Better structure and alignment */
+@media (max-width: 768px) {
+    /* Ensure table is responsive in modal */
+    #returnReceiptModal .data-table {
+        font-size: 0.875rem;
+    }
+    
+    #returnReceiptModal .data-table th,
+    #returnReceiptModal .data-table td {
+        padding: 0.625rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    #returnReceiptModal .data-table th.text-right,
+    #returnReceiptModal .data-table td.text-right {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+    
+    /* Quantity input in table */
+    #returnReceiptModal .data-table input[type="number"] {
+        width: 70px;
+        padding: 0.375rem;
+        font-size: 0.875rem;
+        text-align: right;
+        min-height: 36px;
+    }
+    
+    /* Ensure totals row is visible */
+    #returnReceiptModal .data-table tbody tr:last-child {
+        font-weight: 600;
+    }
+}
+
+/* Very small screens - further optimize modal table */
+@media (max-width: 480px) {
+    #returnReceiptModal .data-table {
+        font-size: 0.8rem;
+    }
+    
+    #returnReceiptModal .data-table th,
+    #returnReceiptModal .data-table td {
+        padding: 0.5rem 0.375rem;
+        font-size: 0.8rem;
+    }
+    
+    #returnReceiptModal .data-table input[type="number"] {
+        width: 60px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Ensure Action Column is Visible on Large Screens */
+@media (min-width: 769px) {
+    /* Ensure table container allows horizontal scroll if needed */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+    
+    /* Ensure action column header is visible - target by text content or last-child */
+    .data-table th:last-child,
+    .data-table thead th:last-child {
+        display: table-cell !important;
+        visibility: visible !important;
+        width: auto;
+        min-width: 150px;
+        white-space: nowrap;
+    }
+    
+    /* Ensure action column cells are visible */
+    .data-table td[data-label="Actions"],
+    .data-table tbody td:last-child {
+        display: table-cell !important;
+        visibility: visible !important;
+        width: auto;
+        min-width: 150px;
+        white-space: nowrap;
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Ensure action buttons are displayed inline horizontally */
+    .data-table td[data-label="Actions"] .btn,
+    .data-table td:last-child .btn {
+        display: inline-flex !important;
+        width: auto !important;
+        min-width: auto !important;
+        margin: 0 0.25rem;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    
+    /* Prevent action column from being hidden - override any mobile styles */
+    .data-table th:last-child,
+    .data-table td:last-child {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure table shows all columns */
+    .data-table {
+        table-layout: auto;
+        width: 100%;
+    }
+    
+    /* Override any flex display that might be applied from mobile styles */
+    .data-table td[data-label="Actions"] {
+        display: table-cell !important;
+        flex-direction: initial !important;
+    }
+}
+

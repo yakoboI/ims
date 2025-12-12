@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>Installment Payments - Inventory Management System | IMS</title>
+    <meta name="description" content="Manage installment payment plans for customers purchasing products on payment plans in the IMS system.">
+    <meta name="keywords" content="installment payments, layaway, payment plans, customer payments, product financing">
+    <meta name="author" content="Inventory Management System">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="language" content="English">
+    
+    <!-- Normalize CSS - Ensures consistent styling across browsers -->
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    <!-- Mobile Optimizations -->
+    <link rel="stylesheet" href="installment-mobile.css">
+    <script src="browser-compat.js"></script>
+    <script src="modal-utils.js"></script>
+    <script src="form-validation.js"></script>
+    <script src="loading-states.js"></script>
+    <script src="empty-states.js"></script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="installment-payments.html" class="nav-link active" id="installmentPaymentsLink" role="menuitem" aria-current="page"><i class="fas fa-credit-card fa-icon-primary"></i> Installment Payments</a>
+            <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Installment Payments</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openInstallmentPlanModal()" aria-label="Create new installment plan">
+                    <i class="fas fa-plus"></i> <span class="btn-text">New Installment Plan</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search Box -->
+        <div class="settings-search-container" style="margin-bottom: 1rem;">
+            <div class="search-box" style="position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                <input type="text" id="installmentSearch" placeholder="Search plans, customers, products..." 
+                       style="width: 100%; padding: 0.75rem 1rem 0.75rem 3rem; border: 1px solid var(--border-color); border-radius: 0; font-size: 1rem;"
+                       oninput="filterInstallmentContent(this.value)">
+            </div>
+        </div>
+
+        <!-- Component Tabs Navigation -->
+        <nav class="settings-tabs" role="tablist" aria-label="Installment payment components">
+            <button class="tab-btn active" data-component="plans" role="tab" aria-selected="true">
+                <i class="fas fa-list"></i> Plans
+            </button>
+            <button class="tab-btn" data-component="payments" role="tab" aria-selected="false">
+                <i class="fas fa-money-bill-wave"></i> Payment History
+            </button>
+            <button class="tab-btn" data-component="analytics" role="tab" aria-selected="false">
+                <i class="fas fa-chart-line"></i> Analytics
+            </button>
+            <button class="tab-btn" data-component="reports" role="tab" aria-selected="false">
+                <i class="fas fa-file-alt"></i> Reports
+            </button>
+        </nav>
+
+        <!-- Component Content Area -->
+        <div id="installmentContent" class="installment-content">
+            <!-- Plans Component (Default) -->
+            <div id="plansComponent" class="component-section active">
+                <!-- Filters -->
+                <div class="filters" style="margin-bottom: 1.5rem;" aria-label="Installment plan filters">
+                    <div class="filters-row">
+                        <input type="text" id="searchPlans" class="form-control search-input" placeholder="Search by customer or product..." aria-label="Search installment plans">
+                        <select id="statusFilter" class="form-control filter-select" aria-label="Filter by status">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" onclick="applyFilters()" aria-label="Apply filters">
+                            <i class="fas fa-filter"></i> <span class="btn-text">Filter</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearFilters()" aria-label="Clear filters">
+                            <i class="fas fa-times"></i> <span class="btn-text">Clear</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Installment Plans Table -->
+                <section class="section-card" aria-labelledby="installment-plans-heading">
+                    <div class="table-container">
+                        <table class="data-table" role="table" aria-label="Installment payment plans list">
+                            <thead>
+                                <tr>
+                                    <th scope="col" data-column="customer">Customer</th>
+                                    <th scope="col" data-column="product">Product</th>
+                                    <th scope="col" data-column="total_price" class="text-right">Total Price</th>
+                                    <th scope="col" data-column="paid_amount" class="text-right">Paid Amount</th>
+                                    <th scope="col" data-column="remaining" class="text-right">Remaining</th>
+                                    <th scope="col" data-column="status">Status</th>
+                                    <th scope="col" data-column="created_at">Created</th>
+                                    <th scope="col" data-column="actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="installmentPlansTableBody" role="rowgroup" aria-live="polite">
+                                <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Payment History Component -->
+            <div id="paymentsComponent" class="component-section" style="display: none;">
+                <section class="section-card">
+                    <h2 style="margin-bottom: 1rem;">
+                        <i class="fas fa-money-bill-wave fa-icon-primary"></i> All Payment History
+                    </h2>
+                    <div class="table-container">
+                        <table class="data-table" role="table" aria-label="Payment history list">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Product</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col" class="text-right">Amount</th>
+                                    <th scope="col">Method</th>
+                                    <th scope="col">Receipt</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allPaymentsTableBody" role="rowgroup" aria-live="polite">
+                                <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Analytics Component -->
+            <div id="analyticsComponent" class="component-section" style="display: none;">
+                <section class="section-card">
+                    <h2 style="margin-bottom: 1rem;">
+                        <i class="fas fa-chart-line fa-icon-primary"></i> Installment Payment Analytics
+                    </h2>
+                    <div id="analyticsContent">
+                        <div class="text-center" style="padding: 3rem;">
+                            <div class="loading-spinner"></div>
+                            <p>Loading analytics...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Reports Component -->
+            <div id="reportsComponent" class="component-section" style="display: none;">
+                <section class="section-card">
+                    <h2 style="margin-bottom: 1rem;">
+                        <i class="fas fa-file-alt fa-icon-primary"></i> Installment Payment Reports
+                    </h2>
+                    <div id="reportsContent">
+                        <div style="display: grid; gap: 1rem;">
+                            <div style="padding: 1.5rem; background: var(--bg-color); border-radius: 0;">
+                                <h3 style="margin-bottom: 0.5rem;">Generate Reports</h3>
+                                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Export installment payment data for analysis</p>
+                                <div class="reports-actions" style="display: flex; gap: 1rem; flex-wrap: nowrap;">
+                                    <button class="btn btn-primary" onclick="exportPlansReport()">
+                                        <i class="fas fa-download"></i> Export Plans Report
+                                    </button>
+                                    <button class="btn btn-primary" onclick="exportPaymentsReport()">
+                                        <i class="fas fa-download"></i> Export Payments Report
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="generateSummaryReport()">
+                                        <i class="fas fa-file-pdf"></i> Summary Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Installment Plan Modal -->
+    <div id="installmentPlanModal" class="modal" role="dialog" aria-labelledby="installmentPlanModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 700px;">
+            <button class="close" onclick="closeInstallmentPlanModal()" aria-label="Close modal">&times;</button>
+            <h2 id="installmentPlanModalTitle">Create Installment Plan</h2>
+            <form id="installmentPlanForm" role="form" aria-label="Create or edit installment plan form">
+                <input type="hidden" id="planId">
+                
+                <div class="form-group">
+                    <label for="planCustomer">Customer *</label>
+                    <select id="planCustomer" required aria-required="true" aria-label="Select customer">
+                        <option value="">Select Customer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="planProduct">Product *</label>
+                    <select id="planProduct" required aria-required="true" aria-label="Select product">
+                        <option value="">Select Product</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="planTotalPrice">Total Price *</label>
+                    <input type="number" id="planTotalPrice" step="0.01" min="0" required aria-required="true" aria-label="Total price" placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="planDownPayment">Down Payment *</label>
+                    <input type="number" id="planDownPayment" step="0.01" min="0" required aria-required="true" aria-label="Down payment amount" placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="planInstallmentAmount">Installment Amount *</label>
+                    <input type="number" id="planInstallmentAmount" step="0.01" min="0" required aria-required="true" aria-label="Installment amount" placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="planNumberOfInstallments">Number of Installments *</label>
+                    <input type="number" id="planNumberOfInstallments" min="1" required aria-required="true" aria-label="Number of installments" placeholder="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="planNotes">Notes</label>
+                    <textarea id="planNotes" rows="3" aria-label="Additional notes" placeholder="Optional notes about this installment plan..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary form-action-btn" onclick="closeInstallmentPlanModal()" aria-label="Cancel">
+                        <i class="fas fa-times"></i> <span class="btn-text">Cancel</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary form-action-btn" aria-label="Save installment plan">
+                        <i class="fas fa-save"></i> <span class="btn-text">Save Plan</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Record Payment Modal -->
+    <div id="recordPaymentModal" class="modal" role="dialog" aria-labelledby="recordPaymentModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close" onclick="closeRecordPaymentModal()" aria-label="Close modal">&times;</button>
+            <h2 id="recordPaymentModalTitle">Record Payment</h2>
+            <form id="recordPaymentForm" role="form" aria-label="Record payment form">
+                <input type="hidden" id="paymentPlanId">
+                
+                <div class="form-group">
+                    <label>Customer</label>
+                    <input type="text" id="paymentCustomerName" readonly style="background: #f5f5f5;">
+                </div>
+
+                <div class="form-group">
+                    <label>Product</label>
+                    <input type="text" id="paymentProductName" readonly style="background: #f5f5f5;">
+                </div>
+
+                <div class="form-group">
+                    <label>Total Price</label>
+                    <input type="text" id="paymentTotalPrice" readonly style="background: #f5f5f5;">
+                </div>
+
+                <div class="form-group">
+                    <label>Paid So Far</label>
+                    <input type="text" id="paymentPaidSoFar" readonly style="background: #f5f5f5;">
+                </div>
+
+                <div class="form-group">
+                    <label>Remaining Balance</label>
+                    <input type="text" id="paymentRemainingBalance" readonly style="background: #f5f5f5; font-weight: bold; color: var(--danger-color);">
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentType">Payment Type *</label>
+                    <select id="paymentType" required aria-required="true" aria-label="Payment type" onchange="handlePaymentTypeChange()">
+                        <option value="full_contract">Full Contract Payment</option>
+                        <option value="per_visit">Pay-Per-Visit Payment</option>
+                    </select>
+                    <small class="form-text">Select "Pay-Per-Visit" for service visit payments</small>
+                </div>
+
+                <div class="form-group" id="serviceDateGroup" style="display: none;">
+                    <label for="serviceDate">Service Date * <span class="text-danger" id="serviceDateRequired" style="display: none;">(Required for per-visit)</span></label>
+                    <input type="date" id="serviceDate" aria-label="Service date" max="">
+                    <small class="form-text">Date when the service was actually performed</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentAmount">Payment Amount *</label>
+                    <input type="number" id="paymentAmount" step="0.01" min="0.01" required aria-required="true" aria-label="Payment amount" placeholder="0.00">
+                </div>
+
+                <div class="form-group" id="partialPaymentGroup" style="display: none;">
+                    <label>
+                        <input type="checkbox" id="isPartialPayment" onchange="handlePartialPaymentChange()">
+                        This is a partial payment
+                    </label>
+                </div>
+
+                <div class="form-group" id="expectedAmountGroup" style="display: none;">
+                    <label for="expectedAmount">Expected Amount *</label>
+                    <input type="number" id="expectedAmount" step="0.01" min="0.01" aria-label="Expected amount" placeholder="0.00">
+                    <small class="form-text">Full amount expected for this payment</small>
+                </div>
+
+                <div class="form-group" id="installationCostGroup" style="display: none;">
+                    <label for="installationCost">Installation Cost</label>
+                    <input type="number" id="installationCost" step="0.01" min="0" value="0" aria-label="Installation cost" placeholder="0.00">
+                    <small class="form-text">Separate installation charges from service fees</small>
+                </div>
+
+                <div class="form-group" id="serviceFeeGroup" style="display: none;">
+                    <label for="serviceFee">Service Fee</label>
+                    <input type="number" id="serviceFee" step="0.01" min="0" value="0" aria-label="Service fee" placeholder="0.00">
+                    <small class="form-text">Service fee for this visit</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentMethod">Payment Method *</label>
+                    <select id="paymentMethod" required aria-required="true" aria-label="Payment method">
+                        <option value="">Select Method</option>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentDate">Payment Date *</label>
+                    <input type="date" id="paymentDate" required aria-required="true" aria-label="Payment date" max="">
+                    <small class="form-text">Date when payment was received</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="receiptNumber">Receipt Number</label>
+                    <input type="text" id="receiptNumber" aria-label="Receipt number" placeholder="Auto-generated if left empty">
+                    <small class="form-text">Unique receipt or transaction reference for audit trail</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="transactionReference">Transaction Reference</label>
+                    <input type="text" id="transactionReference" aria-label="Transaction reference" placeholder="Optional transaction ID">
+                    <small class="form-text">Bank transfer reference, mobile money transaction ID, etc.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentNotes">Notes</label>
+                    <textarea id="paymentNotes" rows="3" aria-label="Payment notes" placeholder="Optional notes about this payment..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary form-action-btn" onclick="closeRecordPaymentModal()" aria-label="Cancel">
+                        <i class="fas fa-times"></i> <span class="btn-text">Cancel</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary form-action-btn" aria-label="Record payment">
+                        <i class="fas fa-money-bill-wave"></i> <span class="btn-text">Record Payment</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Plan Details Modal -->
+    <div id="viewPlanModal" class="modal" role="dialog" aria-labelledby="viewPlanModalTitle" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 800px;">
+            <button class="close" onclick="closeViewPlanModal()" aria-label="Close modal">&times;</button>
+            <h2 id="viewPlanModalTitle">Installment Plan Details</h2>
+            <div id="planDetailsContent"></div>
+            <div class="form-actions" style="margin-top: 1rem;">
+                <button type="button" class="btn btn-secondary form-action-btn" onclick="closeViewPlanModal()" aria-label="Close">
+                    <i class="fas fa-times"></i> <span class="btn-text">Close</span>
+                </button>
+                <button type="button" class="btn btn-primary form-action-btn" onclick="recordPaymentFromView()" aria-label="Record payment" id="recordPaymentFromViewBtn">
+                    <i class="fas fa-money-bill-wave"></i> <span class="btn-text">Record Payment</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internationalization (i18n) -->
+    <script src="i18n.js"></script>
+    
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <script src="installment-payments.js"></script>
+</body>
+</html>
+

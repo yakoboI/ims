@@ -3,26 +3,46 @@ node_modules/
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.db-journal
 *.pre-restore-*
 
 # Backups
 backups/
+*.bak
+*.backup
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# User-generated content
+public/uploads/
+pdfs/
+*.pdf
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
+
+# Temporary files
+*.tmp
+*.temp
+*~
 

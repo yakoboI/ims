@@ -199,8 +199,21 @@ async function openInvoiceModal(invoiceId = null) {
             invoiceDateEl.value = new Date().toISOString().split('T')[0];
         }
         
-        // Generate invoice number
+        // Generate invoice number automatically
         await generateInvoiceNumber();
+        
+        // Make invoice number read-only for new invoices
+        const invoiceNumberEl = document.getElementById('invoiceNumber');
+        const regenerateBtn = document.getElementById('regenerateInvoiceNumberBtn');
+        if (invoiceNumberEl) {
+            invoiceNumberEl.readOnly = true;
+            invoiceNumberEl.style.backgroundColor = '#f8f9fa';
+            invoiceNumberEl.style.cursor = 'not-allowed';
+        }
+        // Hide regenerate button for new invoices (it's auto-generated)
+        if (regenerateBtn) {
+            regenerateBtn.style.display = 'none';
+        }
     }
     
     const firstInput = document.getElementById('invoiceNumber');
@@ -230,7 +243,18 @@ function populateInvoiceForm(invoice) {
     const invoiceTermsConditionsEl = document.getElementById('invoiceTermsConditions');
     
     if (invoiceIdEl) invoiceIdEl.value = invoice.id;
-    if (invoiceNumberEl) invoiceNumberEl.value = invoice.invoice_number || '';
+    if (invoiceNumberEl) {
+        invoiceNumberEl.value = invoice.invoice_number || '';
+        // Make invoice number editable when editing
+        invoiceNumberEl.readOnly = false;
+        invoiceNumberEl.style.backgroundColor = '';
+        invoiceNumberEl.style.cursor = '';
+    }
+    // Show regenerate button when editing
+    const regenerateBtn = document.getElementById('regenerateInvoiceNumberBtn');
+    if (regenerateBtn) {
+        regenerateBtn.style.display = 'inline-flex';
+    }
     if (invoiceDateEl) invoiceDateEl.value = invoice.invoice_date ? invoice.invoice_date.split('T')[0] : '';
     if (invoiceDueDateEl) invoiceDueDateEl.value = invoice.due_date ? invoice.due_date.split('T')[0] : '';
     if (invoiceStatusEl) invoiceStatusEl.value = invoice.status || 'draft';
@@ -398,19 +422,34 @@ async function generateInvoiceNumber() {
         const invoiceNumberEl = document.getElementById('invoiceNumber');
         if (invoiceNumberEl && response.invoice_number) {
             invoiceNumberEl.value = response.invoice_number;
+            return response.invoice_number;
         }
     } catch (error) {
         console.error('Error generating invoice number:', error);
+        // Fallback: Generate invoice number client-side if API fails
+        const invoiceNumberEl = document.getElementById('invoiceNumber');
+        if (invoiceNumberEl && !invoiceNumberEl.value) {
+            const fallbackNumber = `INV-${Date.now()}`;
+            invoiceNumberEl.value = fallbackNumber;
+            return fallbackNumber;
+        }
     }
+    return null;
 }
 
 function closeInvoiceModal() {
     closeModal('invoiceModal');
     const form = document.getElementById('invoiceForm');
     const invoiceIdEl = document.getElementById('invoiceId');
+    const invoiceNumberEl = document.getElementById('invoiceNumber');
     
     if (form) form.reset();
     if (invoiceIdEl) invoiceIdEl.value = '';
+    if (invoiceNumberEl) {
+        invoiceNumberEl.readOnly = false;
+        invoiceNumberEl.style.backgroundColor = '';
+        invoiceNumberEl.style.cursor = '';
+    }
     invoiceItems = [];
     currentInvoiceId = null;
 }

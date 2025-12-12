@@ -209,5 +209,144 @@
 
     // Add loading class for CSS animations
     document.documentElement.classList.add('js-enabled');
+
+    // Browser detection for specific fixes
+    var ua = navigator.userAgent.toLowerCase();
+    var browser = {
+        isIE: /msie|trident/.test(ua),
+        isEdge: /edg/.test(ua) && !/edg[ea]/.test(ua), // Edge (not Edge Legacy)
+        isChrome: /chrome/.test(ua) && !/edg/.test(ua) && !/opr/.test(ua) && !/brave/.test(ua) && !/samsungbrowser/.test(ua),
+        isFirefox: /firefox/.test(ua),
+        isSafari: /safari/.test(ua) && !/chrome/.test(ua) && !/edg/.test(ua) && !/opr/.test(ua),
+        isOpera: /opera|opr/.test(ua),
+        isBrave: /brave/.test(ua) || (typeof navigator.brave !== 'undefined'),
+        isSamsungInternet: /samsungbrowser/.test(ua),
+        isMobile: /mobile|android|iphone|ipad/.test(ua),
+        isDesktop: !/mobile|android|iphone|ipad/.test(ua)
+    };
+
+    // Add browser class to html element for CSS targeting
+    if (browser.isIE) {
+        document.documentElement.classList.add('browser-ie');
+    }
+    if (browser.isEdge) {
+        document.documentElement.classList.add('browser-edge');
+    }
+    if (browser.isChrome) {
+        document.documentElement.classList.add('browser-chrome');
+    }
+    if (browser.isFirefox) {
+        document.documentElement.classList.add('browser-firefox');
+    }
+    if (browser.isSafari) {
+        document.documentElement.classList.add('browser-safari');
+    }
+    if (browser.isOpera) {
+        document.documentElement.classList.add('browser-opera');
+    }
+    if (browser.isBrave) {
+        document.documentElement.classList.add('browser-brave');
+        // Brave is Chromium-based, so also add chrome class for compatibility
+        document.documentElement.classList.add('browser-chrome');
+    }
+    if (browser.isSamsungInternet) {
+        document.documentElement.classList.add('browser-samsung');
+        // Samsung Internet is Chromium-based, so also add chrome class for compatibility
+        document.documentElement.classList.add('browser-chrome');
+    }
+    if (browser.isMobile) {
+        document.documentElement.classList.add('browser-mobile');
+    }
+    if (browser.isDesktop) {
+        document.documentElement.classList.add('browser-desktop');
+    }
+
+    // Fix for CSS Grid in older browsers
+    if (!CSS.supports('display', 'grid')) {
+        // Add fallback for grid layouts
+        var gridFallback = document.createElement('style');
+        gridFallback.textContent = `
+            .grid-fallback {
+                display: -ms-grid;
+                display: -webkit-box;
+            }
+        `;
+        document.head.appendChild(gridFallback);
+    }
+
+    // Fix for Flexbox in older browsers
+    if (!CSS.supports('display', 'flex')) {
+        var flexFallback = document.createElement('style');
+        flexFallback.textContent = `
+            .flex-fallback {
+                display: -webkit-box;
+                display: -ms-flexbox;
+            }
+        `;
+        document.head.appendChild(flexFallback);
+    }
+
+    // Fix for CSS Variables in IE11
+    if (browser.isIE && !CSS.supports('color', 'var(--test)')) {
+        // Polyfill for CSS variables would go here if needed
+        // For now, we rely on fallback values in CSS
+    }
+
+    // Fix for viewport units in older browsers and mobile browsers
+    // Samsung Internet and mobile browsers need this fix for proper viewport handling
+    if (browser.isIE || browser.isMobile || browser.isSamsungInternet) {
+        var viewportFix = document.createElement('script');
+        viewportFix.textContent = `
+            (function() {
+                function setViewportHeight() {
+                    var vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', vh + 'px');
+                }
+                setViewportHeight();
+                window.addEventListener('resize', setViewportHeight);
+                window.addEventListener('orientationchange', setViewportHeight);
+            })();
+        `;
+        document.head.appendChild(viewportFix);
+    }
+
+    // Samsung Internet specific fixes
+    if (browser.isSamsungInternet) {
+        var samsungFix = document.createElement('style');
+        samsungFix.textContent = `
+            /* Samsung Internet specific fixes */
+            .browser-samsung input[type="number"] {
+                -webkit-appearance: textfield;
+            }
+            .browser-samsung input[type="number"]::-webkit-inner-spin-button,
+            .browser-samsung input[type="number"]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+        `;
+        document.head.appendChild(samsungFix);
+    }
+
+    // Brave Browser specific fixes (if needed)
+    if (browser.isBrave) {
+        // Brave is Chromium-based, so most Chrome fixes apply
+        // Add any Brave-specific fixes here if needed
+    }
+
+    // Fix for smooth scrolling in older browsers
+    if (!CSS.supports('scroll-behavior', 'smooth')) {
+        document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                var target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    e.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Export browser detection for use in other scripts
+    window.browserInfo = browser;
 })();
 

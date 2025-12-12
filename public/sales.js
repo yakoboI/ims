@@ -400,11 +400,12 @@ async function startCameraScan() {
         } catch (permError) {
             if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
                 const mobileMsg = isMobile 
-                    ? 'Camera access denied. Please allow camera access in your device settings and browser permissions, then try again.'
-                    : 'Camera access denied. Please click the camera icon in your browser\'s address bar and allow camera access, then try again.';
+                    ? (window.i18n ? window.i18n.t('messages.cameraAccessDeniedMobile') : 'Camera access denied. Please allow camera access in your device settings and browser permissions, then try again.')
+                    : (window.i18n ? window.i18n.t('messages.cameraAccessDeniedDesktop') : 'Camera access denied. Please click the camera icon in your browser\'s address bar and allow camera access, then try again.');
                 throw new Error(mobileMsg);
             } else if (permError.name === 'NotFoundError' || permError.name === 'DevicesNotFoundError') {
-                throw new Error('No camera found. Please connect a camera device.');
+                const noCameraMsg = window.i18n ? window.i18n.t('messages.noCameraFound') : 'No camera found. Please connect a camera device.';
+                throw new Error(noCameraMsg);
             } else if (permError.name === 'OverconstrainedError' || permError.name === 'ConstraintNotSatisfiedError') {
                 // Try with simpler constraints if advanced constraints fail
                 try {

@@ -302,7 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 window.location.href = '/dashboard.html';
             } catch (error) {
-                errorDiv.textContent = error.message || 'Login failed';
+                const errorMsg = error.message || (window.i18n ? window.i18n.t('messages.loginFailed') : 'Login failed');
+                errorDiv.textContent = errorMsg;
                 errorDiv.classList.add('show');
             }
         });
@@ -344,10 +345,230 @@ function formatDate(dateString) {
     });
 }
 
-function showNotification(message, type = 'success') {
+// Initialize display settings on app load (if settings functions are available)
+if (typeof loadAndApplyDisplaySettings === 'function') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAndApplyDisplaySettings().catch(err => console.error('Error loading display settings:', err));
+    });
+} else {
+    // Fallback: Initialize basic theme if settings.js not loaded
+    document.addEventListener('DOMContentLoaded', () => {
+        const theme = localStorage.getItem('appTheme') || 'light';
+        if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+        
+        // Initialize i18n if available
+        if (window.i18n && typeof window.i18n.initI18n === 'function') {
+            window.i18n.initI18n();
+        }
+    });
+}
+
+// Helper to get translation key from common messages
+function getTranslationKey(message) {
+    const messageMap = {
+        'Saved successfully': 'messages.saved',
+        'Deleted successfully': 'messages.deleted',
+        'An error occurred': 'messages.error',
+        'Error saving data': 'messages.saveError',
+        'Error deleting data': 'messages.deleteError',
+        'No data available': 'messages.noData',
+        'Loading data...': 'messages.loading',
+        'Updated successfully': 'messages.updateSuccess',
+        'Created successfully': 'messages.createSuccess',
+        'Operation completed successfully': 'messages.operationSuccess',
+        'Operation failed': 'messages.operationError',
+        'Please wait...': 'messages.pleaseWait',
+        'Invalid input': 'messages.invalidInput',
+        'This field is required': 'messages.requiredField',
+        'Error loading customers': 'messages.errorLoadingCustomers',
+        'Error loading suppliers': 'messages.errorLoadingSuppliers',
+        'Error loading items': 'messages.errorLoadingItems',
+        'Error loading installment plans': 'messages.errorLoadingPlans',
+        'Error loading plan details': 'messages.errorLoadingPlanDetails',
+        'Error loading backups': 'messages.errorLoadingBackups',
+        'Error refreshing dashboard': 'messages.errorLoadingDashboard',
+        'Form elements not found': 'messages.formElementsNotFound',
+        'No changes to save': 'messages.noChangesToSave',
+        'Settings saved successfully': 'messages.settingsSaved',
+        'Settings reset to defaults successfully': 'messages.settingsReset',
+        'Settings exported successfully': 'messages.settingsExported',
+        'Settings imported successfully': 'messages.settingsImported',
+        'No settings to reset': 'messages.noSettingsToReset',
+        'Test email input not found': 'messages.testEmailInputNotFound',
+        'Please enter a valid email address': 'messages.pleaseEnterValidEmail',
+        'Access denied. Only administrators can access settings.': 'messages.accessDenied',
+        'You do not have permission to access this page': 'messages.noPermission',
+        'Redirecting to dashboard...': 'messages.redirectingToDashboard',
+        'Passwords do not match': 'messages.passwordsDoNotMatch',
+        'Password changed successfully': 'messages.passwordChanged',
+        'Error changing password': 'messages.errorChangingPassword',
+        'Backup list refreshed': 'messages.backupListRefreshed',
+        'Creating backup...': 'messages.creatingBackup',
+        'Backup created successfully': 'messages.backupCreated',
+        'Error creating backup': 'messages.errorCreatingBackup',
+        'Restoring backup...': 'messages.restoringBackup',
+        'Backup restored successfully': 'messages.backupRestored',
+        'Error restoring backup': 'messages.errorRestoringBackup',
+        'Deleting backup...': 'messages.deletingBackup',
+        'Backup deleted successfully': 'messages.backupDeleted',
+        'Error deleting backup': 'messages.errorDeletingBackup',
+        'No backups found': 'messages.noBackupsFound',
+        'Customer created successfully': 'messages.customerCreated',
+        'Customer updated successfully': 'messages.customerUpdated',
+        'Customer deleted successfully': 'messages.customerDeleted',
+        'Supplier created successfully': 'messages.supplierCreated',
+        'Supplier updated successfully': 'messages.supplierUpdated',
+        'Supplier deleted successfully': 'messages.supplierDeleted',
+        'Item created successfully': 'messages.itemCreated',
+        'Item updated successfully': 'messages.itemUpdated',
+        'Item deleted successfully': 'messages.itemDeleted',
+        'Category created successfully': 'messages.categoryCreated',
+        'Category updated successfully': 'messages.categoryUpdated',
+        'Category deleted successfully': 'messages.categoryDeleted',
+        'Installment plan created successfully': 'messages.planCreated',
+        'Installment plan updated successfully': 'messages.planUpdated',
+        'Installment plan deleted successfully': 'messages.planDeleted',
+        'Plan not found': 'messages.planNotFound',
+        'Installment plan completed! Product can now be delivered.': 'messages.planCompleted',
+        'Payment recorded successfully': 'messages.paymentRecorded',
+        'Purchase order created successfully': 'messages.purchaseCreated',
+        'Error creating purchase order': 'messages.errorCreating',
+        'Please add at least one item': 'messages.pleaseAddAtLeastOneItem',
+        'Please select a supplier': 'messages.pleaseSelectSupplier',
+        'Down payment must be less than total price': 'messages.downPaymentMustBeLessThanTotal',
+        'Expected amount is required for partial payments': 'messages.expectedAmountRequiredForPartial',
+        'Partial payment amount must be less than expected amount': 'messages.partialPaymentMustBeLessThanExpected',
+        'Payment amount cannot exceed remaining balance of': 'messages.paymentAmountCannotExceedBalance',
+        'Payment amount must be greater than 0': 'messages.paymentAmountMustBeGreaterThanZero',
+        'Error validating payment': 'messages.errorValidatingPayment',
+        'Payment date cannot be in the future': 'messages.paymentDateCannotBeInFuture',
+        'Service date cannot be in the future. Service must be delivered before payment is recorded.': 'messages.serviceDateCannotBeInFuture',
+        'report exported successfully': 'messages.reportExported',
+        'Summary report generation coming soon': 'messages.summaryReportComingSoon',
+        'Chart function not available. Please refresh the page.': 'messages.chartFunctionNotAvailable',
+        'Error loading revenue analysis chart': 'messages.errorLoadingChart',
+        'Error loading category performance chart': 'messages.errorLoadingChart',
+        'Login failed. Please check your credentials.': 'messages.loginFailed',
+        'Invalid user data': 'messages.invalidUserData',
+        'Please enter both username and password': 'messages.pleaseEnterBothUsernameAndPassword',
+        'Error loading settings': 'messages.errorLoadingSettings',
+        'Error saving settings': 'messages.errorSavingSettings',
+        'Error resetting settings': 'messages.errorResettingSettings',
+        'Error exporting settings': 'messages.errorExporting',
+        'Error importing settings': 'messages.errorImporting',
+        'Error testing email': 'messages.errorTesting',
+        'Error loading chart': 'messages.errorLoadingChart',
+        'Error loading report': 'messages.errorLoadingReport'
+    };
+    
+    // Try exact match first
+    if (messageMap[message]) {
+        return messageMap[message];
+    }
+    
+    // Try partial matches for dynamic messages
+    if (message.includes('Error loading')) {
+        if (message.includes('customers')) return 'messages.errorLoadingCustomers';
+        if (message.includes('suppliers')) return 'messages.errorLoadingSuppliers';
+        if (message.includes('items')) return 'messages.errorLoadingItems';
+        if (message.includes('plans')) return 'messages.errorLoadingPlans';
+        if (message.includes('backups')) return 'messages.errorLoadingBackups';
+        if (message.includes('dashboard')) return 'messages.errorLoadingDashboard';
+        if (message.includes('chart')) return 'messages.errorLoadingChart';
+        if (message.includes('report')) return 'messages.errorLoadingReport';
+        return 'messages.errorLoading';
+    }
+    
+    if (message.includes('Error saving')) {
+        if (message.includes('settings')) return 'messages.errorSavingSettings';
+        return 'messages.errorSaving';
+    }
+    
+    if (message.includes('Error deleting')) {
+        return 'messages.errorDeleting';
+    }
+    
+    if (message.includes('Error creating')) {
+        return 'messages.errorCreating';
+    }
+    
+    if (message.includes('Error exporting')) {
+        return 'messages.errorExporting';
+    }
+    
+    if (message.includes('Error importing')) {
+        return 'messages.errorImporting';
+    }
+    
+    if (message.includes('Error testing')) {
+        return 'messages.errorTesting';
+    }
+    
+    if (message.includes('must be at least')) {
+        return 'messages.mustBeAtLeast';
+    }
+    
+    if (message.includes('must be at most')) {
+        return 'messages.mustBeAtMost';
+    }
+    
+    if (message.includes('Invalid email format')) {
+        return 'messages.invalidEmailFormat';
+    }
+    
+    if (message.includes('Settings imported successfully')) {
+        return 'messages.settingsImported';
+    }
+    
+    if (message.includes('report exported successfully')) {
+        return 'messages.reportExported';
+    }
+    
+    if (message.includes('Payment recorded successfully')) {
+        return 'messages.paymentRecorded';
+    }
+    
+    if (message.includes('(Receipt:')) {
+        return 'messages.paymentRecordedWithReceipt';
+    }
+    
+    return null;
+}
+
+function showNotification(message, type = 'success', params = {}) {
+    // Try to translate the message if it's a translation key
+    let displayMessage = message;
+    if (window.i18n && typeof window.i18n.t === 'function') {
+        // Check if message is a translation key
+        const translationKey = getTranslationKey(message);
+        if (translationKey) {
+            displayMessage = window.i18n.t(translationKey, params);
+        } else if (message.includes('{')) {
+            // Try to extract parameters from message and translate
+            const baseKey = message.split('{')[0].trim();
+            const key = getTranslationKey(baseKey);
+            if (key) {
+                // Extract params from message string
+                const extractedParams = {};
+                const paramMatches = message.match(/\{(\w+)\}/g);
+                if (paramMatches) {
+                    paramMatches.forEach(match => {
+                        const paramName = match.replace(/[{}]/g, '');
+                        const paramValue = message.match(new RegExp(`\\{${paramName}\\}:\\s*([^,}]+)`))?.[1] || 
+                                         message.match(new RegExp(`\\{${paramName}\\}\\s*=\\s*([^,}]+)`))?.[1] ||
+                                         params[paramName] || '';
+                        extractedParams[paramName] = paramValue.trim();
+                    });
+                }
+                displayMessage = window.i18n.t(key, { ...params, ...extractedParams });
+            }
+        }
+    }
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.textContent = message;
+    notification.textContent = displayMessage;
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -635,7 +856,7 @@ async function loadAndApplyRolePermissions(userRole) {
             'suppliers': document.getElementById('suppliersLink') || document.querySelector('a[href="suppliers.html"]'),
             'categories': document.getElementById('categoriesLink') || document.querySelector('a[href="categories.html"]'),
             'customers': document.getElementById('customersLink') || document.querySelector('a[href="customers.html"]'),
-            'terms-and-service': document.getElementById('termsAndServiceLink') || document.querySelector('a[href="terms-and-service.html"]'),
+            'installment-payments': document.getElementById('installmentPaymentsLink') || document.querySelector('a[href="installment-payments.html"]'),
             'users': document.getElementById('usersLink') || document.querySelector('a[href="users.html"]'),
             'shops': document.getElementById('shopsLink') || document.querySelector('a[href="shops.html"]'),
             'shop-statistics': document.getElementById('shopStatsLink') || document.querySelector('a[href="shop-statistics.html"]'),
@@ -648,7 +869,10 @@ async function loadAndApplyRolePermissions(userRole) {
         Object.keys(pageLinks).forEach(page => {
             const link = pageLinks[page];
             if (link) {
-                if (isSuperadmin || permissions[page]) {
+                // Subscription plans, shops, and shop-statistics are superadmin only
+                if (page === 'subscription-plans' || page === 'shops' || page === 'shop-statistics') {
+                    link.style.display = isSuperadmin ? 'inline-block' : 'none';
+                } else if (isSuperadmin || permissions[page]) {
                     link.style.display = 'inline-block';
                 } else {
                     link.style.display = 'none';
@@ -699,7 +923,7 @@ function getCurrentPageName() {
     if (path.includes('suppliers.html')) return 'suppliers';
     if (path.includes('categories.html')) return 'categories';
     if (path.includes('customers.html')) return 'customers';
-    if (path.includes('terms-and-service.html')) return 'terms-and-service';
+    if (path.includes('installment-payments.html')) return 'installment-payments';
     if (path.includes('users.html')) return 'users';
     if (path.includes('shops.html')) return 'shops';
     if (path.includes('shop-statistics.html')) return 'shop-statistics';
