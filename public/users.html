@@ -238,7 +238,7 @@
                 </div>
                 <div class="form-group">
                     <label for="userRole">Role *</label>
-                    <select id="userRole" required aria-required="true" aria-label="User role" onchange="handleRoleChange()">
+                    <select id="userRole" required aria-required="true" aria-label="User role" onchange="if(typeof handleRoleChange === 'function') handleRoleChange()">
                         <option value="admin">Admin</option>
                         <option value="storekeeper">Storekeeper</option>
                         <option value="sales">Sales/Staff</option>

@@ -58,12 +58,68 @@ function setupEventListeners() {
     document.getElementById('changePasswordForm').addEventListener('submit', handleChangePasswordSubmit);
 }
 
-function openUserModal(userId = null) {
+async function loadShopsForUserForm() {
+    const shopSelect = document.getElementById('userShop');
+    const shopDisplay = document.getElementById('shopDisplay');
+    const shopDisplayText = document.getElementById('shopDisplayText');
+    
+    if (!shopSelect || !shopDisplay || !shopDisplayText) return;
+    
+    try {
+        shopDisplayText.textContent = 'Loading shop information...';
+        const shops = await apiRequest('/shops');
+        
+        // Clear existing options except the first one
+        shopSelect.innerHTML = '<option value="">-- Select Shop --</option>';
+        
+        // Add shop options
+        shops.forEach(shop => {
+            const option = document.createElement('option');
+            option.value = shop.id;
+            option.textContent = `${shop.shop_name} (${shop.shop_code})`;
+            shopSelect.appendChild(option);
+        });
+        
+        // Update display text
+        if (shops.length === 0) {
+            shopDisplayText.textContent = 'No shops available';
+        } else {
+            shopDisplayText.textContent = `${shops.length} shop(s) available`;
+        }
+    } catch (error) {
+        console.error('Error loading shops:', error);
+        shopDisplayText.textContent = 'Error loading shops';
+        shopDisplayText.style.color = 'var(--danger-color)';
+    }
+}
+
+function handleRoleChange() {
+    const role = document.getElementById('userRole').value;
+    const shopGroup = document.getElementById('shopGroup');
+    const shopSelect = document.getElementById('userShop');
+    const shopDisplay = document.getElementById('shopDisplay');
+    
+    if (!shopGroup || !shopSelect || !shopDisplay) return;
+    
+    // Show shop selection for non-superadmin roles
+    if (role && role !== 'superadmin') {
+        shopSelect.style.display = 'block';
+        shopDisplay.style.display = 'none';
+    } else {
+        shopSelect.style.display = 'none';
+        shopDisplay.style.display = 'block';
+    }
+}
+
+async function openUserModal(userId = null) {
     const modal = document.getElementById('userModal');
     const form = document.getElementById('userForm');
     const title = document.getElementById('userModalTitle');
     const passwordGroup = document.getElementById('passwordGroup');
     const statusGroup = document.getElementById('statusGroup');
+    
+    // Load shops when modal opens
+    await loadShopsForUserForm();
     
     if (userId) {
         title.textContent = window.i18n ? window.i18n.t('users.editUser') : 'Edit User';
@@ -79,6 +135,14 @@ function openUserModal(userId = null) {
             document.getElementById('userFullName').value = user.full_name || '';
             document.getElementById('userRole').value = user.role;
             document.getElementById('userStatus').value = user.is_active ? '1' : '0';
+            
+            // Set shop if user has one
+            if (user.shop_id) {
+                document.getElementById('userShop').value = user.shop_id;
+            }
+            
+            // Handle role change to show/hide shop selection
+            handleRoleChange();
         }
     } else {
         title.textContent = window.i18n ? window.i18n.t('users.addUser') : 'Add User';
@@ -87,6 +151,10 @@ function openUserModal(userId = null) {
         statusGroup.style.display = 'none';
         form.reset();
         document.getElementById('userId').value = '';
+        document.getElementById('userShop').value = '';
+        
+        // Handle role change to show/hide shop selection
+        handleRoleChange();
     }
     
     const firstInput = document.getElementById('userUsername');
@@ -131,6 +199,17 @@ async function handleUserSubmit(e) {
         full_name: document.getElementById('userFullName').value || null,
         role: document.getElementById('userRole').value
     };
+    
+    // Add shop_id if selected and role is not superadmin
+    const shopId = document.getElementById('userShop').value;
+    if (shopId && userData.role !== 'superadmin') {
+        userData.shop_id = parseInt(shopId);
+    } else if (userData.role !== 'superadmin') {
+        // For non-superadmin roles, shop_id is required
+        showNotification('Please select a shop for this user', 'error');
+        hideFormLoading(form);
+        return;
+    }
     
     if (userId) {
         userData.is_active = parseInt(document.getElementById('userStatus').value);
@@ -494,6 +573,21 @@ async function saveAllPermissions() {
         showNotification(error.message || 'Error saving permissions', 'error');
     }
 }
+
+// Expose functions to global scope for onclick handlers
+window.openUserModal = openUserModal;
+window.closeUserModal = closeUserModal;
+window.editUser = editUser;
+window.handleRoleChange = handleRoleChange;
+window.openChangePasswordModal = openChangePasswordModal;
+window.closeChangePasswordModal = closeChangePasswordModal;
+window.createBackup = createBackup;
+window.restoreBackup = restoreBackup;
+window.deleteBackup = deleteBackup;
+window.loadBackups = loadBackups;
+window.loadRolePermissions = loadRolePermissions;
+window.saveRolePermissions = saveRolePermissions;
+window.saveAllPermissions = saveAllPermissions;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadUsers();
