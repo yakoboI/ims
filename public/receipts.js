@@ -83,12 +83,14 @@ async function loadReceipts() {
         const sales = await apiRequest('/sales');
         
         // Filter out returns (is_return = 1)
-        receipts = sales.filter(sale => !sale.is_return || sale.is_return === 0);
+        const salesArray = Array.isArray(sales) ? sales : [];
+        receipts = salesArray.filter(sale => !sale.is_return || sale.is_return === 0);
         
         if (tableContainer) hideTableSkeleton(tableContainer);
         renderReceiptsTable(receipts);
     } catch (error) {
         console.error('Error loading receipts:', error);
+        receipts = [];
         if (tableContainer) hideTableSkeleton(tableContainer);
         showNotification('Error loading receipts: ' + (error.message || 'Unknown error'), 'error');
         if (tbody) {
@@ -109,11 +111,13 @@ async function loadReturnedReceipts() {
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center">Loading...</td></tr>';
     
     try {
-        returnedReceipts = await apiRequest('/sales/returns');
+        const response = await apiRequest('/sales/returns');
+        returnedReceipts = Array.isArray(response) ? response : [];
         
         if (tableContainer) hideTableSkeleton(tableContainer);
         renderReturnedReceiptsTable(returnedReceipts);
     } catch (error) {
+        returnedReceipts = [];
         if (tableContainer) hideTableSkeleton(tableContainer);
         showNotification('Error loading returned receipts', 'error');
         if (tbody) {
@@ -127,6 +131,10 @@ function renderReceiptsTable(receiptsList) {
     const tableContainer = document.querySelector('#allReceiptsSection .table-container');
     
     if (!tbody) return;
+    
+    if (!Array.isArray(receiptsList)) {
+        receiptsList = [];
+    }
     
     if (receiptsList.length === 0) {
         tbody.innerHTML = '';
@@ -161,6 +169,10 @@ function renderReturnedReceiptsTable(returnsList) {
     const tableContainer = document.querySelector('#returnedReceiptsSection .table-container');
     
     if (!tbody) return;
+    
+    if (!Array.isArray(returnsList)) {
+        returnsList = [];
+    }
     
     if (returnsList.length === 0) {
         tbody.innerHTML = '';
@@ -685,9 +697,10 @@ async function printAllReceipts() {
         
         // Get all receipts in the date range - apiRequest handles shop_id automatically
         const allSales = await apiRequest('/sales');
+        const salesArray = Array.isArray(allSales) ? allSales : [];
         
         // Filter by date range and exclude returns
-        const filteredReceipts = allSales.filter(sale => {
+        const filteredReceipts = salesArray.filter(sale => {
             if (sale.is_return && sale.is_return === 1) return false;
             const saleDate = new Date(sale.sale_date);
             const start = new Date(startDate);

@@ -11,10 +11,12 @@ async function loadUsers() {
     tbody.innerHTML = '';
     
     try {
-        users = await apiRequest('/users');
+        const response = await apiRequest('/users');
+        users = Array.isArray(response) ? response : [];
         hideTableSkeleton(tableContainer);
         renderUsersTable(users);
     } catch (error) {
+        users = [];
         hideTableSkeleton(tableContainer);
         showNotification('Error loading users', 'error');
         if (users.length === 0) {
@@ -26,6 +28,10 @@ async function loadUsers() {
 function renderUsersTable(usersList) {
     const tbody = document.getElementById('usersTableBody');
     const tableContainer = document.querySelector('.table-container');
+    
+    if (!Array.isArray(usersList)) {
+        usersList = [];
+    }
     
     if (usersList.length === 0) {
         tbody.innerHTML = '';
