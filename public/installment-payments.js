@@ -167,11 +167,13 @@ async function loadInstallmentPlans() {
     try {
         const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
         const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        installmentPlans = await apiRequest(`/installment-payments${queryParams}`);
+        const response = await apiRequest(`/installment-payments${queryParams}`);
+        installmentPlans = Array.isArray(response) ? response : [];
         
         if (tableContainer) hideTableSkeleton(tableContainer);
         renderInstallmentPlansTable(installmentPlans);
     } catch (error) {
+        installmentPlans = [];
         if (tableContainer) hideTableSkeleton(tableContainer);
         const errorMsg = window.i18n ? window.i18n.t('messages.errorLoadingPlans') : 'Error loading installment plans';
         showNotification(errorMsg, 'error');
@@ -196,6 +198,10 @@ function renderInstallmentPlansTable(plansList) {
     const tableContainer = document.querySelector('.table-container');
     
     if (!tbody) return;
+    
+    if (!Array.isArray(plansList)) {
+        plansList = [];
+    }
     
     if (plansList.length === 0) {
         tbody.innerHTML = '';
@@ -1141,7 +1147,8 @@ async function loadAllPayments() {
         // Get all plans first
         const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
         const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        const plans = await apiRequest(`/installment-payments${queryParams}`);
+        const plansResponse = await apiRequest(`/installment-payments${queryParams}`);
+        const plans = Array.isArray(plansResponse) ? plansResponse : [];
         
         // Get payments for each plan
         const paymentPromises = plans.map(plan => 

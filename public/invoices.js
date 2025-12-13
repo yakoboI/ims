@@ -50,11 +50,13 @@ async function loadInvoices() {
         // Get shop filter if superadmin has selected a shop
         const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
         const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        invoices = await apiRequest(`/invoices${queryParams}`);
+        const response = await apiRequest(`/invoices${queryParams}`);
+        invoices = Array.isArray(response) ? response : [];
         
         if (tableContainer) hideTableSkeleton(tableContainer);
         renderInvoicesTable(invoices);
     } catch (error) {
+        invoices = [];
         if (tableContainer) hideTableSkeleton(tableContainer);
         showNotification('Error loading invoices', 'error');
         if (tbody) {
@@ -74,7 +76,8 @@ async function loadInvoices() {
 
 async function loadCustomers() {
     try {
-        customers = await apiRequest('/customers');
+        const response = await apiRequest('/customers');
+        customers = Array.isArray(response) ? response : [];
         const customerSelect = document.getElementById('invoiceCustomer');
         if (customerSelect) {
             customerSelect.innerHTML = '<option value="">Select Customer</option>' +
@@ -82,6 +85,7 @@ async function loadCustomers() {
         }
     } catch (error) {
         console.error('Error loading customers:', error);
+        customers = [];
     }
 }
 
@@ -89,9 +93,11 @@ async function loadItems() {
     try {
         const shopFilter = window.getShopFilterForRequest ? window.getShopFilterForRequest() : {};
         const queryParams = shopFilter.shop_id ? `?shop_id=${shopFilter.shop_id}` : '';
-        items = await apiRequest(`/items${queryParams}`);
+        const response = await apiRequest(`/items${queryParams}`);
+        items = Array.isArray(response) ? response : [];
     } catch (error) {
         console.error('Error loading items:', error);
+        items = [];
     }
 }
 
@@ -100,6 +106,10 @@ function renderInvoicesTable(invoicesList) {
     const tableContainer = document.querySelector('.table-container');
     
     if (!tbody) return;
+    
+    if (!Array.isArray(invoicesList)) {
+        invoicesList = [];
+    }
     
     if (invoicesList.length === 0) {
         tbody.innerHTML = '';
@@ -333,7 +343,7 @@ function renderInvoiceItems() {
             <div>
                 <select class="form-control" onchange="selectInvoiceItem(${index}, this.value)" aria-label="Select item">
                     <option value="">Select Item</option>
-                    ${items.map(i => `<option value="${i.id}" ${item.item_id == i.id ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('')}
+                    ${(Array.isArray(items) ? items : []).map(i => `<option value="${i.id}" ${item.item_id == i.id ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('')}
                 </select>
                 <input type="text" class="form-control" style="margin-top: 0.5rem;" placeholder="Item name" value="${escapeHtml(item.item_name)}" onchange="updateInvoiceItem(${index}, 'item_name', this.value)" aria-label="Item name">
             </div>
