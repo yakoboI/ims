@@ -1346,11 +1346,40 @@ async function saveCurrentCategory() {
         const fieldId = input.id;
         if (fieldId.startsWith('setting_')) {
             const key = fieldId.replace('setting_', '');
-            // Only save settings from current category
-            const setting = (allSettings[currentCategory] || []).find(s => s.key === key);
-            if (!setting) return;
-            
+            // Check if this setting belongs to the current category
+            // First check if it exists in allSettings, if not, check fieldConfigs to determine category
+            const existingSetting = (allSettings[currentCategory] || []).find(s => s.key === key);
             const config = fieldConfigs[key];
+            
+            // If setting doesn't exist in current category, check if it should belong to current category
+            if (!existingSetting && config) {
+                // Determine category from key patterns (same logic as server)
+                let shouldBeInCategory = false;
+                if (currentCategory === 'general') {
+                    shouldBeInCategory = ['system_name', 'shop_system_name', 'company_name', 'company_address', 'company_phone', 'company_email', 'company_tax_id', 'default_tax_rate', 'tax_calculation_method', 'invoice_number_format', 'receipt_number_format'].includes(key);
+                } else if (currentCategory === 'security') {
+                    shouldBeInCategory = ['session_timeout', 'password_min_length', 'require_strong_password', 'enable_two_factor', 'max_login_attempts', 'lockout_duration'].includes(key);
+                } else if (currentCategory === 'currency') {
+                    shouldBeInCategory = ['currency_code', 'currency_symbol', 'currency_position', 'decimal_places'].includes(key);
+                } else if (currentCategory === 'datetime') {
+                    shouldBeInCategory = ['system_timezone', 'date_format', 'time_format'].includes(key);
+                } else if (currentCategory === 'display') {
+                    shouldBeInCategory = ['items_per_page', 'print_paper_size', 'print_margin', 'theme', 'language', 'enable_barcode_scanning', 'barcode_format'].includes(key);
+                } else if (currentCategory === 'email') {
+                    shouldBeInCategory = key.startsWith('email_');
+                } else if (currentCategory === 'backup') {
+                    shouldBeInCategory = key.startsWith('backup_');
+                } else if (currentCategory === 'notification') {
+                    shouldBeInCategory = ['low_stock_notification', 'low_stock_threshold', 'enable_audit_log', 'audit_log_retention_days', 'enable_api_rate_limit', 'api_rate_limit_per_minute'].includes(key);
+                }
+                
+                // If this setting doesn't belong to current category, skip it
+                if (!shouldBeInCategory) return;
+            } else if (!existingSetting && !config) {
+                // No config and no existing setting - skip it
+                return;
+            }
+            
             let value = input.value;
             
             if (config && config.type === 'checkbox') {
