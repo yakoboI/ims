@@ -208,6 +208,13 @@ async function loadSettings() {
         
         renderSettings();
         setupTabNavigation();
+        
+        // Translate page after rendering settings
+        if (window.i18n && typeof window.i18n.translatePage === 'function') {
+            setTimeout(() => {
+                window.i18n.translatePage();
+            }, 100);
+        }
     } catch (error) {
         showNotification('Error loading settings: ' + (error.message || 'Unknown error'), 'error');
         if (content) {
@@ -1180,12 +1187,36 @@ async function applyLanguage(language) {
         try {
             await window.i18n.setLanguage(language);
             console.log('Language changed to:', language);
+            // Ensure page is translated after language change
+            if (window.i18n && typeof window.i18n.translatePage === 'function') {
+                setTimeout(() => {
+                    window.i18n.translatePage();
+                }, 100);
+            }
         } catch (error) {
             console.error('Error applying language:', error);
         }
     } else {
-        // i18n.js not loaded yet, will be applied on next page load
-        console.log('Language preference saved. Will apply on page reload.');
+        // i18n.js not loaded yet - wait a bit and try again, or initialize it
+        console.log('i18n not ready, waiting...');
+        let attempts = 0;
+        const maxAttempts = 10;
+        const checkI18n = setInterval(() => {
+            attempts++;
+            if (window.i18n && typeof window.i18n.setLanguage === 'function') {
+                clearInterval(checkI18n);
+                window.i18n.setLanguage(language).then(() => {
+                    setTimeout(() => {
+                        if (window.i18n && typeof window.i18n.translatePage === 'function') {
+                            window.i18n.translatePage();
+                        }
+                    }, 100);
+                });
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkI18n);
+                console.log('Language preference saved. Will apply on page reload.');
+            }
+        }, 100);
     }
 }
 
@@ -1474,6 +1505,14 @@ async function saveCurrentCategory() {
         
         if (displaySettings.length > 0) {
             await applyDisplaySettings(displaySettings);
+            // If language was changed, ensure page is translated after reload
+            const languageSetting = displaySettings.find(s => s.key === 'language');
+            if (languageSetting && window.i18n && typeof window.i18n.translatePage === 'function') {
+                // Wait a bit for DOM to update, then translate
+                setTimeout(() => {
+                    window.i18n.translatePage();
+                }, 200);
+            }
         }
         
         await loadSettings();
