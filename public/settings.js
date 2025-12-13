@@ -894,6 +894,20 @@ async function saveAllSettings() {
             
             if (config && config.type === 'checkbox') {
                 value = input.checked;
+            } else if (input.classList.contains('number-with-separator')) {
+                // Handle formatted numbers (with thousand separators)
+                const numericValue = input.getAttribute('data-numeric-value') || removeThousandSeparator(value);
+                value = numericValue !== '' ? parseFloat(numericValue) : null;
+                if (value !== null && !isNaN(value)) {
+                    if (config && config.min !== undefined && value < config.min) {
+                        showNotification(`${config.label || key} must be at least ${config.min}`, 'error');
+                        return;
+                    }
+                    if (config && config.max !== undefined && value > config.max) {
+                        showNotification(`${config.label || key} must be at most ${config.max}`, 'error');
+                        return;
+                    }
+                }
             } else if (config && config.type === 'number') {
                 value = value !== '' ? parseFloat(value) : null;
                 // Validate number ranges
@@ -971,6 +985,22 @@ async function saveAllSettings() {
         // Clear settings cache
         if (window.clearSettingsCache) {
             window.clearSettingsCache();
+        }
+        
+        // Apply display settings immediately if they were changed
+        const displaySettings = settingsToSave.filter(s => 
+            ['theme', 'language', 'items_per_page', 'print_paper_size', 'print_margin', 'enable_barcode_scanning', 'barcode_format'].includes(s.key)
+        );
+        
+        if (displaySettings.length > 0) {
+            await applyDisplaySettings(displaySettings);
+            // If language was changed, ensure page is translated after reload
+            const languageSetting = displaySettings.find(s => s.key === 'language');
+            if (languageSetting && window.i18n && typeof window.i18n.translatePage === 'function') {
+                setTimeout(() => {
+                    window.i18n.translatePage();
+                }, 200);
+            }
         }
         
         // Reload settings to get updated values
@@ -1105,28 +1135,43 @@ function getFormData() {
 
 // Apply display settings throughout the application
 async function applyDisplaySettings(settings) {
+    let paperSize = null;
+    let margin = null;
+    
     for (const setting of settings) {
         switch (setting.key) {
             case 'theme':
                 applyTheme(setting.value);
                 break;
             case 'language':
-                applyLanguage(setting.value);
+                await applyLanguage(setting.value);
                 break;
             case 'items_per_page':
                 applyItemsPerPage(setting.value);
                 break;
             case 'print_paper_size':
+                // Store in localStorage
+                safeStorageSet('printPaperSize', setting.value);
+                paperSize = setting.value;
+                break;
             case 'print_margin':
-                applyPrintSettings();
+                // Store in localStorage
+                safeStorageSet('printMargin', setting.value);
+                margin = setting.value;
                 break;
             case 'enable_barcode_scanning':
                 applyBarcodeScanning(setting.value);
                 break;
             case 'barcode_format':
-                // Barcode format is applied when generating barcodes
+                // Store in localStorage for use when generating barcodes
+                safeStorageSet('barcodeFormat', setting.value);
                 break;
         }
+    }
+    
+    // Apply print settings after both paper size and margin are processed
+    if (paperSize !== null || margin !== null) {
+        applyPrintSettings(paperSize, margin);
     }
 }
 
@@ -1237,10 +1282,10 @@ function applyItemsPerPage(itemsPerPage) {
 }
 
 // Apply print settings
-function applyPrintSettings() {
-    // Get current print settings
-    const paperSize = safeStorageGet('printPaperSize') || 'A4';
-    const margin = safeStorageGet('printMargin') || '10';
+function applyPrintSettings(paperSizeOverride = null, marginOverride = null) {
+    // Get current print settings - use overrides if provided, otherwise from localStorage or defaults
+    const paperSize = paperSizeOverride || safeStorageGet('printPaperSize') || 'A4';
+    const margin = marginOverride || safeStorageGet('printMargin') || '10';
     
     // Create or update print style
     let printStyle = document.getElementById('printSettingsStyle');
