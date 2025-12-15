@@ -1,3 +1,6 @@
+/* Import Font System - Device-aware typography (loads first) */
+@import url('font-system.css');
+
 * {
     margin: 0;
     padding: 0;
@@ -52,36 +55,67 @@
     --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     
-    /* Typography System */
-    --font-size-base: 1rem;     /* 16px - base font size */
-    --font-size-xs: 0.75rem;    /* 12px */
-    --font-size-sm: 0.875rem;   /* 14px */
-    --font-size-lg: 1.125rem;    /* 18px */
-    --font-size-xl: 1.25rem;    /* 20px */
-    --font-size-2xl: 1.5rem;    /* 24px */
-    --font-size-3xl: 2rem;      /* 32px */
+    /* Typography System - Respects device font settings */
+    /* Base font size respects user's browser/system font size preference */
+    --font-size-base: 1rem;     /* 16px default, scales with user preference */
+    --font-size-xs: 0.75rem;    /* 12px - scales with user preference */
+    --font-size-sm: 0.875rem;   /* 14px - scales with user preference */
+    --font-size-lg: 1.125rem;   /* 18px - scales with user preference */
+    --font-size-xl: 1.25rem;    /* 20px - scales with user preference */
+    --font-size-2xl: 1.5rem;    /* 24px - scales with user preference */
+    --font-size-3xl: 2rem;      /* 32px - scales with user preference */
     
-    /* Line Heights */
+    /* Line Heights - Optimized for readability */
     --line-height-tight: 1.2;
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.6;
     --line-height-loose: 1.75;
     
-    /* Font Weights */
+    /* Font Weights - Respects system font weights */
     --font-weight-light: 300;
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
     
-    /* Font Family */
-    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
-                        "Helvetica Neue", Arial, "Noto Sans", sans-serif, 
-                        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", 
-                        "Noto Color Emoji";
+    /* Font Family - System fonts that respect device settings */
+    /* Prioritizes native system fonts for better performance and user familiarity */
+    --font-family-base: 
+        system-ui,                    /* Modern system UI font */
+        -apple-system,                /* macOS/iOS system font */
+        BlinkMacSystemFont,           /* macOS Chrome/Edge */
+        "Segoe UI",                   /* Windows system font */
+        Roboto,                       /* Android system font */
+        "Helvetica Neue",             /* macOS/iOS fallback */
+        Arial,                        /* Universal fallback */
+        "Noto Sans",                  /* Multi-language support */
+        "Noto Sans Arabic",           /* Arabic script support */
+        "Noto Sans Devanagari",       /* Hindi script support */
+        "Noto Sans CJK SC",           /* Chinese Simplified */
+        "Noto Sans CJK TC",           /* Chinese Traditional */
+        "Noto Sans JP",               /* Japanese */
+        "Noto Sans KR",               /* Korean */
+        sans-serif,                   /* Generic sans-serif fallback */
+        "Apple Color Emoji",          /* iOS emoji */
+        "Segoe UI Emoji",             /* Windows emoji */
+        "Segoe UI Symbol",            /* Windows symbols */
+        "Noto Color Emoji",           /* Android emoji */
+        "EmojiOne Color",             /* Additional emoji support */
+        "Twemoji Mozilla";            /* Twitter emoji */
     
-    --font-family-mono: "SF Mono", Monaco, "Cascadia Code", 
-                        "Roboto Mono", "Courier New", monospace;
+    /* Monospace Font Family - System monospace fonts */
+    --font-family-mono: 
+        ui-monospace,                 /* Modern system monospace */
+        SFMono-Regular,               /* macOS monospace */
+        "SF Mono",                    /* macOS monospace */
+        Monaco,                       /* macOS classic */
+        Menlo,                        /* macOS monospace */
+        "Cascadia Code",              /* Windows Terminal font */
+        "Consolas",                   /* Windows monospace */
+        "Liberation Mono",            /* Linux monospace */
+        "Courier New",                /* Universal fallback */
+        Courier,                      /* Classic fallback */
+        monospace;                    /* Generic monospace */
     
     /* Spacing System */
     --spacing-xs: 0.25rem;   /* 4px */
@@ -121,6 +155,16 @@
     vertical-align: middle;
 }
 
+/* HTML Base - Font sizing handled by font-system.css */
+/* This ensures user's browser/system font size settings are respected */
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Body typography - Uses system fonts and respects device settings */
 body {
     font-family: var(--font-family-base);
     font-size: var(--font-size-base);
@@ -128,18 +172,40 @@ body {
     font-weight: var(--font-weight-normal);
     background-color: var(--bg-color);
     color: var(--text-primary);
+    
+    /* Font rendering optimizations for better readability */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    
+    /* Advanced typography features */
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    font-kerning: normal;
+    font-variant-ligatures: common-ligatures;
+    
+    /* Maintains x-height consistency across different system fonts */
+    /* This ensures text remains readable even when system font changes */
+    font-size-adjust: 0.5;
+    
     overflow-x: hidden;
 }
 
-html {
-    scroll-behavior: smooth;
-    overflow-x: hidden;
-    width: 100%;
-    max-width: 100%;
-    font-size: 100%; /* Base 16px for rem calculations */
+/* Ensure all text elements inherit system font preferences */
+*, *::before, *::after {
+    font-family: inherit;
+}
+
+/* Input and form elements use system fonts */
+input, select, textarea, button {
+    font-family: var(--font-family-base);
+    /* Respect user's font size settings */
+    font-size: inherit;
+}
+
+/* Code and monospace elements */
+code, pre, kbd, samp {
+    font-family: var(--font-family-mono);
+    font-size: 0.9em; /* Slightly smaller for code */
 }
 
 /* Typography System - Headings */
@@ -271,30 +337,38 @@ small, .text-sm, .small-text {
 }
 
 @media (min-width: 1200px) {
-    body {
-        font-size: 1.0625rem; /* 17px */
+    :root {
+        /* Reduce base font sizes slightly for large screens (approx. 12px base) */
+        --font-size-base: 0.75rem;   /* ~12px */
+        --font-size-xs: 0.6875rem;   /* ~11px */
+        --font-size-sm: 0.75rem;     /* ~12px (labels, small text) */
+        --font-size-lg: 0.875rem;    /* ~14px */
+        --font-size-xl: 1rem;        /* ~16px */
+        --font-size-2xl: 1.25rem;    /* ~20px */
+        --line-height-normal: 1.4;
+        --line-height-relaxed: 1.5;
     }
-    
-    h1, .h1 {
-        font-size: 2.25rem; /* 36px */
-    }
-    
-    h2, .h2 {
-        font-size: 1.75rem; /* 28px */
-    }
-}
 
-@media (min-width: 1920px) {
-    body {
-        font-size: 1.125rem; /* 18px */
+    /* Keep layout and cards comfortable on large screens */
+    .container {
+        max-width: 1200px;
+        margin-left: 260px;
+        width: calc(100% - 260px);
     }
-    
-    h1, .h1 {
-        font-size: 2.5rem; /* 40px */
+
+    /* Prevent cards from feeling too huge on desktop */
+    .section-card,
+    .report-section {
+        padding: 1rem 1.25rem;
     }
-    
-    h2, .h2 {
-        font-size: 2rem; /* 32px */
+
+    /* Make dashboard and stats cards fit nicely without overflowing */
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .dashboard-sections {
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     }
 }
 
@@ -666,6 +740,11 @@ code, .code,
     text-align: center;
     margin-bottom: 30px;
     color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: var(--font-size-xl);
 }
 
 .login-info {
@@ -675,6 +754,24 @@ code, .code,
     border-radius: 0;
     font-size: var(--font-size-sm); /* Use typography system - 14px */
     color: var(--text-secondary);
+}
+
+/* Password field with toggle button */
+.password-input-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+
+.password-input-wrapper input[type="password"],
+.password-input-wrapper input[type="text"] {
+    flex: 1 1 auto;
+}
+
+.password-input-wrapper .password-toggle {
+    flex: 0 0 auto;
+    padding: 0 0.75rem;
+    min-width: 44px;
 }
 
 /* Sidebar Navigation */
@@ -1003,7 +1100,7 @@ body.menu-open {
     font-size: var(--font-size-base); /* Use typography system */
     font-weight: var(--font-weight-medium);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -1020,15 +1117,12 @@ body.menu-open {
     -webkit-user-select: none;
     touch-action: manipulation;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    box-shadow: none;
 }
 
 .btn:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
-}
-
-.btn:active {
-    transform: translateY(0);
 }
 
 .btn-primary {
@@ -1040,13 +1134,6 @@ body.menu-open {
 .btn-primary:hover:not(:disabled) {
     background: #1d4ed8;
     border-color: #1d4ed8;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
-}
-
-.btn-primary:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: none;
 }
 
 .btn-secondary {
@@ -1076,8 +1163,6 @@ body.menu-open {
 .btn-success:hover:not(:disabled) {
     background: #059669;
     border-color: #059669;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
 }
 
 .btn-danger {
@@ -1089,13 +1174,6 @@ body.menu-open {
 .btn-danger:hover:not(:disabled) {
     background: #dc2626 !important;
     border-color: #dc2626 !important;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
-}
-
-.btn-danger:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: none;
 }
 
 .btn-warning {
@@ -1107,8 +1185,6 @@ body.menu-open {
 .btn-warning:hover:not(:disabled) {
     background: #d97706;
     border-color: #d97706;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
 }
 
 .btn:disabled,
@@ -2117,7 +2193,8 @@ input[type="checkbox"]:disabled:checked {
     border-radius: 0;
     cursor: pointer;
     font-weight: 500;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    box-shadow: none;
 }
 
 .tab-btn:hover {
@@ -3365,6 +3442,34 @@ input[type="checkbox"]:disabled:checked {
     }
 }
 
+/* Form Submission States */
+form.submitting {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+form.submitting button[type="submit"],
+form.submitting .btn-primary {
+    position: relative;
+}
+
+form.submitting button[type="submit"]::after,
+form.submitting .btn-primary::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Empty States */
 .empty-state {
     display: flex;
@@ -3572,8 +3677,9 @@ input[type="checkbox"]:disabled:checked {
     border-radius: 0;
     cursor: pointer;
     font-size: 0.875rem;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     min-width: 40px;
+    box-shadow: none;
 }
 
 .pagination-btn:hover:not(.disabled) {

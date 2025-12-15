@@ -1,0 +1,162 @@
+/* Font System - Device-Aware Typography */
+/* This file ensures fonts respect user's device and accessibility settings */
+
+/* Base font size respects user's browser/system settings */
+/* Default is 16px (1rem), but scales with user preferences */
+/* Using 100% ensures browser/system font size settings are respected */
+
+html {
+    /* Use 100% to respect user's browser font size setting (default 16px) */
+    /* User can increase/decrease in browser/system settings and it will scale */
+    font-size: 100%;
+    
+    /* Support for user's accessibility font size preference */
+    /* Allows scaling from 87.5% (14px) to 125% (20px) while respecting user settings */
+    font-size: clamp(0.875rem, 1rem, 1.25rem);
+}
+
+/* Support for different device font size settings */
+@media screen and (min-width: 320px) {
+    html {
+        /* Minimum readable size on small devices - respects user preference */
+        font-size: clamp(0.875rem, 1rem, 1.125rem);
+    }
+}
+
+@media screen and (min-width: 768px) {
+    html {
+        /* Standard size on tablets - respects user preference */
+        font-size: clamp(0.9375rem, 1rem, 1.25rem);
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    html {
+        /* Optimal size on desktop - respects user preference */
+        font-size: clamp(1rem, 1rem, 1.375rem);
+    }
+}
+
+/* Respect user's accessibility font size preference */
+/* Users who set larger text in OS/browser settings will see larger fonts */
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        /* Allow scaling up to 150% for accessibility */
+        font-size: clamp(0.875rem, 1rem + 0.5vw, 1.5rem);
+    }
+}
+
+/* High contrast mode - ensure fonts are readable */
+@media (prefers-contrast: high) {
+    body {
+        font-weight: 500; /* Slightly bolder for better contrast */
+        letter-spacing: 0.01em; /* Slight spacing for readability */
+    }
+}
+
+/* Dark mode font adjustments */
+@media (prefers-color-scheme: dark) {
+    body {
+        /* Slightly lighter font weight in dark mode for better readability */
+        font-weight: 400;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Print optimizations */
+@media print {
+    html {
+        font-size: 12pt; /* Standard print size */
+    }
+    
+    body {
+        font-family: "Times New Roman", Times, serif; /* Better for print */
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+    
+    /* Ensure minimum font sizes for print */
+    p, li, td, th {
+        font-size: 10pt;
+    }
+    
+    h1 { font-size: 18pt; }
+    h2 { font-size: 16pt; }
+    h3 { font-size: 14pt; }
+    h4 { font-size: 12pt; }
+}
+
+/* Mobile-specific font optimizations */
+@media screen and (max-width: 768px) {
+    /* Slightly larger base font on mobile for better readability */
+    html {
+        font-size: clamp(16px, 1rem, 18px);
+    }
+    
+    /* Ensure touch targets have readable text */
+    button, .btn, a {
+        font-size: clamp(0.875rem, 1rem, 1.125rem);
+    }
+}
+
+/* Tablet optimizations */
+@media screen and (min-width: 769px) and (max-width: 1023px) {
+    html {
+        font-size: clamp(15px, 1rem, 19px);
+    }
+}
+
+/* Large screen optimizations */
+@media screen and (min-width: 1440px) {
+    html {
+        font-size: clamp(16px, 1rem, 20px);
+    }
+}
+
+/* Ensure text remains readable at all zoom levels */
+/* Users can zoom in/out and text will scale properly */
+* {
+    /* Prevent text from becoming too small */
+    min-font-size: 12px;
+}
+
+/* Support for RTL languages */
+[dir="rtl"] {
+    font-family: var(--font-family-base);
+}
+
+/* Arabic script optimization */
+[lang="ar"], [lang="ur"], [lang="fa"] {
+    font-family: 
+        "Noto Sans Arabic",
+        "Segoe UI",
+        Tahoma,
+        Arial,
+        sans-serif;
+    font-size: 1.1em; /* Slightly larger for Arabic readability */
+    line-height: 1.8; /* More spacing for Arabic text */
+}
+
+/* Chinese/Japanese/Korean optimization */
+[lang="zh"], [lang="ja"], [lang="ko"] {
+    font-family:
+        "Noto Sans CJK SC",
+        "Noto Sans CJK TC",
+        "Noto Sans JP",
+        "Noto Sans KR",
+        "Microsoft YaHei",
+        "SimHei",
+        "Meiryo",
+        "Malgun Gothic",
+        sans-serif;
+}
+
+/* Hindi/Devanagari script optimization */
+[lang="hi"], [lang="ne"] {
+    font-family:
+        "Noto Sans Devanagari",
+        "Mangal",
+        sans-serif;
+}
+

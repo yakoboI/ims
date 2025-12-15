@@ -87,6 +87,18 @@ async function refreshAccessToken() {
 }
 
 async function apiRequest(endpoint, options = {}) {
+    // Skip caching for non-GET requests or if cache is disabled
+    const useCache = (options.method === 'GET' || !options.method) && options.cache !== false;
+    const cacheKey = useCache ? `${endpoint}_${JSON.stringify(options)}` : null;
+    
+    // Check cache first for GET requests
+    if (useCache && cacheKey && window.getCachedRequest) {
+        const cached = window.getCachedRequest(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+    }
+    
     // Check if superadmin has selected a shop and add shop_id filter
     const currentUser = JSON.parse(safeStorageGet('currentUser', 'null') || 'null');
     const isSuperadmin = currentUser && currentUser.role === 'superadmin';
@@ -256,6 +268,21 @@ async function apiRequest(endpoint, options = {}) {
             }
             
             throw error;
+        }
+        
+        // Check if response data contains an error code (even if HTTP status is 200)
+        if (data && typeof data === 'object' && (data.code === 403 || data.code === 401)) {
+            const error = new Error(data.message || data.error || 'Permission denied');
+            error.code = data.code;
+            error.status = data.code;
+            error.data = data;
+            throw error;
+        }
+        
+        // Cache successful GET responses
+        if (useCache && cacheKey && window.setCachedRequest) {
+            const cacheDuration = options.cacheDuration || 60000; // Default 1 minute
+            window.setCachedRequest(cacheKey, data, cacheDuration);
         }
         
         return data;
@@ -537,6 +564,11 @@ function getTranslationKey(message) {
     return null;
 }
 
+// Notification system with stacking support
+let notificationStack = [];
+const NOTIFICATION_DURATION = 5000; // 5 seconds
+const NOTIFICATION_SPACING = 10; // Space between notifications
+
 function showNotification(message, type = 'success', params = {}) {
     // Try to translate the message if it's a translation key
     let displayMessage = message;
@@ -566,32 +598,144 @@ function showNotification(message, type = 'success', params = {}) {
             }
         }
     }
+    
+    // Create notification container if it doesn't exist
+    let notificationContainer = document.getElementById('notification-container');
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            width: calc(100% - 40px);
+            pointer-events: none;
+        `;
+        document.body.appendChild(notificationContainer);
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.textContent = displayMessage;
+    notification.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    notification.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    notification.setAttribute('aria-atomic', 'true');
+    
+    // Determine colors based on type
+    let bgColor, textColor, borderColor;
+    switch(type) {
+        case 'success':
+            bgColor = '#d1fae5';
+            textColor = '#065f46';
+            borderColor = '#10b981';
+            break;
+        case 'error':
+            bgColor = '#fee2e2';
+            textColor = '#991b1b';
+            borderColor = '#ef4444';
+            break;
+        case 'warning':
+            bgColor = '#fef3c7';
+            textColor = '#92400e';
+            borderColor = '#f59e0b';
+            break;
+        case 'info':
+        default:
+            bgColor = '#dbeafe';
+            textColor = '#1e40af';
+            borderColor = '#3b82f6';
+            break;
+    }
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <span style="flex-shrink: 0; font-size: 1.25rem;">
+                ${type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ'}
+            </span>
+            <span style="flex: 1; word-wrap: break-word;">${escapeHtml(displayMessage)}</span>
+            <button class="notification-close" aria-label="Close notification" style="
+                background: none;
+                border: none;
+                color: ${textColor};
+                cursor: pointer;
+                font-size: 1.25rem;
+                line-height: 1;
+                padding: 0;
+                opacity: 0.7;
+                flex-shrink: 0;
+            " onclick="this.parentElement.parentElement.remove(); updateNotificationPositions();">×</button>
+        </div>
+    `;
+    
     notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
         padding: 1rem 1.5rem;
-        background: ${type === 'success' ? '#d1fae5' : '#fee2e2'};
-        color: ${type === 'success' ? '#065f46' : '#991b1b'};
+        background: ${bgColor};
+        color: ${textColor};
+        border-left: 4px solid ${borderColor};
         border-radius: 0;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 10000;
-        animation: slideIn 0.3s ease;
+        margin-bottom: ${NOTIFICATION_SPACING}px;
+        animation: slideInRight 0.3s ease;
+        pointer-events: auto;
+        word-wrap: break-word;
+        max-width: 100%;
     `;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    
+    notificationContainer.appendChild(notification);
+    notificationStack.push(notification);
+    
+    // Announce to screen readers
+    if (window.AccessibilityUtils && typeof window.AccessibilityUtils.announce === 'function') {
+        window.AccessibilityUtils.announce(displayMessage, type === 'error' ? 'assertive' : 'polite');
+    }
+    
+    // Auto-dismiss after duration
+    const dismissTimeout = setTimeout(() => {
+        dismissNotification(notification);
+    }, NOTIFICATION_DURATION);
+    
+    // Store timeout ID for manual dismissal
+    notification.dataset.dismissTimeout = dismissTimeout;
+    
+    // Update positions
+    updateNotificationPositions();
+    
+    return notification;
 }
 
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
+function dismissNotification(notification) {
+    if (notification.dataset.dismissTimeout) {
+        clearTimeout(parseInt(notification.dataset.dismissTimeout));
+    }
+    notification.style.animation = 'slideOutRight 0.3s ease';
+    setTimeout(() => {
+        notification.remove();
+        notificationStack = notificationStack.filter(n => n !== notification);
+        updateNotificationPositions();
+    }, 300);
+}
+
+function updateNotificationPositions() {
+    // Notifications stack automatically with CSS, but we ensure proper spacing
+    const notifications = document.querySelectorAll('#notification-container .notification');
+    notifications.forEach((notif, index) => {
+        // Position is handled by CSS margin-bottom, but we can add transitions
+        notif.style.transition = 'margin-top 0.3s ease';
+    });
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Enhanced notification styles
+const notificationStyle = document.createElement('style');
+notificationStyle.textContent = `
+    @keyframes slideInRight {
         from {
             transform: translateX(100%);
             opacity: 0;
@@ -601,7 +745,7 @@ style.textContent = `
             opacity: 1;
         }
     }
-    @keyframes slideOut {
+    @keyframes slideOutRight {
         from {
             transform: translateX(0);
             opacity: 1;
@@ -609,10 +753,22 @@ style.textContent = `
         to {
             transform: translateX(100%);
             opacity: 0;
+        }
+    }
+    .notification-close:hover {
+        opacity: 1 !important;
+    }
+    @media (max-width: 768px) {
+        #notification-container {
+            top: 10px !important;
+            right: 10px !important;
+            left: 10px !important;
+            width: calc(100% - 20px) !important;
+            max-width: none !important;
         }
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(notificationStyle);
 
 // Track last touch time to prevent double-firing
 let lastTouchTime = 0;

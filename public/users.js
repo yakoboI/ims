@@ -1,6 +1,5 @@
 let users = [];
 
-
 async function loadUsers() {
     const tbody = document.getElementById('usersTableBody');
     const tableContainer = document.querySelector('.table-container');
@@ -268,8 +267,6 @@ function openChangePasswordModal(userId) {
         return;
     }
     
-    document.getElementById('changePasswordUserId').value = user.id;
-    document.getElementById('changePasswordUsername').value = user.username;
     form.reset();
     document.getElementById('changePasswordUserId').value = user.id;
     document.getElementById('changePasswordUsername').value = user.username;

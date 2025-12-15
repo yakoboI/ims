@@ -1,10 +1,47 @@
+# robots.txt for Inventory Management System
+# This file tells search engines which pages they can and cannot access
+
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /uploads/
+Disallow: /backups/
+Disallow: /*.db$
+Disallow: /*.db-shm$
+Disallow: /*.db-wal$
+
+# Allow specific important pages
+Allow: /index.html
+Allow: /dashboard.html
+Allow: /inventory-items.html
+Allow: /sales.html
+Allow: /purchases.html
+Allow: /reports.html
+Allow: /settings.html
+Allow: /privacy-policy.html
+Allow: /terms-and-service.html
 
 # Sitemap location
-Sitemap: /sitemap.xml
+Sitemap: https://your-domain.com/sitemap.xml
 
-# Crawl delay (optional)
+# Crawl delay (be respectful to server resources)
 Crawl-delay: 1
+
+# Specific bot rules
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
 

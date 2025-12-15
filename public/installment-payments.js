@@ -217,7 +217,9 @@ function renderInstallmentPlansTable(plansList) {
 
     if (tableContainer) hideEmptyState(tableContainer);
     
-    tbody.innerHTML = plansList.map(plan => {
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    const rows = plansList.map(plan => {
         const totalPrice = parseFloat(plan.total_price || 0);
         const paidAmount = parseFloat(plan.paid_amount || 0);
         const remaining = totalPrice - paidAmount;
@@ -265,7 +267,17 @@ function renderInstallmentPlansTable(plansList) {
                 </td>
             </tr>
         `;
-    }).join('');
+    });
+    
+    // Create temporary container for innerHTML assignment
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = rows.join('');
+    while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+    }
+    
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
 }
 
 function setupEventListeners() {
@@ -1026,6 +1038,9 @@ async function deletePlan(planId) {
     }
 }
 
+// Debounced filter function (will be initialized after DOM loads)
+let debouncedApplyFilters = applyFilters;
+
 function applyFilters() {
     const search = document.getElementById('searchPlans')?.value.toLowerCase().trim() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
@@ -1048,7 +1063,12 @@ function applyFilters() {
         });
     }
     
-    renderInstallmentPlansTable(filtered);
+    // Use optimized rendering if available
+    if (window.renderTableOptimized) {
+        window.renderTableOptimized(() => renderInstallmentPlansTable(filtered), document.querySelector('.table-container'));
+    } else {
+        renderInstallmentPlansTable(filtered);
+    }
 }
 
 function clearFilters() {
@@ -1435,6 +1455,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCustomersAndProducts();
     setupComponentNavigation();
     setupEventListeners();
+    
+    // Initialize debounced function
+    if (window.debounce) {
+        debouncedApplyFilters = window.debounce(applyFilters, 300);
+    }
+    
+    // Add debounced search input listener
+    const searchInput = document.getElementById('searchPlans');
+    if (searchInput) {
+        searchInput.addEventListener('input', debouncedApplyFilters);
+    }
+    
+    // Add immediate filter listener for status
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', applyFilters);
+    }
+    
     // Load default component (plans)
     await loadComponentData('plans');
 });

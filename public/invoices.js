@@ -124,7 +124,10 @@ function renderInvoicesTable(invoicesList) {
     }
 
     if (tableContainer) hideEmptyState(tableContainer);
-    tbody.innerHTML = invoicesList.map(invoice => {
+    
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    const rows = invoicesList.map(invoice => {
         const statusClass = invoice.status === 'paid' ? 'badge-success' : 
                            invoice.status === 'sent' ? 'badge-info' : 
                            invoice.status === 'overdue' ? 'badge-danger' : 
@@ -159,7 +162,17 @@ function renderInvoicesTable(invoicesList) {
                 </td>
             </tr>
         `;
-    }).join('');
+    });
+    
+    // Create temporary container for innerHTML assignment
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = rows.join('');
+    while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+    }
+    
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
 }
 
 function setupEventListeners() {
@@ -1014,6 +1027,9 @@ function printInvoiceWithData(invoiceData) {
 // Store current viewing invoice ID
 let currentViewingInvoiceId = null;
 
+// Debounced filter function (will be initialized after DOM loads)
+let debouncedApplyInvoiceFilters = applyInvoiceFilters;
+
 function applyInvoiceFilters() {
     const statusFilter = document.getElementById('invoiceStatusFilter')?.value || '';
     const dateFrom = document.getElementById('invoiceDateFrom')?.value || '';
@@ -1052,7 +1068,12 @@ function applyInvoiceFilters() {
         });
     }
     
-    renderInvoicesTable(filtered);
+    // Use optimized rendering if available
+    if (window.renderTableOptimized) {
+        window.renderTableOptimized(() => renderInvoicesTable(filtered), document.querySelector('.table-container'));
+    } else {
+        renderInvoicesTable(filtered);
+    }
 }
 
 function clearInvoiceFilters() {
@@ -1091,5 +1112,31 @@ window.printInvoice = printInvoice;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInvoices();
     setupEventListeners();
+    
+    // Initialize debounced function
+    if (window.debounce) {
+        debouncedApplyInvoiceFilters = window.debounce(applyInvoiceFilters, 300);
+    }
+    
+    // Add debounced search input listener
+    const searchInput = document.getElementById('searchInvoices');
+    if (searchInput) {
+        searchInput.addEventListener('input', debouncedApplyInvoiceFilters);
+    }
+    
+    // Add immediate filter listeners for selects
+    const statusFilter = document.getElementById('invoiceStatusFilter');
+    const dateFrom = document.getElementById('invoiceDateFrom');
+    const dateTo = document.getElementById('invoiceDateTo');
+    
+    if (statusFilter) {
+        statusFilter.addEventListener('change', applyInvoiceFilters);
+    }
+    if (dateFrom) {
+        dateFrom.addEventListener('change', applyInvoiceFilters);
+    }
+    if (dateTo) {
+        dateTo.addEventListener('change', applyInvoiceFilters);
+    }
 });
 

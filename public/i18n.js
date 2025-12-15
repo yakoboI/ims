@@ -51,8 +51,12 @@ function t(key, params = {}) {
         if (value && typeof value === 'object' && k in value) {
             value = value[k];
         } else {
-            // Key not found, return the key itself
-            console.warn(`Translation key not found: ${key}`);
+            // Key not found - check if translations are loaded
+            // Only warn if translations are loaded but key is missing
+            if (Object.keys(translations).length > 0) {
+                console.warn(`Translation key not found: ${key}`);
+            }
+            // Return the key itself (will be used as fallback)
             return key;
         }
     }

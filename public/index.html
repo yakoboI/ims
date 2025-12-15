@@ -48,15 +48,22 @@
     <!-- Mobile Optimizations -->
     <link rel="stylesheet" href="index-mobile.css">
     
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <!-- System fonts are used - no external font loading needed -->
     
     <!-- Browser Compatibility -->
     <script src="browser-compat.js"></script>
     
     <!-- Modal Utilities -->
     <script src="modal-utils.js"></script>
+    
+    <!-- Cookie Consent CSS -->
+    <link rel="stylesheet" href="cookie-consent.css">
+    
+    <!-- Accessibility Utilities -->
+    <script src="accessibility-utils.js"></script>
+    
+    <!-- SEO Utilities -->
+    <script src="seo-utils.js"></script>
 </head>
 <body class="login-page">
     <!-- Skip to main content link for accessibility -->
@@ -64,7 +71,10 @@
     <main id="main-content" class="login-container" role="main">
         <div class="login-box">
             <header>
-                <h1>Inventory Management System</h1>
+                <h1>
+                    <i class="fas fa-boxes fa-icon-primary" aria-hidden="true"></i>
+                    <span>Inventory Management System</span>
+                </h1>
             </header>
             <form id="loginForm" role="form" aria-label="Login form">
                 <div class="form-group">
@@ -75,23 +85,40 @@
                         name="username" 
                         required 
                         autocomplete="username"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        inputmode="text"
                         aria-required="true"
                         aria-label="Enter your username"
                         data-i18n-placeholder="login.username">
                 </div>
                 <div class="form-group">
                     <label for="password" data-i18n="login.password">Password</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required 
-                        autocomplete="current-password"
-                        aria-required="true"
-                        aria-label="Enter your password"
-                        data-i18n-placeholder="login.password">
+                    <div class="password-input-wrapper">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            autocomplete="current-password"
+                            autocapitalize="none"
+                            spellcheck="false"
+                            aria-required="true"
+                            aria-label="Enter your password"
+                            data-i18n-placeholder="login.password">
+                        <button 
+                            type="button" 
+                            id="togglePasswordVisibility" 
+                            class="btn btn-sm btn-secondary password-toggle" 
+                            aria-label="Show or hide password">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary" aria-label="Submit login form" data-i18n="login.login">Login</button>
+                <button type="submit" class="btn btn-primary" aria-label="Submit login form" data-i18n="login.login">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
+                    <span data-i18n="login.login">Login</span>
+                </button>
                 <div id="loginError" class="error-message" role="alert" aria-live="polite" aria-atomic="true"></div>
             </form>
         </div>
@@ -99,7 +126,32 @@
     <!-- Internationalization (i18n) -->
     <script src="i18n.js"></script>
     
+    <!-- Cookie Consent -->
+    <script src="cookie-consent.js"></script>
+    
     <script src="app.js"></script>
+    <script>
+        // Simple password show/hide toggle for login page
+        document.addEventListener('DOMContentLoaded', function () {
+            var toggle = document.getElementById('togglePasswordVisibility');
+            var passwordInput = document.getElementById('password');
+
+            if (!toggle || !passwordInput) return;
+
+            toggle.addEventListener('click', function () {
+                var isPassword = passwordInput.type === 'password';
+                passwordInput.type = isPassword ? 'text' : 'password';
+
+                var icon = toggle.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-eye');
+                    icon.classList.toggle('fa-eye-slash');
+                }
+
+                toggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
 </body>
 </html>
 

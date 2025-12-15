@@ -191,6 +191,20 @@ const fieldConfigs = {
         label: 'Barcode Format', 
         options: ['CODE128', 'EAN13', 'EAN8', 'CODE39', 'ITF14'],
         description: 'Default barcode format for generating barcodes. CODE128 is the most versatile and commonly used format.'
+    },
+
+    // INVENTORY / ACCOUNTING SETTINGS (minor UI for existing backend keys)
+    inventory_method: {
+        type: 'select',
+        label: 'Inventory Model',
+        options: ['perpetual', 'periodic'],
+        description: 'Perpetual: stock updates in real-time on every transaction. Periodic: stock is updated at period-end based on physical counts.'
+    },
+    valuation_method: {
+        type: 'select',
+        label: 'Inventory Valuation Method',
+        options: ['FIFO', 'LIFO', 'WAC'],
+        description: 'Select how Cost of Goods Sold (COGS) is calculated: FIFO (oldest cost first), LIFO (newest cost first), or WAC (Weighted Average Cost). Changing this may impact financial reports.'
     }
 };
 
@@ -877,6 +891,7 @@ async function saveAllSettings() {
     
     const settingsToSave = [];
     const inputs = form.querySelectorAll('input, select');
+    let hasValidationError = false;
     
     inputs.forEach(input => {
         const fieldId = input.id;
@@ -885,18 +900,40 @@ async function saveAllSettings() {
             const config = fieldConfigs[key];
             let value = input.value;
             
+            // Get original value for comparison
+            const originalSetting = Object.values(allSettings).flat().find(s => s.key === key);
+            const originalValue = originalSetting ? originalSetting.value : null;
+            
             if (config && config.type === 'checkbox') {
                 value = input.checked;
+            } else if (input.classList.contains('number-with-separator')) {
+                // Handle formatted numbers (with thousand separators)
+                const numericValue = input.getAttribute('data-numeric-value') || removeThousandSeparator(value);
+                value = numericValue !== '' ? parseFloat(numericValue) : null;
+                if (value !== null && !isNaN(value)) {
+                    if (config && config.min !== undefined && value < config.min) {
+                        showNotification(`${config.label || key} must be at least ${config.min}`, 'error');
+                        hasValidationError = true;
+                        return;
+                    }
+                    if (config && config.max !== undefined && value > config.max) {
+                        showNotification(`${config.label || key} must be at most ${config.max}`, 'error');
+                        hasValidationError = true;
+                        return;
+                    }
+                }
             } else if (config && config.type === 'number') {
                 value = value !== '' ? parseFloat(value) : null;
                 // Validate number ranges
                 if (value !== null && !isNaN(value)) {
                     if (config.min !== undefined && value < config.min) {
                         showNotification(`${config.label || key} must be at least ${config.min}`, 'error');
+                        hasValidationError = true;
                         return;
                     }
                     if (config.max !== undefined && value > config.max) {
                         showNotification(`${config.label || key} must be at most ${config.max}`, 'error');
+                        hasValidationError = true;
                         return;
                     }
                 }
@@ -908,15 +945,39 @@ async function saveAllSettings() {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(value)) {
                     showNotification(`Invalid email format for ${config.label || key}`, 'error');
+                    hasValidationError = true;
                     return;
                 }
             } else if (value === '') {
                 value = null;
             }
             
-            settingsToSave.push({ key, value });
+            // Compare with original value - only save if changed
+            let valueChanged = false;
+            if (config && config.type === 'checkbox') {
+                valueChanged = value !== (originalValue === true || originalValue === 'true' || originalValue === 1);
+            } else if (value === null && originalValue === null) {
+                valueChanged = false;
+            } else if (value === null || originalValue === null) {
+                valueChanged = true;
+            } else {
+                // Compare values (handle number comparison)
+                const currentValue = typeof value === 'number' ? value : String(value);
+                const origValue = typeof originalValue === 'number' ? originalValue : String(originalValue);
+                valueChanged = currentValue !== origValue;
+            }
+            
+            // Only add to save list if value has changed
+            if (valueChanged) {
+                settingsToSave.push({ key, value });
+            }
         }
     });
+    
+    // If there was a validation error, don't proceed
+    if (hasValidationError) {
+        return;
+    }
     
     if (settingsToSave.length === 0) {
         showNotification('No changes to save', 'info');

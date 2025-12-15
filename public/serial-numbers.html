@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>Serial Numbers - Inventory Management System | IMS</title>
+    <meta name="description" content="View and search serial numbers with full traceability in the IMS system.">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Normalize CSS -->
+    <link rel="stylesheet" href="css/normalize.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="css/fontawesome/all.min.css">
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Browser Compatibility -->
+    <script src="browser-compat.js"></script>
+    <!-- Modal Utilities -->
+    <script src="modal-utils.js"></script>
+    <!-- Loading States -->
+    <script src="loading-states.js"></script>
+    <!-- Empty States -->
+    <script src="empty-states.js"></script>
+</head>
+<body>
+    <!-- Skip link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
+    <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
+        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-footer">
+            <span class="nav-user" id="navUser" aria-label="Current user"></span>
+            <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+        <div class="nav-menu" role="menubar">
+            <a href="dashboard.html" class="nav-link " role="menuitem"><i class="fas fa-tachometer-alt fa-icon-primary"></i> Dashboard</a>
+            <a href="inventory-items.html" class="nav-link " role="menuitem"><i class="fas fa-box fa-icon-info"></i> Inventory Items</a>
+            <a href="stock-manage.html" class="nav-link " role="menuitem"><i class="fas fa-boxes fa-icon-warning"></i> Stock Manage</a>
+            <a href="inventory-operations.html" class="nav-link " role="menuitem"><i class="fas fa-cogs fa-icon-success"></i> Inventory Operations</a>
+            <a href="goods-prices.html" class="nav-link " role="menuitem"><i class="fas fa-dollar-sign fa-icon-success"></i> Goods Prices</a>
+            <a href="goods-barcodes.html" class="nav-link " role="menuitem"><i class="fas fa-barcode fa-icon-primary"></i> Goods Barcodes</a>
+            <a href="purchases.html" class="nav-link " role="menuitem"><i class="fas fa-shopping-cart fa-icon-success"></i> Purchases</a>
+            <a href="sales.html" class="nav-link " role="menuitem"><i class="fas fa-cash-register fa-icon-success"></i> Sales</a>
+            <a href="invoices.html" class="nav-link " id="invoicesLink" role="menuitem"><i class="fas fa-file-invoice fa-icon-primary"></i> Invoices</a>
+            <a href="receipts.html" class="nav-link " id="receiptsLink" role="menuitem"><i class="fas fa-receipt fa-icon-success"></i> Receipts</a>
+            <a href="expenses.html" class="nav-link " id="expensesLink" role="menuitem"><i class="fas fa-money-bill-wave fa-icon-warning"></i> Expenses</a>
+            <a href="reports.html" class="nav-link " role="menuitem"><i class="fas fa-chart-bar fa-icon-info"></i> Reports</a>
+            <a href="categories.html" class="nav-link " id="categoriesLink" role="menuitem"><i class="fas fa-tags fa-icon-info"></i> Goods Category</a>
+            <a href="suppliers.html" class="nav-link " id="suppliersLink" role="menuitem"><i class="fas fa-truck fa-icon-info"></i> Suppliers</a>
+            <a href="customers.html" class="nav-link " id="customersLink" role="menuitem"><i class="fas fa-user-friends fa-icon-success"></i> Customers</a>
+            <a href="installment-payments.html" class="nav-link " id="installmentPaymentsLink" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Installment Payments</a>
+            <a href="settings.html" class="nav-link " id="settingsLink" role="menuitem"><i class="fas fa-cog fa-icon-primary"></i> Settings</a>
+            <a href="users.html" class="nav-link " id="usersLink" style="display: none;" role="menuitem"><i class="fas fa-users fa-icon-primary"></i> Users</a>
+            <a href="shops.html" class="nav-link " id="shopsLink" style="display: none;" role="menuitem"><i class="fas fa-store fa-icon-primary"></i> Shops</a>
+            <a href="shop-statistics.html" class="nav-link " id="shopStatsLink" style="display: none;" role="menuitem"><i class="fas fa-chart-line fa-icon-info"></i> Shop Statistics</a>
+            <a href="subscription-plans.html" class="nav-link " id="subscriptionPlansLink" style="display: none;" role="menuitem"><i class="fas fa-credit-card fa-icon-primary"></i> Subscription Plans</a>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" role="main">
+        <header class="page-header">
+            <h1>Serial Numbers</h1>
+        </header>
+
+        <section class="filters" aria-label="Serial number filters">
+            <div class="filter-row">
+                <label for="serialSearch" class="sr-only">Search serial number</label>
+                <input type="text" id="serialSearch" class="search-input" placeholder="Search by serial number..." aria-label="Search by serial number">
+
+                <label for="serialStatusFilter" class="sr-only">Filter by status</label>
+                <select id="serialStatusFilter" class="date-input" aria-label="Filter by status">
+                    <option value="">All Statuses</option>
+                    <option value="in_stock">In Stock</option>
+                    <option value="sold">Sold</option>
+                    <option value="returned">Returned</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="lost">Lost</option>
+                </select>
+
+                <button class="btn btn-primary" id="serialFilterBtn" aria-label="Load serial numbers">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </section>
+
+        <section class="table-container" aria-label="Serial numbers table">
+            <table class="data-table" role="table" aria-label="Serial numbers">
+                <thead>
+                    <tr>
+                        <th scope="col">Serial Number</th>
+                        <th scope="col">Item</th>
+                        <th scope="col">SKU</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Purchase Date</th>
+                        <th scope="col">Sale Date</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Warranty</th>
+                    </tr>
+                </thead>
+                <tbody id="serialNumbersBody" role="rowgroup" aria-live="polite">
+                    <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- i18n -->
+    <script src="i18n.js"></script>
+    <!-- Core app helpers -->
+    <script src="app.js"></script>
+    <script src="shop-selector.js"></script>
+    <!-- Serial numbers logic -->
+    <script src="serial-numbers.js"></script>
+</body>
+</html>
+
+

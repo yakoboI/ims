@@ -1,0 +1,192 @@
+/* Accessibility Enhancements */
+
+/* Screen reader only class */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Skip link */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary-color, #2563eb);
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    z-index: 10000;
+    border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid white;
+    outline-offset: 2px;
+}
+
+/* Focus indicators */
+*:focus-visible {
+    outline: 3px solid var(--primary-color, #2563eb);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid var(--primary-color, #2563eb);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    * {
+        border-width: 2px !important;
+    }
+    
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        border: 2px solid currentColor !important;
+    }
+    
+    .btn {
+        border-width: 2px !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ARIA live regions */
+[role="status"],
+[role="alert"],
+[aria-live] {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Ensure interactive elements are keyboard accessible */
+button:not(:disabled),
+a[href],
+input:not(:disabled),
+select:not(:disabled),
+textarea:not(:disabled),
+[tabindex]:not([tabindex="-1"]) {
+    cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Ensure sufficient color contrast */
+.text-muted,
+.text-secondary {
+    color: var(--text-secondary, #64748b);
+}
+
+/* Ensure form labels are visible */
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color, #1e293b);
+}
+
+/* Error states */
+input:invalid,
+select:invalid,
+textarea:invalid {
+    border-color: var(--danger-color, #ef4444);
+}
+
+input:invalid:focus,
+select:invalid:focus,
+textarea:invalid:focus {
+    outline-color: var(--danger-color, #ef4444);
+}
+
+/* Loading states for screen readers */
+[aria-busy="true"]::before {
+    content: "Loading...";
+    position: absolute;
+    left: -10000px;
+}
+
+/* Ensure modals are accessible */
+.modal[aria-modal="true"] {
+    z-index: 10000;
+}
+
+.modal[aria-modal="true"]:focus {
+    outline: none;
+}
+
+/* Ensure tables are accessible */
+table {
+    border-collapse: collapse;
+}
+
+th {
+    font-weight: 600;
+    text-align: left;
+}
+
+th[scope="col"] {
+    border-bottom: 2px solid var(--border-color, #e2e8f0);
+}
+
+th[scope="row"] {
+    border-right: 2px solid var(--border-color, #e2e8f0);
+}
+
+/* Ensure images have alt text fallback */
+img:not([alt]) {
+    border: 2px dashed var(--warning-color, #f59e0b);
+}
+
+/* Print accessibility */
+@media print {
+    .skip-link,
+    .sr-only,
+    [aria-hidden="true"] {
+        display: none !important;
+    }
+    
+    a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: #666;
+    }
+}
+

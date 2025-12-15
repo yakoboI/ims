@@ -177,6 +177,10 @@
                     <button class="tab-btn" role="tab" aria-selected="false" aria-controls="categoryPerformanceReport" id="tab-category-performance">📊 Category Performance</button>
                     <button class="tab-btn" role="tab" aria-selected="false" aria-controls="monthlyComparisonReport" id="tab-monthly-comparison">📅 Monthly Comparison</button>
                     <button class="tab-btn" role="tab" aria-selected="false" aria-controls="profitAnalysisReport" id="tab-profit-analysis">💵 Profit Analysis</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="stockoutReport" id="tab-stockout">🚨 Stockout Events</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="varianceReport" id="tab-variance">📊 Variance Report</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="laborHoursReport" id="tab-labor-hours">⏱️ Labor Hours</button>
+                    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="abcAnalysisReport" id="tab-abc-analysis">🔤 ABC Analysis</button>
                 </nav>
 
         <!-- Stock Report -->
@@ -349,6 +353,208 @@
             <div class="chart-container" style="background: var(--card-bg); padding: 1.5rem; border-radius: 0; box-shadow: var(--shadow); margin-top: 1rem;">
                 <h3 style="margin-bottom: 1rem;">Profit Analysis (Revenue vs Expenses)</h3>
                 <canvas id="profitAnalysisChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- Stockout Events Report (TEST 001) -->
+        <section id="stockoutReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-stockout" aria-hidden="true">
+            <div class="report-filters" aria-label="Stockout report filters">
+                <label for="stockoutStartDate" class="sr-only">Start date</label>
+                <input type="date" id="stockoutStartDate" class="date-input" aria-label="Stockout report start date">
+                <label for="stockoutEndDate" class="sr-only">End date</label>
+                <input type="date" id="stockoutEndDate" class="date-input" aria-label="Stockout report end date">
+                <input type="text" id="stockoutSKU" placeholder="Search SKU..." class="search-input" aria-label="Search by SKU">
+                <button class="btn btn-primary" id="stockoutFilterBtn" aria-label="Load stockout report">Filter</button>
+            </div>
+            <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div class="stat-card">
+                    <h3 id="stockoutTotalEvents">-</h3>
+                    <p>Total Events</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stockoutUnresolved">-</h3>
+                    <p>Unresolved</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stockoutAvgDuration">-</h3>
+                    <p>Avg Duration (min)</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Stockout events report">
+                    <thead>
+                        <tr>
+                            <th scope="col">SKU</th>
+                            <th scope="col">Item Name</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Stockout Date</th>
+                            <th scope="col">Resolved Date</th>
+                            <th scope="col">Duration (min)</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockoutReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Variance Report (TEST 002) -->
+        <section id="varianceReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-variance" aria-hidden="true">
+            <div class="report-filters" aria-label="Variance report filters">
+                <label for="varianceStartDate" class="sr-only">Start date</label>
+                <input type="date" id="varianceStartDate" class="date-input" aria-label="Variance report start date">
+                <label for="varianceEndDate" class="sr-only">End date</label>
+                <input type="date" id="varianceEndDate" class="date-input" aria-label="Variance report end date">
+                <select id="varianceSeverity" class="date-input" aria-label="Filter by severity">
+                    <option value="">All Severities</option>
+                    <option value="acceptable">Acceptable</option>
+                    <option value="concerning">Concerning</option>
+                    <option value="critical">Critical</option>
+                </select>
+                <button class="btn btn-primary" id="varianceFilterBtn" aria-label="Load variance report">Filter</button>
+            </div>
+            <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div class="stat-card">
+                    <h3 id="varianceTotalCounts">-</h3>
+                    <p>Total Counts</p>
+                </div>
+                <div class="stat-card" style="background: var(--success-color); color: white;">
+                    <h3 id="varianceAcceptable">-</h3>
+                    <p>Acceptable</p>
+                </div>
+                <div class="stat-card" style="background: var(--warning-color); color: white;">
+                    <h3 id="varianceConcerning">-</h3>
+                    <p>Concerning</p>
+                </div>
+                <div class="stat-card" style="background: var(--danger-color); color: white;">
+                    <h3 id="varianceCritical">-</h3>
+                    <p>Critical</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="varianceTotalValue">-</h3>
+                    <p>Total Variance Value</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Variance report">
+                    <thead>
+                        <tr>
+                            <th scope="col">Item Name</th>
+                            <th scope="col">SKU</th>
+                            <th scope="col">System Qty</th>
+                            <th scope="col">Physical Count</th>
+                            <th scope="col">Variance</th>
+                            <th scope="col">Variance %</th>
+                            <th scope="col">Variance Value</th>
+                            <th scope="col">Severity</th>
+                            <th scope="col">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="varianceReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Labor Hours Report (TEST 003) -->
+        <section id="laborHoursReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-labor-hours" aria-hidden="true">
+            <div class="report-filters" aria-label="Labor hours report filters">
+                <label for="laborStartDate" class="sr-only">Start date</label>
+                <input type="date" id="laborStartDate" class="date-input" aria-label="Labor hours start date">
+                <label for="laborEndDate" class="sr-only">End date</label>
+                <input type="date" id="laborEndDate" class="date-input" aria-label="Labor hours end date">
+                <select id="laborActivityType" class="date-input" aria-label="Filter by activity">
+                    <option value="">All Activities</option>
+                    <option value="receiving">Receiving</option>
+                    <option value="cycle_counting">Cycle Counting</option>
+                    <option value="picking">Picking</option>
+                    <option value="packing">Packing</option>
+                    <option value="put_away">Put Away</option>
+                    <option value="other">Other</option>
+                </select>
+                <button class="btn btn-primary" id="laborFilterBtn" aria-label="Load labor hours report">Filter</button>
+            </div>
+            <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div class="stat-card">
+                    <h3 id="laborTotalEntries">-</h3>
+                    <p>Total Entries</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="laborTotalHours">-</h3>
+                    <p>Total Hours</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="laborTotalCost">-</h3>
+                    <p>Total Labor Cost</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="Labor hours report">
+                    <thead>
+                        <tr>
+                            <th scope="col">User</th>
+                            <th scope="col">Activity</th>
+                            <th scope="col">Start Time</th>
+                            <th scope="col">End Time</th>
+                            <th scope="col">Duration (min)</th>
+                            <th scope="col">Item</th>
+                            <th scope="col">Labor Cost</th>
+                            <th scope="col">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="laborHoursReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ABC Analysis Report (TEST 009) -->
+        <section id="abcAnalysisReport" class="report-section" style="display: none;" role="tabpanel" aria-labelledby="tab-abc-analysis" aria-hidden="true">
+            <div class="report-filters" aria-label="ABC analysis filters">
+                <button class="btn btn-primary" id="abcRecalculateBtn" aria-label="Recalculate ABC analysis">Recalculate ABC Categories</button>
+                <select id="abcCategoryFilter" class="date-input" aria-label="Filter by ABC category">
+                    <option value="">All Categories</option>
+                    <option value="A">A - High Value</option>
+                    <option value="B">B - Medium Value</option>
+                    <option value="C">C - Low Value</option>
+                </select>
+            </div>
+            <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div class="stat-card">
+                    <h3 id="abcTotalItems">-</h3>
+                    <p>Total Items</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="abcCategoryA">-</h3>
+                    <p>A Items</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="abcCategoryB">-</h3>
+                    <p>B Items</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="abcCategoryC">-</h3>
+                    <p>C Items</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="abcTotalValue">-</h3>
+                    <p>Total Annual Usage Value</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table" role="table" aria-label="ABC analysis report">
+                    <thead>
+                        <tr>
+                            <th scope="col">Item Name</th>
+                            <th scope="col">SKU</th>
+                            <th scope="col">ABC Category</th>
+                            <th scope="col">Annual Qty Sold</th>
+                            <th scope="col">Annual Usage Value</th>
+                            <th scope="col">% of Value</th>
+                            <th scope="col">% of SKUs</th>
+                            <th scope="col">Analysis Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="abcAnalysisReportBody" role="rowgroup" aria-live="polite"></tbody>
+                </table>
             </div>
         </section>
             </div>

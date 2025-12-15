@@ -613,10 +613,29 @@
     <!-- Internationalization (i18n) -->
     <script src="i18n.js"></script>
     
+    <script src="performance-utils.js"></script>
     <script src="app.js"></script>
     <script src="dashboard.js"></script>
     <script src="clear-data.js"></script>
     <script src="shop-selector.js"></script>
+    
+    <!-- Global error handler for unhandled promise rejections -->
+    <script>
+        window.addEventListener('unhandledrejection', function(event) {
+            const error = event.reason;
+            // Only log if it's not a handled 403 error
+            if (error && error.code !== 403 && error.status !== 403 && (!error.data || error.data.code !== 403)) {
+                console.error('Unhandled promise rejection:', error);
+                // Prevent default browser error logging for known errors
+                if (error.message && !error.message.includes('Permission denied')) {
+                    event.preventDefault();
+                }
+            } else {
+                // Suppress 403 errors from console
+                event.preventDefault();
+            }
+        });
+    </script>
 </body>
 </html>
 

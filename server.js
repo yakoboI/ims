@@ -278,6 +278,48 @@ app.get('/version.json', (req, res) => {
   }
 });
 
+// SEO Routes - robots.txt and sitemap.xml
+app.get('/robots.txt', (req, res) => {
+  const robotsPath = path.join(__dirname, 'public', 'robots.txt');
+  if (fs.existsSync(robotsPath)) {
+    res.type('text/plain');
+    res.sendFile(robotsPath);
+  } else {
+    // Fallback robots.txt
+    res.type('text/plain');
+    res.send(`User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: ${req.protocol}://${req.get('host')}/sitemap.xml`);
+  }
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const sitemapPath = path.join(__dirname, 'public', 'sitemap.xml');
+  if (fs.existsSync(sitemapPath)) {
+    let sitemap = fs.readFileSync(sitemapPath, 'utf8');
+    // Replace localhost with actual domain
+    const domain = req.protocol + '://' + req.get('host');
+    sitemap = sitemap.replace(/http:\/\/localhost:3000/g, domain);
+    res.type('application/xml');
+    res.send(sitemap);
+  } else {
+    // Generate basic sitemap
+    const domain = req.protocol + '://' + req.get('host');
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${domain}/</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`;
+    res.type('application/xml');
+    res.send(sitemap);
+  }
+});
+
 // Static files with optimized caching for 304 responses
 // Enable ETag support (default in Express, but explicit for clarity)
 app.set('etag', 'strong');
@@ -735,6 +777,91 @@ const initDatabase = () => {
       FOREIGN KEY (item_id) REFERENCES items(id)
     )`);
 
+    // Cost Layers table (TEST 005: FIFO/LIFO/WAC)
+    db.run(`CREATE TABLE IF NOT EXISTS cost_layers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      purchase_id INTEGER NOT NULL,
+      quantity REAL NOT NULL,
+      unit_cost REAL NOT NULL,
+      purchase_date DATETIME NOT NULL,
+      remaining_quantity REAL NOT NULL,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // UOM Conversions table (TEST 008: Multi-UOM)
+    db.run(`CREATE TABLE IF NOT EXISTS uom_conversions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      from_uom TEXT NOT NULL,
+      to_uom TEXT NOT NULL,
+      conversion_factor REAL NOT NULL,
+      is_base_uom INTEGER DEFAULT 0,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id),
+      UNIQUE(item_id, from_uom, to_uom)
+    )`);
+
+    // Serial Numbers table (TEST 010: Serial Number Tracking)
+    db.run(`CREATE TABLE IF NOT EXISTS serial_numbers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      serial_number TEXT NOT NULL UNIQUE,
+      purchase_id INTEGER,
+      purchase_date DATETIME,
+      sale_id INTEGER,
+      sale_date DATETIME,
+      status TEXT DEFAULT 'in_stock' CHECK(status IN ('in_stock', 'sold', 'returned', 'damaged', 'lost')),
+      location TEXT,
+      warranty_start_date DATE,
+      warranty_end_date DATE,
+      notes TEXT,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+      FOREIGN KEY (sale_id) REFERENCES sales(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // ABC Analysis table (TEST 009: ABC Analysis)
+    db.run(`CREATE TABLE IF NOT EXISTS abc_analysis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      category TEXT NOT NULL CHECK(category IN ('A', 'B', 'C')),
+      annual_usage_value REAL NOT NULL,
+      annual_quantity_sold REAL DEFAULT 0,
+      percentage_of_value REAL,
+      percentage_of_skus REAL,
+      analysis_date DATE NOT NULL,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id),
+      UNIQUE(item_id, analysis_date, shop_id)
+    )`);
+
+    // Add serial_number_tracking column to items
+    db.run(`ALTER TABLE items ADD COLUMN serial_number_tracking INTEGER DEFAULT 0`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding serial_number_tracking to items:', err.message);
+      }
+    });
+
+    // Add abc_category column to items
+    db.run(`ALTER TABLE items ADD COLUMN abc_category TEXT CHECK(abc_category IN ('A', 'B', 'C'))`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding abc_category to items:', err.message);
+      }
+    });
+
     // Sales table
     db.run(`CREATE TABLE IF NOT EXISTS sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -779,9 +906,17 @@ const initDatabase = () => {
       quantity INTEGER NOT NULL,
       unit_price REAL NOT NULL,
       total_price REAL NOT NULL,
+      cogs REAL,
       FOREIGN KEY (sale_id) REFERENCES sales(id),
       FOREIGN KEY (item_id) REFERENCES items(id)
     )`);
+
+    // Add cogs column if it doesn't exist (migration)
+    db.run(`ALTER TABLE sales_items ADD COLUMN cogs REAL`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding cogs to sales_items:', err.message);
+      }
+    });
 
     // Stock_Adjustments table
     db.run(`CREATE TABLE IF NOT EXISTS stock_adjustments (
@@ -795,6 +930,97 @@ const initDatabase = () => {
       FOREIGN KEY (item_id) REFERENCES items(id),
       FOREIGN KEY (created_by) REFERENCES users(id)
     )`);
+
+    // Add variance calculation columns to stock_adjustments (migration)
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN system_quantity_before INTEGER`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding system_quantity_before to stock_adjustments:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN physical_count INTEGER`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding physical_count to stock_adjustments:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN variance_amount INTEGER`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding variance_amount to stock_adjustments:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN variance_percentage REAL`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding variance_percentage to stock_adjustments:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN variance_value REAL`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding variance_value to stock_adjustments:', err.message);
+      }
+    });
+    db.run(`ALTER TABLE stock_adjustments ADD COLUMN variance_severity TEXT CHECK(variance_severity IN ('acceptable', 'concerning', 'critical'))`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding variance_severity to stock_adjustments:', err.message);
+      }
+    });
+
+    // Stockout Events table (TEST 001)
+    db.run(`CREATE TABLE IF NOT EXISTS stockout_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      sku TEXT,
+      stockout_date DATETIME NOT NULL,
+      resolved_date DATETIME,
+      duration_minutes INTEGER,
+      quantity_at_stockout INTEGER DEFAULT 0,
+      category_id INTEGER,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (category_id) REFERENCES categories(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Labor Hours table (TEST 003)
+    db.run(`CREATE TABLE IF NOT EXISTS labor_hours (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      activity_type TEXT NOT NULL CHECK(activity_type IN ('receiving', 'cycle_counting', 'picking', 'packing', 'put_away', 'other')),
+      start_time DATETIME NOT NULL,
+      end_time DATETIME,
+      duration_minutes INTEGER,
+      item_id INTEGER,
+      notes TEXT,
+      shop_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Period End Counts table (TEST 004 - Periodic Inventory)
+    db.run(`CREATE TABLE IF NOT EXISTS period_end_counts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      period_start_date DATE NOT NULL,
+      period_end_date DATE NOT NULL,
+      item_id INTEGER NOT NULL,
+      physical_count INTEGER NOT NULL,
+      system_count INTEGER NOT NULL,
+      variance INTEGER,
+      counted_by INTEGER,
+      counted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      shop_id INTEGER,
+      FOREIGN KEY (item_id) REFERENCES items(id),
+      FOREIGN KEY (counted_by) REFERENCES users(id),
+      FOREIGN KEY (shop_id) REFERENCES shops(id)
+    )`);
+
+    // Add hourly_rate column to users table (for labor cost calculation)
+    db.run(`ALTER TABLE users ADD COLUMN hourly_rate REAL`, (err) => {
+      if (err && !isDuplicateColumnError(err)) {
+        console.error('Error adding hourly_rate to users:', err.message);
+      }
+    });
 
     // Expenses table
     db.run(`CREATE TABLE IF NOT EXISTS expenses (
@@ -1107,6 +1333,44 @@ const initDatabase = () => {
     db.run(`CREATE INDEX IF NOT EXISTS idx_stock_adjustments_item_id ON stock_adjustments(item_id)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_stock_adjustments_created_at ON stock_adjustments(created_at)`);
     
+    // Stockout events indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_stockout_events_item_id ON stockout_events(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_stockout_events_stockout_date ON stockout_events(stockout_date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_stockout_events_resolved_date ON stockout_events(resolved_date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_stockout_events_shop_id ON stockout_events(shop_id)`);
+    
+    // Labor hours indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_labor_hours_user_id ON labor_hours(user_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_labor_hours_activity_type ON labor_hours(activity_type)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_labor_hours_start_time ON labor_hours(start_time)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_labor_hours_shop_id ON labor_hours(shop_id)`);
+    
+    // Period end counts indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_period_end_counts_item_id ON period_end_counts(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_period_end_counts_period_end_date ON period_end_counts(period_end_date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_period_end_counts_shop_id ON period_end_counts(shop_id)`);
+    
+    // Cost layers indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_cost_layers_item_id ON cost_layers(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_cost_layers_purchase_date ON cost_layers(purchase_date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_cost_layers_shop_id ON cost_layers(shop_id)`);
+    
+    // UOM conversions indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uom_conversions_item_id ON uom_conversions(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_uom_conversions_shop_id ON uom_conversions(shop_id)`);
+    
+    // Serial numbers indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_serial_numbers_item_id ON serial_numbers(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_serial_numbers_serial_number ON serial_numbers(serial_number)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_serial_numbers_status ON serial_numbers(status)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_serial_numbers_shop_id ON serial_numbers(shop_id)`);
+    
+    // ABC analysis indexes
+    db.run(`CREATE INDEX IF NOT EXISTS idx_abc_analysis_item_id ON abc_analysis(item_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_abc_analysis_category ON abc_analysis(category)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_abc_analysis_analysis_date ON abc_analysis(analysis_date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_abc_analysis_shop_id ON abc_analysis(shop_id)`);
+    
     // Item templates indexes
     db.run(`CREATE INDEX IF NOT EXISTS idx_item_templates_shop_id ON item_templates(shop_id)`);
     
@@ -1256,6 +1520,22 @@ const initDatabase = () => {
         });
       }
       console.log('✓ Database initialization complete');
+    });
+    
+    // Initialize inventory_method setting (TEST 004)
+    db.run(`INSERT OR IGNORE INTO settings (key, value, category, description, shop_id) 
+            VALUES ('inventory_method', 'perpetual', 'general', 'Inventory tracking method: perpetual or periodic', NULL)`, (err) => {
+      if (err) {
+        console.error('Error initializing inventory_method setting:', err);
+      }
+    });
+    
+    // Initialize valuation_method setting (TEST 005)
+    db.run(`INSERT OR IGNORE INTO settings (key, value, category, description, shop_id) 
+            VALUES ('valuation_method', 'WAC', 'general', 'Inventory valuation method: FIFO, LIFO, or WAC', NULL)`, (err) => {
+      if (err) {
+        console.error('Error initializing valuation_method setting:', err);
+      }
     });
   });
 };
@@ -1648,6 +1928,448 @@ function getNotificationSettings(shopId = null) {
 function clearNotificationSettingsCache() {
   cachedNotificationSettings = null;
   notificationSettingsCacheTime = 0;
+}
+
+// TEST 001: Stockout Event Tracking Helper Functions
+function logStockoutEvent(itemId, shopId = null) {
+  return new Promise((resolve, reject) => {
+    // Check if item is already in stockout (unresolved event exists)
+    db.get(`
+      SELECT id FROM stockout_events 
+      WHERE item_id = ? AND resolved_date IS NULL
+    `, [itemId], (err, existingEvent) => {
+      if (err) {
+        console.error('Error checking existing stockout event:', err);
+        return resolve(); // Don't fail the operation
+      }
+      
+      if (existingEvent) {
+        // Already in stockout, don't log again
+        return resolve();
+      }
+      
+      // Get item details
+      db.get(`
+        SELECT i.id, i.sku, i.category_id, i.shop_id
+        FROM items i
+        WHERE i.id = ?
+      `, [itemId], (err, item) => {
+        if (err || !item) {
+          return resolve(); // Don't fail the operation
+        }
+        
+        const finalShopId = shopId || item.shop_id;
+        
+        // Log new stockout event
+        db.run(`
+          INSERT INTO stockout_events 
+          (item_id, sku, stockout_date, quantity_at_stockout, category_id, shop_id)
+          VALUES (?, ?, datetime('now'), 0, ?, ?)
+        `, [itemId, item.sku, item.category_id, finalShopId], (err) => {
+          if (err) {
+            console.error('Error logging stockout event:', err);
+          }
+          resolve();
+        });
+      });
+    });
+  });
+}
+
+function resolveStockoutEvent(itemId) {
+  return new Promise((resolve) => {
+    // Find unresolved stockout event for this item
+    db.get(`
+      SELECT id, stockout_date FROM stockout_events 
+      WHERE item_id = ? AND resolved_date IS NULL
+      ORDER BY stockout_date DESC
+      LIMIT 1
+    `, [itemId], (err, event) => {
+      if (err || !event) {
+        return resolve(); // No unresolved event or error
+      }
+      
+      // Calculate duration
+      db.get(`
+        SELECT 
+          (julianday('now') - julianday(stockout_date)) * 24 * 60 as duration_minutes
+        FROM stockout_events
+        WHERE id = ?
+      `, [event.id], (err, durationResult) => {
+        const durationMinutes = durationResult ? Math.round(durationResult.duration_minutes) : null;
+        
+        // Update event with resolved date and duration
+        db.run(`
+          UPDATE stockout_events 
+          SET resolved_date = datetime('now'), duration_minutes = ?
+          WHERE id = ?
+        `, [durationMinutes, event.id], (err) => {
+          if (err) {
+            console.error('Error resolving stockout event:', err);
+          }
+          resolve();
+        });
+      });
+    });
+  });
+}
+
+// TEST 004: Get inventory method setting
+function getInventoryMethod(shopId = null) {
+  return new Promise((resolve, reject) => {
+    let query = 'SELECT value FROM settings WHERE key = ?';
+    const params = ['inventory_method'];
+    
+    if (shopId !== null) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL) ORDER BY shop_id DESC LIMIT 1';
+      params.push(shopId);
+    } else {
+      query += ' AND shop_id IS NULL';
+    }
+    
+    db.get(query, params, (err, row) => {
+      if (err) {
+        return reject(err);
+      }
+      // Default to perpetual if not set
+      resolve(row ? row.value : 'perpetual');
+    });
+  });
+}
+
+// TEST 002: Calculate variance for stock adjustment
+function calculateVariance(systemQuantity, physicalCount, costPrice) {
+  const varianceAmount = physicalCount - systemQuantity;
+  const variancePercentage = systemQuantity > 0 
+    ? ((varianceAmount / systemQuantity) * 100) 
+    : (physicalCount > 0 ? 100 : 0);
+  const varianceValue = varianceAmount * (costPrice || 0);
+  
+  // Categorize variance severity
+  const absPercentage = Math.abs(variancePercentage);
+  let varianceSeverity = 'acceptable';
+  if (absPercentage >= 5) {
+    varianceSeverity = 'critical';
+  } else if (absPercentage >= 2) {
+    varianceSeverity = 'concerning';
+  }
+  
+  return {
+    varianceAmount,
+    variancePercentage: Math.round(variancePercentage * 100) / 100, // Round to 2 decimals
+    varianceValue: Math.round(varianceValue * 100) / 100,
+    varianceSeverity
+  };
+}
+
+// TEST 005: Get valuation method
+function getValuationMethod(shopId = null) {
+  return new Promise((resolve, reject) => {
+    let query = 'SELECT value FROM settings WHERE key = ?';
+    const params = ['valuation_method'];
+    
+    if (shopId !== null) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL) ORDER BY shop_id DESC LIMIT 1';
+      params.push(shopId);
+    } else {
+      query += ' AND shop_id IS NULL';
+    }
+    
+    db.get(query, params, (err, row) => {
+      if (err) {
+        return reject(err);
+      }
+      // Default to WAC if not set
+      resolve(row ? row.value : 'WAC');
+    });
+  });
+}
+
+// TEST 005: Create cost layer on purchase
+function createCostLayer(itemId, purchaseId, quantity, unitCost, purchaseDate, shopId = null) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO cost_layers (item_id, purchase_id, quantity, unit_cost, purchase_date, remaining_quantity, shop_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [itemId, purchaseId, quantity, unitCost, purchaseDate, quantity, shopId],
+      function(err) {
+        if (err) {
+          return reject(err);
+        }
+        resolve(this.lastID);
+      }
+    );
+  });
+}
+
+// TEST 005: Calculate COGS using FIFO
+function calculateCOGSFIFO(itemId, quantity, shopId = null) {
+  return new Promise((resolve, reject) => {
+    let query = `
+      SELECT * FROM cost_layers 
+      WHERE item_id = ? AND remaining_quantity > 0
+    `;
+    const params = [itemId];
+    
+    if (shopId) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL)';
+      params.push(shopId);
+    }
+    
+    query += ' ORDER BY purchase_date ASC, id ASC';
+    
+    db.all(query, params, (err, layers) => {
+      if (err) {
+        return reject(err);
+      }
+      
+      let remainingQty = quantity;
+      let totalCOGS = 0;
+      const usedLayers = [];
+      
+      for (const layer of layers) {
+        if (remainingQty <= 0) break;
+        
+        const qtyToUse = Math.min(remainingQty, layer.remaining_quantity);
+        const layerCOGS = qtyToUse * layer.unit_cost;
+        totalCOGS += layerCOGS;
+        
+        usedLayers.push({
+          layerId: layer.id,
+          quantity: qtyToUse,
+          unitCost: layer.unit_cost,
+          cogs: layerCOGS
+        });
+        
+        // Update remaining quantity
+        db.run(
+          'UPDATE cost_layers SET remaining_quantity = remaining_quantity - ? WHERE id = ?',
+          [qtyToUse, layer.id]
+        );
+        
+        remainingQty -= qtyToUse;
+      }
+      
+      resolve({ totalCOGS, usedLayers });
+    });
+  });
+}
+
+// TEST 005: Calculate COGS using LIFO
+function calculateCOGSLIFO(itemId, quantity, shopId = null) {
+  return new Promise((resolve, reject) => {
+    let query = `
+      SELECT * FROM cost_layers 
+      WHERE item_id = ? AND remaining_quantity > 0
+    `;
+    const params = [itemId];
+    
+    if (shopId) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL)';
+      params.push(shopId);
+    }
+    
+    query += ' ORDER BY purchase_date DESC, id DESC';
+    
+    db.all(query, params, (err, layers) => {
+      if (err) {
+        return reject(err);
+      }
+      
+      let remainingQty = quantity;
+      let totalCOGS = 0;
+      const usedLayers = [];
+      
+      for (const layer of layers) {
+        if (remainingQty <= 0) break;
+        
+        const qtyToUse = Math.min(remainingQty, layer.remaining_quantity);
+        const layerCOGS = qtyToUse * layer.unit_cost;
+        totalCOGS += layerCOGS;
+        
+        usedLayers.push({
+          layerId: layer.id,
+          quantity: qtyToUse,
+          unitCost: layer.unit_cost,
+          cogs: layerCOGS
+        });
+        
+        // Update remaining quantity
+        db.run(
+          'UPDATE cost_layers SET remaining_quantity = remaining_quantity - ? WHERE id = ?',
+          [qtyToUse, layer.id]
+        );
+        
+        remainingQty -= qtyToUse;
+      }
+      
+      resolve({ totalCOGS, usedLayers });
+    });
+  });
+}
+
+// TEST 005: Calculate COGS using Weighted Average Cost
+function calculateCOGSWAC(itemId, quantity, shopId = null) {
+  return new Promise((resolve, reject) => {
+    let query = `
+      SELECT 
+        SUM(remaining_quantity * unit_cost) as total_value,
+        SUM(remaining_quantity) as total_quantity
+      FROM cost_layers 
+      WHERE item_id = ? AND remaining_quantity > 0
+    `;
+    const params = [itemId];
+    
+    if (shopId) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL)';
+      params.push(shopId);
+    }
+    
+    db.get(query, params, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+      
+      if (!result || !result.total_quantity || result.total_quantity === 0) {
+        // Fallback to item cost_price
+        db.get('SELECT cost_price FROM items WHERE id = ?', [itemId], (err, item) => {
+          if (err) return reject(err);
+          const avgCost = item ? (item.cost_price || 0) : 0;
+          resolve({ totalCOGS: quantity * avgCost, usedLayers: [] });
+        });
+        return;
+      }
+      
+      const avgCost = result.total_value / result.total_quantity;
+      const totalCOGS = quantity * avgCost;
+      
+      // Update cost layers proportionally (optional - for WAC we don't need to track individual layers)
+      resolve({ totalCOGS, usedLayers: [], averageCost: avgCost });
+    });
+  });
+}
+
+// TEST 008: Convert UOM
+function convertUOM(itemId, quantity, fromUOM, toUOM, shopId = null) {
+  return new Promise((resolve, reject) => {
+    // If same UOM, no conversion needed
+    if (fromUOM === toUOM) {
+      return resolve(quantity);
+    }
+    
+    // Get conversion factor
+    let query = `
+      SELECT conversion_factor FROM uom_conversions
+      WHERE item_id = ? AND from_uom = ? AND to_uom = ?
+    `;
+    const params = [itemId, fromUOM, toUOM];
+    
+    if (shopId) {
+      query += ' AND (shop_id = ? OR shop_id IS NULL) ORDER BY shop_id DESC LIMIT 1';
+      params.push(shopId);
+    }
+    
+    db.get(query, params, (err, conversion) => {
+      if (err) {
+        return reject(err);
+      }
+      
+      if (!conversion) {
+        // Try reverse conversion
+        db.get(
+          `SELECT conversion_factor FROM uom_conversions
+           WHERE item_id = ? AND from_uom = ? AND to_uom = ?`,
+          [itemId, toUOM, fromUOM],
+          (err, reverseConversion) => {
+            if (err || !reverseConversion) {
+              return reject(new Error(`No UOM conversion found from ${fromUOM} to ${toUOM}`));
+            }
+            // Reverse: if 1 BOX = 12 EA, then 1 EA = 1/12 BOX
+            const convertedQty = quantity / reverseConversion.conversion_factor;
+            resolve(convertedQty);
+          }
+        );
+        return;
+      }
+      
+      const convertedQty = quantity * conversion.conversion_factor;
+      resolve(convertedQty);
+    });
+  });
+}
+
+// TEST 009: Calculate ABC Analysis
+function calculateABCAnalysis(shopId = null) {
+  return new Promise((resolve, reject) => {
+    const analysisDate = new Date().toISOString().split('T')[0];
+    
+    // Get annual usage value for all items (last 12 months)
+    let query = `
+      SELECT 
+        i.id as item_id,
+        i.name,
+        i.cost_price,
+        COALESCE(SUM(si.quantity), 0) as annual_quantity_sold,
+        COALESCE(SUM(si.quantity * i.cost_price), 0) as annual_usage_value
+      FROM items i
+      LEFT JOIN sales_items si ON i.id = si.item_id
+      LEFT JOIN sales s ON si.sale_id = s.id 
+        AND DATE(s.sale_date) >= date('now', '-12 months')
+      WHERE 1=1
+    `;
+    const params = [];
+    
+    if (shopId) {
+      query += ' AND i.shop_id = ?';
+      params.push(shopId);
+    }
+    
+    query += `
+      GROUP BY i.id
+      HAVING annual_usage_value > 0
+      ORDER BY annual_usage_value DESC
+    `;
+    
+    db.all(query, params, (err, items) => {
+      if (err) {
+        return reject(err);
+      }
+      
+      if (items.length === 0) {
+        return resolve([]);
+      }
+      
+      // Calculate total value
+      const totalValue = items.reduce((sum, item) => sum + item.annual_usage_value, 0);
+      const totalSKUs = items.length;
+      
+      // Calculate cumulative percentages and categorize
+      let cumulativeValue = 0;
+      const categorized = items.map((item, index) => {
+        cumulativeValue += item.annual_usage_value;
+        const percentageOfValue = (item.annual_usage_value / totalValue) * 100;
+        const cumulativePercentage = (cumulativeValue / totalValue) * 100;
+        const percentageOfSKUs = ((index + 1) / totalSKUs) * 100;
+        
+        let category = 'C';
+        if (cumulativePercentage <= 80) {
+          category = 'A';
+        } else if (cumulativePercentage <= 95) {
+          category = 'B';
+        }
+        
+        return {
+          ...item,
+          category,
+          percentageOfValue,
+          percentageOfSKUs,
+          cumulativePercentage
+        };
+      });
+      
+      resolve(categorized);
+    });
+  });
 }
 
 // Check for low stock and send notification if needed
@@ -3998,13 +4720,50 @@ app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'
               return res.status(500).json({ error: sanitizeError(err) });
             }
             // Update stock
-            db.run('UPDATE items SET stock_quantity = stock_quantity + ? WHERE id = ?', [item.quantity, item.item_id], async (stockErr) => {
-              if (!stockErr) {
-                // Check for low stock after update (though purchase increases stock, we still check in case it was very low)
-                checkAndNotifyLowStock(item.item_id, req.user?.shop_id || null).catch(err => {
-                  console.error('Error checking low stock:', err);
-                });
+            // Get current stock before update for stockout tracking
+            db.get('SELECT stock_quantity FROM items WHERE id = ?', [item.item_id], (getStockErr, currentItem) => {
+              if (getStockErr || !currentItem) {
+                console.error('Error getting current stock:', getStockErr);
+                return;
               }
+              
+              const oldQuantity = currentItem.stock_quantity;
+              const newQuantity = oldQuantity + item.quantity;
+              
+              db.run('UPDATE items SET stock_quantity = ? WHERE id = ?', [newQuantity, item.item_id], async (stockErr) => {
+                if (!stockErr) {
+                  // TEST 005: Create cost layer for FIFO/LIFO/WAC
+                  const shopId = req.user?.shop_id || null;
+                  const purchaseDate = new Date().toISOString();
+                  
+                  createCostLayer(
+                    item.item_id,
+                    purchase_id,
+                    item.quantity,
+                    item.unit_price,
+                    purchaseDate,
+                    shopId
+                  ).catch(err => {
+                    console.error('Error creating cost layer:', err);
+                  });
+                  
+                  // Update item cost_price to latest purchase price (for WAC fallback)
+                  db.run('UPDATE items SET cost_price = ? WHERE id = ?', [item.unit_price, item.item_id], () => {});
+                  
+                  // TEST 001: Track stockout resolution
+                  if (oldQuantity <= 0 && newQuantity > 0) {
+                    // Stock was zero and now has stock - resolve stockout
+                    resolveStockoutEvent(item.item_id).catch(err => {
+                      console.error('Error resolving stockout event:', err);
+                    });
+                  }
+                  
+                  // Check for low stock after update (though purchase increases stock, we still check in case it was very low)
+                  checkAndNotifyLowStock(item.item_id, req.user?.shop_id || null).catch(err => {
+                    console.error('Error checking low stock:', err);
+                  });
+                }
+              });
             });
             completed++;
             if (completed === items.length) {
@@ -4229,36 +4988,147 @@ app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), (req, r
             // Insert sales items and update stock
             let completed = 0;
             let hasError = false;
-            items.forEach((item) => {
-              db.run(
-                'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
-                [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
-                function(err) {
-                  if (err) {
-                    console.error('Error creating sale item:', err);
-                    if (!hasError) {
+            const shopId = req.user?.shop_id || null;
+            
+            // Get valuation method once for all items
+            getValuationMethod(shopId).then(method => {
+              items.forEach((item) => {
+                // Calculate COGS based on valuation method
+                let cogsPromise;
+                if (method === 'FIFO') {
+                  cogsPromise = calculateCOGSFIFO(item.item_id, item.quantity, shopId);
+                } else if (method === 'LIFO') {
+                  cogsPromise = calculateCOGSLIFO(item.item_id, item.quantity, shopId);
+                } else {
+                  cogsPromise = calculateCOGSWAC(item.item_id, item.quantity, shopId);
+                }
+                
+                cogsPromise.then(cogsResult => {
+                  const cogs = cogsResult.totalCOGS || 0;
+                  
+                  db.run(
+                    'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price, cogs) VALUES (?, ?, ?, ?, ?, ?)',
+                    [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price, cogs],
+                    function(err) {
+                      if (err) {
+                        console.error('Error creating sale item:', err);
+                        if (!hasError) {
+                          hasError = true;
+                          return res.status(500).json({ error: sanitizeError(err) });
+                        }
+                        return;
+                      }
+                      // Update stock
+                      db.get('SELECT stock_quantity FROM items WHERE id = ?', [item.item_id], (getStockErr, currentItem) => {
+                        if (getStockErr || !currentItem) {
+                          console.error('Error getting current stock:', getStockErr);
+                          completed++;
+                          if (completed === items.length && !hasError) {
+                            res.json({ id: sale_id, message: 'Sale recorded successfully' });
+                          }
+                          return;
+                        }
+                        
+                        const oldQuantity = currentItem.stock_quantity;
+                        const newQuantity = oldQuantity - item.quantity;
+                        
+                        db.run('UPDATE items SET stock_quantity = ? WHERE id = ?', [newQuantity, item.item_id], async (stockErr) => {
+                          if (stockErr) {
+                            console.error('Error updating stock:', stockErr);
+                          } else {
+                            // TEST 001: Track stockout events
+                            if (oldQuantity > 0 && newQuantity <= 0) {
+                              logStockoutEvent(item.item_id, shopId).catch(err => {
+                                console.error('Error logging stockout event:', err);
+                              });
+                            } else if (oldQuantity <= 0 && newQuantity > 0) {
+                              resolveStockoutEvent(item.item_id).catch(err => {
+                                console.error('Error resolving stockout event:', err);
+                              });
+                            }
+                            
+                            checkAndNotifyLowStock(item.item_id, shopId).catch(err => {
+                              console.error('Error checking low stock:', err);
+                            });
+                          }
+                        });
+                        completed++;
+                        if (completed === items.length && !hasError) {
+                          res.json({ id: sale_id, message: 'Sale recorded successfully' });
+                        }
+                      });
+                    }
+                  );
+                }).catch(err => {
+                  console.error('Error calculating COGS:', err);
+                  // Fallback: use item cost_price
+                  db.get('SELECT cost_price FROM items WHERE id = ?', [item.item_id], (err, itemData) => {
+                    const fallbackCOGS = (itemData?.cost_price || 0) * item.quantity;
+                    db.run(
+                      'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price, cogs) VALUES (?, ?, ?, ?, ?, ?)',
+                      [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price, fallbackCOGS],
+                      function(err) {
+                        if (err) {
+                          console.error('Error creating sale item:', err);
+                          if (!hasError) {
+                            hasError = true;
+                            return res.status(500).json({ error: sanitizeError(err) });
+                          }
+                          return;
+                        }
+                        // Update stock (same as above)
+                        db.get('SELECT stock_quantity FROM items WHERE id = ?', [item.item_id], (getStockErr, currentItem) => {
+                          if (!getStockErr && currentItem) {
+                            const oldQuantity = currentItem.stock_quantity;
+                            const newQuantity = oldQuantity - item.quantity;
+                            db.run('UPDATE items SET stock_quantity = ? WHERE id = ?', [newQuantity, item.item_id], async () => {
+                              if (oldQuantity > 0 && newQuantity <= 0) {
+                                logStockoutEvent(item.item_id, shopId).catch(() => {});
+                              }
+                              checkAndNotifyLowStock(item.item_id, shopId).catch(() => {});
+                            });
+                          }
+                        });
+                        completed++;
+                        if (completed === items.length && !hasError) {
+                          res.json({ id: sale_id, message: 'Sale recorded successfully' });
+                        }
+                      }
+                    );
+                  });
+                });
+              });
+            }).catch(err => {
+              console.error('Error getting valuation method:', err);
+              // Fallback: continue without COGS
+              items.forEach((item) => {
+                db.run(
+                  'INSERT INTO sales_items (sale_id, item_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)',
+                  [sale_id, item.item_id, item.quantity, item.unit_price, item.quantity * item.unit_price],
+                  function(err) {
+                    if (err && !hasError) {
                       hasError = true;
                       return res.status(500).json({ error: sanitizeError(err) });
                     }
-                    return;
-                  }
-                  // Update stock
-                  db.run('UPDATE items SET stock_quantity = stock_quantity - ? WHERE id = ?', [item.quantity, item.item_id], async (stockErr) => {
-                    if (stockErr) {
-                      console.error('Error updating stock:', stockErr);
-                    } else {
-                      // Check for low stock after update
-                      checkAndNotifyLowStock(item.item_id, req.user?.shop_id || null).catch(err => {
-                        console.error('Error checking low stock:', err);
-                      });
+                    db.get('SELECT stock_quantity FROM items WHERE id = ?', [item.item_id], (getStockErr, currentItem) => {
+                      if (!getStockErr && currentItem) {
+                        const oldQuantity = currentItem.stock_quantity;
+                        const newQuantity = oldQuantity - item.quantity;
+                        db.run('UPDATE items SET stock_quantity = ? WHERE id = ?', [newQuantity, item.item_id], async () => {
+                          if (oldQuantity > 0 && newQuantity <= 0) {
+                            logStockoutEvent(item.item_id, shopId).catch(() => {});
+                          }
+                          checkAndNotifyLowStock(item.item_id, shopId).catch(() => {});
+                        });
+                      }
+                    });
+                    completed++;
+                    if (completed === items.length && !hasError) {
+                      res.json({ id: sale_id, message: 'Sale recorded successfully' });
                     }
-                  });
-                  completed++;
-                  if (completed === items.length && !hasError) {
-                    res.json({ id: sale_id, message: 'Sale recorded successfully' });
                   }
-                }
-              );
+                );
+              });
             });
           }
         );
@@ -4461,27 +5331,60 @@ app.get('/api/stock-adjustments', authenticateToken, requireRole('admin', 'store
 });
 
 app.post('/api/stock-adjustments', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
-  const { item_id, adjustment_type, quantity, reason } = req.body;
+  const { item_id, adjustment_type, quantity, reason, physical_count } = req.body;
   const created_by = req.user.id;
 
-  db.get('SELECT stock_quantity FROM items WHERE id = ?', [item_id], (err, item) => {
+  db.get('SELECT stock_quantity, cost_price FROM items WHERE id = ?', [item_id], (err, item) => {
     if (err || !item) {
       return res.status(404).json({ error: 'Item not found' });
     }
 
-    let newQuantity = item.stock_quantity;
-    if (adjustment_type === 'increase') {
-      newQuantity += quantity;
-    } else if (adjustment_type === 'decrease') {
-      newQuantity -= quantity;
-      if (newQuantity < 0) newQuantity = 0;
-    } else if (adjustment_type === 'set') {
-      newQuantity = quantity;
+    const systemQuantityBefore = item.stock_quantity;
+    let newQuantity = systemQuantityBefore;
+    let physicalCount = physical_count;
+    
+    // If physical_count is provided, treat as cycle count
+    if (physical_count !== undefined && physical_count !== null) {
+      physicalCount = parseInt(physical_count);
+      newQuantity = physicalCount;
+    } else {
+      // Regular adjustment
+      if (adjustment_type === 'increase') {
+        newQuantity += quantity;
+      } else if (adjustment_type === 'decrease') {
+        newQuantity -= quantity;
+        if (newQuantity < 0) newQuantity = 0;
+      } else if (adjustment_type === 'set') {
+        newQuantity = quantity;
+      }
     }
 
+    // TEST 002: Calculate variance if physical_count provided
+    let varianceData = null;
+    if (physicalCount !== undefined && physicalCount !== null) {
+      varianceData = calculateVariance(systemQuantityBefore, physicalCount, item.cost_price);
+    }
+
+    const oldQuantity = systemQuantityBefore;
+    
     db.run(
-      'INSERT INTO stock_adjustments (item_id, adjustment_type, quantity, reason, created_by) VALUES (?, ?, ?, ?, ?)',
-      [item_id, adjustment_type, quantity, reason, created_by],
+      `INSERT INTO stock_adjustments 
+      (item_id, adjustment_type, quantity, reason, created_by, system_quantity_before, physical_count, 
+       variance_amount, variance_percentage, variance_value, variance_severity) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        item_id, 
+        adjustment_type, 
+        quantity, 
+        reason, 
+        created_by,
+        systemQuantityBefore,
+        physicalCount,
+        varianceData ? varianceData.varianceAmount : null,
+        varianceData ? varianceData.variancePercentage : null,
+        varianceData ? varianceData.varianceValue : null,
+        varianceData ? varianceData.varianceSeverity : null
+      ],
       function(err) {
         if (err) {
           return res.status(500).json({ error: sanitizeError(err) });
@@ -4491,7 +5394,23 @@ app.post('/api/stock-adjustments', authenticateToken, requireRole('admin', 'stor
           if (err) {
             return res.status(500).json({ error: sanitizeError(err) });
           }
-          res.json({ id: this.lastID, message: 'Stock adjusted successfully' });
+          
+          // TEST 001: Track stockout events
+          if (oldQuantity > 0 && newQuantity <= 0) {
+            logStockoutEvent(item_id, req.user?.shop_id || null).catch(err => {
+              console.error('Error logging stockout event:', err);
+            });
+          } else if (oldQuantity <= 0 && newQuantity > 0) {
+            resolveStockoutEvent(item_id).catch(err => {
+              console.error('Error resolving stockout event:', err);
+            });
+          }
+          
+          res.json({ 
+            id: this.lastID, 
+            message: 'Stock adjusted successfully',
+            variance: varianceData
+          });
         });
       }
     );
@@ -4692,6 +5611,927 @@ app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager
       res.json({ message: 'Expense deleted successfully' });
     });
   });
+});
+
+// ==================== TEST 001: STOCKOUT EVENTS ROUTES ====================
+
+// Get stockout report
+app.get('/api/reports/stockout', authenticateToken, requireRole('admin', 'manager', 'storekeeper'), (req, res) => {
+  const { start_date, end_date, sku, category_id, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      se.*,
+      i.name as item_name,
+      i.sku,
+      c.name as category_name
+    FROM stockout_events se
+    JOIN items i ON se.item_id = i.id
+    LEFT JOIN categories c ON se.category_id = c.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (start_date) {
+    query += ` AND DATE(se.stockout_date) >= ?`;
+    params.push(start_date);
+  }
+  if (end_date) {
+    query += ` AND DATE(se.stockout_date) <= ?`;
+    params.push(end_date);
+  }
+  if (sku) {
+    query += ` AND i.sku LIKE ?`;
+    params.push(`%${sku}%`);
+  }
+  if (category_id) {
+    query += ` AND se.category_id = ?`;
+    params.push(category_id);
+  }
+  if (finalShopId) {
+    query += ` AND se.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY se.stockout_date DESC`;
+  
+  db.all(query, params, (err, events) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Calculate summary statistics
+    const summary = {
+      total_events: events.length,
+      unresolved_events: events.filter(e => !e.resolved_date).length,
+      total_duration_minutes: events
+        .filter(e => e.duration_minutes)
+        .reduce((sum, e) => sum + e.duration_minutes, 0),
+      average_duration_minutes: 0,
+      events_by_category: {},
+      events_by_sku: {}
+    };
+    
+    if (summary.total_events > 0 && summary.total_duration_minutes > 0) {
+      const resolvedEvents = events.filter(e => e.duration_minutes);
+      summary.average_duration_minutes = resolvedEvents.length > 0
+        ? Math.round(summary.total_duration_minutes / resolvedEvents.length)
+        : 0;
+    }
+    
+    events.forEach(event => {
+      if (event.category_name) {
+        summary.events_by_category[event.category_name] = 
+          (summary.events_by_category[event.category_name] || 0) + 1;
+      }
+      if (event.sku) {
+        summary.events_by_sku[event.sku] = 
+          (summary.events_by_sku[event.sku] || 0) + 1;
+      }
+    });
+    
+    res.json({
+      events,
+      summary
+    });
+  });
+});
+
+// ==================== TEST 002: INVENTORY VARIANCE ROUTES ====================
+
+// Get variance report
+app.get('/api/reports/variance', authenticateToken, requireRole('admin', 'manager', 'storekeeper'), (req, res) => {
+  const { start_date, end_date, item_id, severity, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      sa.*,
+      i.name as item_name,
+      i.sku,
+      i.cost_price,
+      c.name as category_name
+    FROM stock_adjustments sa
+    JOIN items i ON sa.item_id = i.id
+    LEFT JOIN categories c ON i.category_id = c.id
+    WHERE sa.physical_count IS NOT NULL
+  `;
+  const params = [];
+  
+  if (start_date) {
+    query += ` AND DATE(sa.created_at) >= ?`;
+    params.push(start_date);
+  }
+  if (end_date) {
+    query += ` AND DATE(sa.created_at) <= ?`;
+    params.push(end_date);
+  }
+  if (item_id) {
+    query += ` AND sa.item_id = ?`;
+    params.push(item_id);
+  }
+  if (severity) {
+    query += ` AND sa.variance_severity = ?`;
+    params.push(severity);
+  }
+  if (finalShopId) {
+    query += ` AND i.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY sa.created_at DESC`;
+  
+  db.all(query, params, (err, variances) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Calculate summary
+    const summary = {
+      total_counts: variances.length,
+      acceptable: variances.filter(v => v.variance_severity === 'acceptable').length,
+      concerning: variances.filter(v => v.variance_severity === 'concerning').length,
+      critical: variances.filter(v => v.variance_severity === 'critical').length,
+      total_variance_value: variances
+        .filter(v => v.variance_value)
+        .reduce((sum, v) => sum + Math.abs(v.variance_value), 0),
+      average_variance_percentage: 0
+    };
+    
+    const variancesWithPercentage = variances.filter(v => v.variance_percentage !== null);
+    if (variancesWithPercentage.length > 0) {
+      const totalPercentage = variancesWithPercentage.reduce((sum, v) => sum + Math.abs(v.variance_percentage), 0);
+      summary.average_variance_percentage = Math.round((totalPercentage / variancesWithPercentage.length) * 100) / 100;
+    }
+    
+    res.json({
+      variances,
+      summary
+    });
+  });
+});
+
+// ==================== TEST 003: LABOR HOURS ROUTES ====================
+
+// Start time tracking
+app.post('/api/labor/start', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { activity_type, item_id, notes } = req.body;
+  const user_id = req.user.id;
+  const shop_id = req.user.shop_id;
+  
+  if (!activity_type || !['receiving', 'cycle_counting', 'picking', 'packing', 'put_away', 'other'].includes(activity_type)) {
+    return res.status(400).json({ error: 'Valid activity_type is required' });
+  }
+  
+  db.run(
+    `INSERT INTO labor_hours (user_id, activity_type, start_time, item_id, notes, shop_id)
+     VALUES (?, ?, datetime('now'), ?, ?, ?)`,
+    [user_id, activity_type, item_id || null, notes || null, shop_id || null],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ 
+        id: this.lastID, 
+        start_time: new Date().toISOString(),
+        message: 'Time tracking started' 
+      });
+    }
+  );
+});
+
+// Stop time tracking
+app.post('/api/labor/stop/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const user_id = req.user.id;
+  
+  // Get the time entry
+  db.get('SELECT * FROM labor_hours WHERE id = ? AND user_id = ?', [id, user_id], (err, entry) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!entry) {
+      return res.status(404).json({ error: 'Time entry not found' });
+    }
+    if (entry.end_time) {
+      return res.status(400).json({ error: 'Time entry already stopped' });
+    }
+    
+    // Calculate duration
+    db.get(`
+      SELECT 
+        (julianday('now') - julianday(start_time)) * 24 * 60 as duration_minutes
+      FROM labor_hours
+      WHERE id = ?
+    `, [id], (err, durationResult) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      
+      const durationMinutes = durationResult ? Math.round(durationResult.duration_minutes) : null;
+      
+      // Update entry
+      db.run(
+        `UPDATE labor_hours 
+         SET end_time = datetime('now'), duration_minutes = ?, updated_at = datetime('now')
+         WHERE id = ?`,
+        [durationMinutes, id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ error: sanitizeError(err) });
+          }
+          res.json({ 
+            id,
+            duration_minutes: durationMinutes,
+            message: 'Time tracking stopped' 
+          });
+        }
+      );
+    });
+  });
+});
+
+// Get labor hours
+app.get('/api/labor/hours', authenticateToken, requireRole('admin', 'manager', 'storekeeper'), (req, res) => {
+  const { user_id, activity_type, start_date, end_date, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      lh.*,
+      u.username,
+      u.full_name,
+      u.hourly_rate,
+      i.name as item_name,
+      CASE 
+        WHEN u.hourly_rate IS NOT NULL AND lh.duration_minutes IS NOT NULL 
+        THEN (lh.duration_minutes / 60.0) * u.hourly_rate
+        ELSE NULL
+      END as labor_cost
+    FROM labor_hours lh
+    JOIN users u ON lh.user_id = u.id
+    LEFT JOIN items i ON lh.item_id = i.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (user_id) {
+    query += ` AND lh.user_id = ?`;
+    params.push(user_id);
+  }
+  if (activity_type) {
+    query += ` AND lh.activity_type = ?`;
+    params.push(activity_type);
+  }
+  if (start_date) {
+    query += ` AND DATE(lh.start_time) >= ?`;
+    params.push(start_date);
+  }
+  if (end_date) {
+    query += ` AND DATE(lh.start_time) <= ?`;
+    params.push(end_date);
+  }
+  if (finalShopId) {
+    query += ` AND lh.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY lh.start_time DESC`;
+  
+  db.all(query, params, (err, hours) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Calculate summary
+    const summary = {
+      total_entries: hours.length,
+      total_minutes: hours
+        .filter(h => h.duration_minutes)
+        .reduce((sum, h) => sum + h.duration_minutes, 0),
+      total_hours: 0,
+      total_labor_cost: hours
+        .filter(h => h.labor_cost)
+        .reduce((sum, h) => sum + h.labor_cost, 0),
+      by_activity: {},
+      by_user: {}
+    };
+    
+    summary.total_hours = Math.round((summary.total_minutes / 60) * 100) / 100;
+    
+    hours.forEach(hour => {
+      // By activity
+      summary.by_activity[hour.activity_type] = 
+        (summary.by_activity[hour.activity_type] || 0) + (hour.duration_minutes || 0);
+      
+      // By user
+      const userName = hour.full_name || hour.username;
+      if (!summary.by_user[userName]) {
+        summary.by_user[userName] = { minutes: 0, cost: 0 };
+      }
+      summary.by_user[userName].minutes += (hour.duration_minutes || 0);
+      summary.by_user[userName].cost += (hour.labor_cost || 0);
+    });
+    
+    res.json({
+      hours,
+      summary
+    });
+  });
+});
+
+// Update labor hour entry
+app.put('/api/labor/hours/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const { activity_type, start_time, end_time, duration_minutes, item_id, notes } = req.body;
+  const user_id = req.user.id;
+  
+  // Check if entry exists and belongs to user (or user is admin)
+  db.get('SELECT * FROM labor_hours WHERE id = ?', [id], (err, entry) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!entry) {
+      return res.status(404).json({ error: 'Time entry not found' });
+    }
+    if (entry.user_id !== user_id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to update this entry' });
+    }
+    
+    // Build update query
+    const updates = [];
+    const params = [];
+    
+    if (activity_type) {
+      updates.push('activity_type = ?');
+      params.push(activity_type);
+    }
+    if (start_time) {
+      updates.push('start_time = ?');
+      params.push(start_time);
+    }
+    if (end_time) {
+      updates.push('end_time = ?');
+      params.push(end_time);
+    }
+    if (duration_minutes !== undefined) {
+      updates.push('duration_minutes = ?');
+      params.push(duration_minutes);
+    }
+    if (item_id !== undefined) {
+      updates.push('item_id = ?');
+      params.push(item_id);
+    }
+    if (notes !== undefined) {
+      updates.push('notes = ?');
+      params.push(notes);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    updates.push('updated_at = datetime(\'now\')');
+    params.push(id);
+    
+    db.run(
+      `UPDATE labor_hours SET ${updates.join(', ')} WHERE id = ?`,
+      params,
+      (err) => {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        res.json({ message: 'Time entry updated successfully' });
+      }
+    );
+  });
+});
+
+// Delete labor hour entry
+app.delete('/api/labor/hours/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const user_id = req.user.id;
+  
+  // Check if entry exists and belongs to user (or user is admin)
+  db.get('SELECT * FROM labor_hours WHERE id = ?', [id], (err, entry) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (!entry) {
+      return res.status(404).json({ error: 'Time entry not found' });
+    }
+    if (entry.user_id !== user_id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to delete this entry' });
+    }
+    
+    db.run('DELETE FROM labor_hours WHERE id = ?', [id], (err) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ message: 'Time entry deleted successfully' });
+    });
+  });
+});
+
+// ==================== TEST 004: INVENTORY METHOD ROUTES ====================
+
+// Get inventory method setting
+app.get('/api/settings/inventory-method', authenticateToken, requireRole('admin'), (req, res) => {
+  const shopId = req.user.shop_id || null;
+  
+  getInventoryMethod(shopId).then(method => {
+    res.json({ inventory_method: method });
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// Update inventory method setting
+app.put('/api/settings/inventory-method', authenticateToken, requireRole('admin'), (req, res) => {
+  const { inventory_method } = req.body;
+  const shopId = req.user.shop_id || null;
+  
+  if (!inventory_method || !['perpetual', 'periodic'].includes(inventory_method)) {
+    return res.status(400).json({ error: 'Valid inventory_method (perpetual or periodic) is required' });
+  }
+  
+  // Get current method
+  getInventoryMethod(shopId).then(currentMethod => {
+    // Update or insert setting
+    db.run(
+      `INSERT INTO settings (key, value, category, description, shop_id)
+       VALUES (?, ?, 'inventory', 'Inventory tracking method: perpetual or periodic', ?)
+       ON CONFLICT(key, shop_id) DO UPDATE SET value = ?, updated_at = datetime('now')`,
+      ['inventory_method', inventory_method, shopId, inventory_method],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        
+        logAudit(req, 'INVENTORY_METHOD_CHANGED', 'settings', null, {
+          from: currentMethod,
+          to: inventory_method
+        });
+        
+        res.json({ 
+          message: 'Inventory method updated successfully',
+          inventory_method 
+        });
+      }
+    );
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// Get period end counts
+app.get('/api/period-end-counts', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { period_start_date, period_end_date, item_id, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      pec.*,
+      i.name as item_name,
+      i.sku,
+      u.username as counted_by_name
+    FROM period_end_counts pec
+    JOIN items i ON pec.item_id = i.id
+    LEFT JOIN users u ON pec.counted_by = u.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (period_start_date) {
+    query += ` AND pec.period_start_date >= ?`;
+    params.push(period_start_date);
+  }
+  if (period_end_date) {
+    query += ` AND pec.period_end_date <= ?`;
+    params.push(period_end_date);
+  }
+  if (item_id) {
+    query += ` AND pec.item_id = ?`;
+    params.push(item_id);
+  }
+  if (finalShopId) {
+    query += ` AND pec.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY pec.period_end_date DESC, pec.counted_at DESC`;
+  
+  db.all(query, params, (err, counts) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(counts);
+  });
+});
+
+// Create period end count
+app.post('/api/period-end-counts', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { period_start_date, period_end_date, item_id, physical_count, shop_id } = req.body;
+  const counted_by = req.user.id;
+  const finalShopId = shop_id || req.user.shop_id;
+  
+  if (!period_start_date || !period_end_date || !item_id || physical_count === undefined) {
+    return res.status(400).json({ error: 'period_start_date, period_end_date, item_id, and physical_count are required' });
+  }
+  
+  // Get system count
+  db.get('SELECT stock_quantity FROM items WHERE id = ?', [item_id], (err, item) => {
+    if (err || !item) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    const systemCount = item.stock_quantity;
+    const variance = physical_count - systemCount;
+    
+    db.run(
+      `INSERT INTO period_end_counts 
+       (period_start_date, period_end_date, item_id, physical_count, system_count, variance, counted_by, shop_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [period_start_date, period_end_date, item_id, physical_count, systemCount, variance, counted_by, finalShopId],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        res.json({ 
+          id: this.lastID, 
+          message: 'Period end count recorded successfully',
+          variance 
+        });
+      }
+    );
+  });
+});
+
+// ==================== TEST 005: VALUATION METHOD ROUTES ====================
+
+// Get valuation method setting
+app.get('/api/settings/valuation-method', authenticateToken, requireRole('admin'), (req, res) => {
+  const shopId = req.user.shop_id || null;
+  
+  getValuationMethod(shopId).then(method => {
+    res.json({ valuation_method: method });
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// Update valuation method setting
+app.put('/api/settings/valuation-method', authenticateToken, requireRole('admin'), (req, res) => {
+  const { valuation_method } = req.body;
+  const shopId = req.user.shop_id || null;
+  
+  if (!valuation_method || !['FIFO', 'LIFO', 'WAC'].includes(valuation_method)) {
+    return res.status(400).json({ error: 'Valid valuation_method (FIFO, LIFO, or WAC) is required' });
+  }
+  
+  getValuationMethod(shopId).then(currentMethod => {
+    db.run(
+      `INSERT INTO settings (key, value, category, description, shop_id)
+       VALUES (?, ?, 'accounting', 'Inventory valuation method: FIFO, LIFO, or WAC', ?)
+       ON CONFLICT(key, shop_id) DO UPDATE SET value = ?, updated_at = datetime('now')`,
+      ['valuation_method', valuation_method, shopId, valuation_method],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        
+        logAudit(req, 'VALUATION_METHOD_CHANGED', 'settings', null, {
+          from: currentMethod,
+          to: valuation_method
+        });
+        
+        res.json({ 
+          message: 'Valuation method updated successfully',
+          valuation_method 
+        });
+      }
+    );
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// Get cost layers for an item
+app.get('/api/cost-layers/:item_id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const itemId = req.params.item_id;
+  const shopId = req.user.shop_id || null;
+  
+  let query = 'SELECT * FROM cost_layers WHERE item_id = ?';
+  const params = [itemId];
+  
+  if (shopId) {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(shopId);
+  }
+  
+  query += ' ORDER BY purchase_date ASC';
+  
+  db.all(query, params, (err, layers) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(layers);
+  });
+});
+
+// ==================== TEST 008: UOM CONVERSION ROUTES ====================
+
+// Get UOM conversions for an item
+app.get('/api/uom-conversions/:item_id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const itemId = req.params.item_id;
+  const shopId = req.user.shop_id || null;
+  
+  let query = 'SELECT * FROM uom_conversions WHERE item_id = ?';
+  const params = [itemId];
+  
+  if (shopId) {
+    query += ' AND (shop_id = ? OR shop_id IS NULL)';
+    params.push(shopId);
+  }
+  
+  query += ' ORDER BY from_uom, to_uom';
+  
+  db.all(query, params, (err, conversions) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(conversions);
+  });
+});
+
+// Create/Update UOM conversion
+app.post('/api/uom-conversions', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { item_id, from_uom, to_uom, conversion_factor, is_base_uom } = req.body;
+  const shopId = req.user.shop_id || null;
+  
+  if (!item_id || !from_uom || !to_uom || conversion_factor === undefined) {
+    return res.status(400).json({ error: 'item_id, from_uom, to_uom, and conversion_factor are required' });
+  }
+  
+  db.run(
+    `INSERT INTO uom_conversions (item_id, from_uom, to_uom, conversion_factor, is_base_uom, shop_id)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(item_id, from_uom, to_uom) DO UPDATE SET 
+       conversion_factor = excluded.conversion_factor,
+       is_base_uom = excluded.is_base_uom`,
+    [item_id, from_uom, to_uom, conversion_factor, is_base_uom || 0, shopId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ id: this.lastID, message: 'UOM conversion saved successfully' });
+    }
+  );
+});
+
+// Convert UOM
+app.post('/api/uom-conversions/convert', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { item_id, quantity, from_uom, to_uom } = req.body;
+  const shopId = req.user.shop_id || null;
+  
+  if (!item_id || quantity === undefined || !from_uom || !to_uom) {
+    return res.status(400).json({ error: 'item_id, quantity, from_uom, and to_uom are required' });
+  }
+  
+  convertUOM(item_id, quantity, from_uom, to_uom, shopId).then(convertedQty => {
+    res.json({ 
+      original_quantity: quantity,
+      original_uom: from_uom,
+      converted_quantity: convertedQty,
+      converted_uom: to_uom
+    });
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// ==================== TEST 009: ABC ANALYSIS ROUTES ====================
+
+// Calculate and save ABC analysis
+app.post('/api/abc-analysis/calculate', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const shopId = req.user.shop_id || null;
+  const analysisDate = new Date().toISOString().split('T')[0];
+  
+  calculateABCAnalysis(shopId).then(items => {
+    // Save to database
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO abc_analysis 
+      (item_id, category, annual_usage_value, annual_quantity_sold, percentage_of_value, percentage_of_skus, analysis_date, shop_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    items.forEach(item => {
+      stmt.run([
+        item.item_id,
+        item.category,
+        item.annual_usage_value,
+        item.annual_quantity_sold,
+        item.percentageOfValue,
+        item.percentageOfSKUs,
+        analysisDate,
+        shopId
+      ]);
+    });
+    
+    stmt.finalize();
+    
+    // Update items table with ABC category
+    items.forEach(item => {
+      db.run('UPDATE items SET abc_category = ? WHERE id = ?', [item.category, item.item_id]);
+    });
+    
+    res.json({ 
+      message: 'ABC analysis calculated successfully',
+      items: items.length,
+      analysis_date: analysisDate
+    });
+  }).catch(err => {
+    res.status(500).json({ error: sanitizeError(err) });
+  });
+});
+
+// Get ABC analysis report
+app.get('/api/reports/abc-analysis', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  const { category, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      a.*,
+      i.name as item_name,
+      i.sku,
+      i.cost_price
+    FROM abc_analysis a
+    JOIN items i ON a.item_id = i.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (category) {
+    query += ` AND a.category = ?`;
+    params.push(category);
+  }
+  if (finalShopId) {
+    query += ` AND a.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY a.annual_usage_value DESC`;
+  
+  db.all(query, params, (err, analysis) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    
+    // Calculate summary
+    const summary = {
+      total_items: analysis.length,
+      category_a: analysis.filter(a => a.category === 'A').length,
+      category_b: analysis.filter(a => a.category === 'B').length,
+      category_c: analysis.filter(a => a.category === 'C').length,
+      total_value: analysis.reduce((sum, a) => sum + a.annual_usage_value, 0)
+    };
+    
+    res.json({ analysis, summary });
+  });
+});
+
+// ==================== TEST 010: SERIAL NUMBER ROUTES ====================
+
+// Get serial numbers
+app.get('/api/serial-numbers', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { item_id, serial_number, status, shop_id } = req.query;
+  const shopFilter = getShopFilter(req);
+  const finalShopId = shop_id || shopFilter.shop_id;
+  
+  let query = `
+    SELECT 
+      sn.*,
+      i.name as item_name,
+      i.sku
+    FROM serial_numbers sn
+    JOIN items i ON sn.item_id = i.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (item_id) {
+    query += ` AND sn.item_id = ?`;
+    params.push(item_id);
+  }
+  if (serial_number) {
+    query += ` AND sn.serial_number LIKE ?`;
+    params.push(`%${serial_number}%`);
+  }
+  if (status) {
+    query += ` AND sn.status = ?`;
+    params.push(status);
+  }
+  if (finalShopId) {
+    query += ` AND sn.shop_id = ?`;
+    params.push(finalShopId);
+  }
+  
+  query += ` ORDER BY sn.created_at DESC`;
+  
+  db.all(query, params, (err, serials) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    res.json(serials);
+  });
+});
+
+// Create serial number
+app.post('/api/serial-numbers', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const { item_id, serial_number, purchase_id, purchase_date, location, warranty_start_date, warranty_end_date, notes } = req.body;
+  const shopId = req.user.shop_id || null;
+  
+  if (!item_id || !serial_number) {
+    return res.status(400).json({ error: 'item_id and serial_number are required' });
+  }
+  
+  // Check if serial number already exists
+  db.get('SELECT id FROM serial_numbers WHERE serial_number = ?', [serial_number], (err, existing) => {
+    if (err) {
+      return res.status(500).json({ error: sanitizeError(err) });
+    }
+    if (existing) {
+      return res.status(409).json({ error: 'Serial number already exists' });
+    }
+    
+    db.run(
+      `INSERT INTO serial_numbers 
+       (item_id, serial_number, purchase_id, purchase_date, location, warranty_start_date, warranty_end_date, notes, shop_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_stock')`,
+      [item_id, serial_number, purchase_id || null, purchase_date || null, location || null, warranty_start_date || null, warranty_end_date || null, notes || null, shopId],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
+        res.json({ id: this.lastID, message: 'Serial number created successfully' });
+      }
+    );
+  });
+});
+
+// Update serial number (e.g., mark as sold)
+app.put('/api/serial-numbers/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  const id = req.params.id;
+  const { status, sale_id, sale_date, location, notes } = req.body;
+  
+  const updates = [];
+  const params = [];
+  
+  if (status) {
+    updates.push('status = ?');
+    params.push(status);
+  }
+  if (sale_id !== undefined) {
+    updates.push('sale_id = ?');
+    params.push(sale_id);
+  }
+  if (sale_date !== undefined) {
+    updates.push('sale_date = ?');
+    params.push(sale_date);
+  }
+  if (location !== undefined) {
+    updates.push('location = ?');
+    params.push(location);
+  }
+  if (notes !== undefined) {
+    updates.push('notes = ?');
+    params.push(notes);
+  }
+  
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+  
+  updates.push('updated_at = datetime(\'now\')');
+  params.push(id);
+  
+  db.run(
+    `UPDATE serial_numbers SET ${updates.join(', ')} WHERE id = ?`,
+    params,
+    (err) => {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      res.json({ message: 'Serial number updated successfully' });
+    }
+  );
 });
 
 // ==================== CUSTOMERS ROUTES ====================
@@ -5812,6 +7652,15 @@ app.get('/api/reports/slow-moving', authenticateToken, requireRole('admin', 'man
 });
 
 app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
+  // Prevent multiple responses
+  let responseSent = false;
+  const sendResponse = (statusCode, data) => {
+    if (!responseSent) {
+      responseSent = true;
+      res.status(statusCode).json(data);
+    }
+  };
+
   // Get today's date in YYYY-MM-DD format for reliable comparison
   const today = new Date().toISOString().split('T')[0];
   const shopFilter = getShopFilter(req);
@@ -5892,6 +7741,7 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
 
   const results = {};
   let completed = 0;
+  let hasError = false;
   const total = Object.keys(queries).length;
 
   Object.keys(queries).forEach(key => {
@@ -5905,13 +7755,26 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
     }
     
     db.get(queries[key], params, (err, row) => {
-      if (err) {
-        return res.status(500).json({ error: sanitizeError(err) });
+      // Skip if response already sent or error already occurred
+      if (responseSent || hasError) {
+        return;
       }
+
+      if (err) {
+        console.error(`[DASHBOARD] Database error for ${key}:`, err);
+        hasError = true;
+        sendResponse(500, { 
+          error: sanitizeError(err),
+          message: `Error loading dashboard data: ${key}`
+        });
+        return;
+      }
+      
       results[key] = row;
       completed++;
+      
       if (completed === total) {
-        res.json(results);
+        sendResponse(200, results);
       }
     });
   });
@@ -5919,6 +7782,15 @@ app.get('/api/reports/dashboard', authenticateToken, (req, res) => {
 
 // Manager Analytics Endpoint - Comprehensive management analysis
 app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+  // Prevent multiple responses
+  let responseSent = false;
+  const sendResponse = (statusCode, data) => {
+    if (!responseSent) {
+      responseSent = true;
+      res.status(statusCode).json(data);
+    }
+  };
+
   const today = new Date().toISOString().split('T')[0];
   const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const lastMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0];
@@ -5929,6 +7801,7 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
 
   const analytics = {};
   let completed = 0;
+  let hasError = false;
   const totalQueries = 35; // Increased to include all dashboard data
 
   // 1. Today's Performance
@@ -5940,9 +7813,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales s
     WHERE DATE(sale_date) = ?
   `, [today], (err, row) => {
-    if (!err) analytics.today = row || { transactions: 0, revenue: 0, items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[MANAGER-ANALYTICS] Error loading today performance:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.today = row || { transactions: 0, revenue: 0, items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 2. This Week Performance
@@ -5954,9 +7838,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales s
     WHERE DATE(sale_date) >= ?
   `, [thisWeekStart], (err, row) => {
-    if (!err) analytics.thisWeek = row || { transactions: 0, revenue: 0, items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[MANAGER-ANALYTICS] Error loading this week performance:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.thisWeek = row || { transactions: 0, revenue: 0, items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 3. Last Week Performance
@@ -5968,9 +7863,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales s
     WHERE DATE(sale_date) >= ? AND DATE(sale_date) <= ?
   `, [lastWeekStart, lastWeekEnd], (err, row) => {
-    if (!err) analytics.lastWeek = row || { transactions: 0, revenue: 0, items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[MANAGER-ANALYTICS] Error loading last week performance:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lastWeek = row || { transactions: 0, revenue: 0, items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 4. This Month Performance
@@ -5982,9 +7888,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales s
     WHERE DATE(sale_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.thisMonth = row || { transactions: 0, revenue: 0, items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[MANAGER-ANALYTICS] Error loading this month performance:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.thisMonth = row || { transactions: 0, revenue: 0, items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 5. Last Month Performance
@@ -5996,9 +7913,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales s
     WHERE DATE(sale_date) >= ? AND DATE(sale_date) <= ?
   `, [lastMonthStart, lastMonthEnd], (err, row) => {
-    if (!err) analytics.lastMonth = row || { transactions: 0, revenue: 0, items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[MANAGER-ANALYTICS] Error loading last month performance:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lastMonth = row || { transactions: 0, revenue: 0, items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 6. Total Inventory Value
@@ -6010,9 +7938,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       COALESCE(SUM(CASE WHEN stock_quantity <= min_stock_level THEN 1 ELSE 0 END), 0) as low_stock_count
     FROM items
   `, [], (err, row) => {
-    if (!err) analytics.inventory = row || { total_items: 0, total_value: 0, potential_revenue: 0, low_stock_count: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.inventory = row || { total_items: 0, total_value: 0, potential_revenue: 0, low_stock_count: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 7. Profit Analysis (Revenue - Cost)
@@ -6039,7 +7978,9 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       analytics.profit = { revenue: 0, cost: 0, profit: 0, margin: 0 };
     }
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 8. Top Performing Items (Revenue)
@@ -6057,9 +7998,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_revenue DESC
     LIMIT 5
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 9. Sales Trend (Last 7 Days)
@@ -6073,9 +8025,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     GROUP BY DATE(sale_date)
     ORDER BY date ASC
   `, [], (err, rows) => {
-    if (!err) analytics.salesTrend = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesTrend = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 10. Purchase Analysis
@@ -6086,9 +8049,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM purchases
     WHERE DATE(purchase_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.purchases = row || { total_purchases: 0, total_spent: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.purchases = row || { total_purchases: 0, total_spent: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 11. Average Transaction Value
@@ -6101,9 +8075,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales
     WHERE DATE(sale_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.transactionMetrics = row || { count: 0, avg_value: 0, max_value: 0, min_value: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.transactionMetrics = row || { count: 0, avg_value: 0, max_value: 0, min_value: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 12. Category Performance
@@ -6122,9 +8107,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_revenue DESC
     LIMIT 5
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.categoryPerformance = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.categoryPerformance = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 13. Inventory Turnover (Fast Moving Items)
@@ -6147,9 +8143,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY turnover_rate DESC
     LIMIT 5
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.inventoryTurnover = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.inventoryTurnover = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 14. Growth Metrics
@@ -6171,7 +8178,9 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       analytics.growth = { current: 0, previous: 0, change: 0, percentage: 0 };
     }
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 15. Business Health Score
@@ -6202,7 +8211,9 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       analytics.healthScore = { stockHealth: 0, revenueHealth: 0, overall: 0, lowStockItems: 0, totalItems: 0 };
     }
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 16. Low Stock Items (Admin)
@@ -6216,9 +8227,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.lowStockItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lowStockItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 17. Recent Sales (Admin)
@@ -6233,9 +8255,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY s.sale_date DESC, s.id DESC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.recentSales = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.recentSales = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 18. Recent Purchases (Admin)
@@ -6252,9 +8285,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY p.purchase_date DESC, p.id DESC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.recentPurchases = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.recentPurchases = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 19. Critical Stock Items (Storekeeper)
@@ -6279,9 +8323,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
       i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.criticalStock = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.criticalStock = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 20. Reorder Recommendations (Storekeeper)
@@ -6296,9 +8351,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.reorderRecommendations = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.reorderRecommendations = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 21. Purchase Statistics (Storekeeper)
@@ -6310,9 +8376,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM purchases p
     WHERE DATE(purchase_date) = ?
   `, [today], (err, row) => {
-    if (!err) analytics.todayPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.todayPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 22. This Month Purchases (Storekeeper)
@@ -6324,9 +8401,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM purchases p
     WHERE DATE(purchase_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.monthPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.monthPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 23. Last Month Purchases (Storekeeper)
@@ -6337,9 +8425,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM purchases
     WHERE DATE(purchase_date) >= ? AND DATE(purchase_date) <= ?
   `, [lastMonthStart, lastMonthEnd], (err, row) => {
-    if (!err) analytics.lastMonthPurchases = row || { count: 0, total_amount: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lastMonthPurchases = row || { count: 0, total_amount: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 24. Category Stock Summary (Storekeeper)
@@ -6357,9 +8456,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_value DESC
     LIMIT 8
   `, [], (err, rows) => {
-    if (!err) analytics.categoryStock = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.categoryStock = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 25. Recent Stock Adjustments (Storekeeper)
@@ -6374,9 +8484,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY sa.created_at DESC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.recentAdjustments = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.recentAdjustments = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 26. Top Suppliers (Storekeeper)
@@ -6394,9 +8515,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_spent DESC
     LIMIT 5
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topSuppliers = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topSuppliers = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 27. Items Needing Attention (Storekeeper)
@@ -6419,9 +8551,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY days_remaining ASC, i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.itemsNeedingAttention = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.itemsNeedingAttention = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 28. Purchase Trend (Storekeeper)
@@ -6436,9 +8579,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     GROUP BY DATE(purchase_date)
     ORDER BY date ASC
   `, [], (err, rows) => {
-    if (!err) analytics.purchaseTrend = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.purchaseTrend = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 29. Sales Performance Metrics (Sales)
@@ -6451,9 +8605,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     FROM sales
     WHERE DATE(sale_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.salesPerformanceMetrics = row || { active_days: 0, daily_average: 0, largest_transaction: 0, smallest_transaction: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesPerformanceMetrics = row || { active_days: 0, daily_average: 0, largest_transaction: 0, smallest_transaction: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 30. Top Selling Items Detailed (Sales)
@@ -6472,9 +8637,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_sold DESC
     LIMIT 10
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topSellingItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topSellingItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 31. Sales by Category Detailed (Sales)
@@ -6493,9 +8669,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_revenue DESC
     LIMIT 8
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.salesByCategory = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesByCategory = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 32. Hourly Sales Pattern (Sales)
@@ -6509,9 +8696,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     GROUP BY strftime('%H', sale_date)
     ORDER BY hour ASC
   `, [today], (err, rows) => {
-    if (!err) analytics.hourlyPattern = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.hourlyPattern = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 33. Top Customers (Sales)
@@ -6530,9 +8728,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY total_spent DESC
     LIMIT 10
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topCustomers = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topCustomers = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 34. Available Items (Sales)
@@ -6550,9 +8759,20 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY i.stock_quantity DESC, i.name ASC
     LIMIT 20
   `, [], (err, rows) => {
-    if (!err) analytics.availableItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.availableItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 35. Out of Stock Items (Sales)
@@ -6570,14 +8790,34 @@ app.get('/api/reports/manager-analytics', authenticateToken, requireRole('admin'
     ORDER BY sold_last_month DESC, i.name ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.outOfStockItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.outOfStockItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 });
 
 // Storekeeper Analytics Endpoint - Comprehensive inventory management analysis
 app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+  // Prevent multiple responses
+  let responseSent = false;
+  const sendResponse = (statusCode, data) => {
+    if (!responseSent) {
+      responseSent = true;
+      res.status(statusCode).json(data);
+    }
+  };
+
   const today = new Date().toISOString().split('T')[0];
   const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const lastMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0];
@@ -6585,6 +8825,7 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
 
   const analytics = {};
   let completed = 0;
+  let hasError = false;
   const totalQueries = 12;
 
   // 1. Inventory Overview
@@ -6598,9 +8839,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
       COALESCE(SUM(CASE WHEN stock_quantity = 0 THEN 1 ELSE 0 END), 0) as out_of_stock_count
     FROM items
   `, [], (err, row) => {
-    if (!err) analytics.inventory = row || { total_items: 0, total_units: 0, total_cost_value: 0, total_sales_value: 0, low_stock_count: 0, out_of_stock_count: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.inventory = row || { total_items: 0, total_units: 0, total_cost_value: 0, total_sales_value: 0, low_stock_count: 0, out_of_stock_count: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 2. Today's Purchases
@@ -6612,9 +8864,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     FROM purchases p
     WHERE DATE(purchase_date) = ?
   `, [today], (err, row) => {
-    if (!err) analytics.todayPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.todayPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 3. This Month Purchases
@@ -6626,9 +8889,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     FROM purchases p
     WHERE DATE(purchase_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.monthPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.monthPurchases = row || { count: 0, total_amount: 0, total_items: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 4. Last Month Purchases (for comparison)
@@ -6639,9 +8913,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     FROM purchases
     WHERE DATE(purchase_date) >= ? AND DATE(purchase_date) <= ?
   `, [lastMonthStart, lastMonthEnd], (err, row) => {
-    if (!err) analytics.lastMonthPurchases = row || { count: 0, total_amount: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lastMonthPurchases = row || { count: 0, total_amount: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 5. Critical Stock Items (Out of Stock or Very Low)
@@ -6666,9 +8951,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
       i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.criticalStock = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.criticalStock = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 6. Reorder Recommendations
@@ -6683,9 +8979,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     ORDER BY i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.reorderRecommendations = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.reorderRecommendations = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 7. Recent Stock Adjustments
@@ -6700,9 +9007,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     ORDER BY sa.created_at DESC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.recentAdjustments = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.recentAdjustments = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 8. Category Stock Summary
@@ -6720,9 +9038,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     ORDER BY total_value DESC
     LIMIT 8
   `, [], (err, rows) => {
-    if (!err) analytics.categorySummary = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.categorySummary = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 9. Top Suppliers (by purchase volume)
@@ -6740,9 +9069,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     ORDER BY total_spent DESC
     LIMIT 5
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topSuppliers = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topSuppliers = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 10. Purchase Trend (Last 7 Days)
@@ -6757,9 +9097,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     GROUP BY DATE(purchase_date)
     ORDER BY date ASC
   `, [], (err, rows) => {
-    if (!err) analytics.purchaseTrend = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.purchaseTrend = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 11. Stock Value by Category
@@ -6776,9 +9127,20 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     HAVING items > 0
     ORDER BY cost_value DESC
   `, [], (err, rows) => {
-    if (!err) analytics.stockByCategory = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.stockByCategory = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 12. Items Needing Attention (Low stock with high sales velocity)
@@ -6801,14 +9163,34 @@ app.get('/api/reports/storekeeper-analytics', authenticateToken, requireRole('ad
     ORDER BY days_remaining ASC, i.stock_quantity ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.itemsNeedingAttention = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.itemsNeedingAttention = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 });
 
 // Sales Analytics Endpoint - Comprehensive sales management and growth tracking
 app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+  // Prevent multiple responses
+  let responseSent = false;
+  const sendResponse = (statusCode, data) => {
+    if (!responseSent) {
+      responseSent = true;
+      res.status(statusCode).json(data);
+    }
+  };
+
   const today = new Date().toISOString().split('T')[0];
   const thisWeekStart = new Date();
   thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
@@ -6820,6 +9202,7 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
 
   const analytics = {};
   let completed = 0;
+  let hasError = false;
   const totalQueries = 14;
 
   // 1. Sales Overview
@@ -6831,9 +9214,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
       COALESCE(AVG(total_amount), 0) as average_transaction_value
     FROM sales s
   `, [], (err, row) => {
-    if (!err) analytics.salesOverview = row || { total_transactions: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesOverview = row || { total_transactions: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 2. Today's Sales
@@ -6846,9 +9240,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     FROM sales s
     WHERE DATE(sale_date) = ?
   `, [today], (err, row) => {
-    if (!err) analytics.todaySales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.todaySales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 3. This Week Sales
@@ -6860,9 +9265,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     FROM sales s
     WHERE DATE(sale_date) >= ?
   `, [thisWeekStartStr], (err, row) => {
-    if (!err) analytics.weekSales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.weekSales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 4. This Month Sales
@@ -6875,9 +9291,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     FROM sales s
     WHERE DATE(sale_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.monthSales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.monthSales = row || { transaction_count: 0, total_revenue: 0, total_items_sold: 0, average_transaction_value: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 5. Last Month Sales (for comparison)
@@ -6888,9 +9315,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     FROM sales
     WHERE DATE(sale_date) >= ? AND DATE(sale_date) <= ?
   `, [lastMonthStart, lastMonthEnd], (err, row) => {
-    if (!err) analytics.lastMonthSales = row || { transaction_count: 0, total_revenue: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.lastMonthSales = row || { transaction_count: 0, total_revenue: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 6. Recent Sales Transactions
@@ -6907,9 +9345,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY s.sale_date DESC, s.id DESC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.recentSales = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.recentSales = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 7. Top Selling Items
@@ -6928,9 +9377,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY total_sold DESC
     LIMIT 10
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topSellingItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topSellingItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 8. Sales by Category
@@ -6949,9 +9409,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY total_revenue DESC
     LIMIT 8
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.salesByCategory = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesByCategory = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 9. Sales Trend (Last 7 Days)
@@ -6966,9 +9437,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     GROUP BY DATE(sale_date)
     ORDER BY date ASC
   `, [], (err, rows) => {
-    if (!err) analytics.salesTrend = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.salesTrend = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 10. Hourly Sales Pattern (Today)
@@ -6982,9 +9464,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     GROUP BY strftime('%H', sale_date)
     ORDER BY hour ASC
   `, [today], (err, rows) => {
-    if (!err) analytics.hourlyPattern = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.hourlyPattern = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 11. Available Items for Sale
@@ -7002,9 +9495,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY i.stock_quantity DESC, i.name ASC
     LIMIT 20
   `, [], (err, rows) => {
-    if (!err) analytics.availableItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.availableItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 12. Out of Stock Items
@@ -7022,9 +9526,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY sold_last_month DESC, i.name ASC
     LIMIT 10
   `, [], (err, rows) => {
-    if (!err) analytics.outOfStockItems = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.outOfStockItems = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 13. Customer Insights (Top Customers)
@@ -7043,9 +9558,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     ORDER BY total_spent DESC
     LIMIT 10
   `, [thisMonthStart], (err, rows) => {
-    if (!err) analytics.topCustomers = rows || [];
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.topCustomers = rows || [];
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 
   // 14. Performance Metrics
@@ -7058,9 +9584,20 @@ app.get('/api/reports/sales-analytics', authenticateToken, requireRole('admin', 
     FROM sales
     WHERE DATE(sale_date) >= ?
   `, [thisMonthStart], (err, row) => {
-    if (!err) analytics.performanceMetrics = row || { active_days: 0, daily_average: 0, largest_transaction: 0, smallest_transaction: 0 };
+    if (responseSent || hasError) return;
+    
+    if (err) {
+      console.error('[SALES-ANALYTICS] Database error:', err);
+      hasError = true;
+      sendResponse(500, { error: sanitizeError(err), message: 'Error loading analytics data' });
+      return;
+    }
+    
+    analytics.performanceMetrics = row || { active_days: 0, daily_average: 0, largest_transaction: 0, smallest_transaction: 0 };
     completed++;
-    if (completed === totalQueries) res.json(analytics);
+    if (completed === totalQueries) {
+      sendResponse(200, analytics);
+    }
   });
 });
 

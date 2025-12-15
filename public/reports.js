@@ -38,6 +38,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadPurchasesReport();
         });
     }
+    
+    // Setup new report filter buttons
+    const stockoutFilterBtn = document.getElementById('stockoutFilterBtn');
+    if (stockoutFilterBtn) {
+        stockoutFilterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadStockoutReport();
+        });
+    }
+    
+    const varianceFilterBtn = document.getElementById('varianceFilterBtn');
+    if (varianceFilterBtn) {
+        varianceFilterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadVarianceReport();
+        });
+    }
+    
+    const laborFilterBtn = document.getElementById('laborFilterBtn');
+    if (laborFilterBtn) {
+        laborFilterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadLaborHoursReport();
+        });
+    }
+
+    const abcRecalculateBtn = document.getElementById('abcRecalculateBtn');
+    if (abcRecalculateBtn) {
+        abcRecalculateBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await apiRequest('/abc-analysis/calculate', { method: 'POST' });
+                await loadABCAnalysisReport();
+                if (typeof showNotification === 'function') {
+                    showNotification('ABC analysis recalculated successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error recalculating ABC analysis:', error);
+                if (typeof showNotification === 'function') {
+                    showNotification('Error recalculating ABC analysis', 'error');
+                }
+            }
+        });
+    }
+
+    const abcCategoryFilter = document.getElementById('abcCategoryFilter');
+    if (abcCategoryFilter) {
+        abcCategoryFilter.addEventListener('change', (e) => {
+            e.preventDefault();
+            loadABCAnalysisReport();
+        });
+    }
 });
 
 // Load analytics overview for sidebar
@@ -93,7 +145,11 @@ function showReport(reportType) {
         'revenue-analysis': 'revenueAnalysisReport',
         'category-performance': 'categoryPerformanceReport',
         'monthly-comparison': 'monthlyComparisonReport',
-        'profit-analysis': 'profitAnalysisReport'
+        'profit-analysis': 'profitAnalysisReport',
+        'stockout': 'stockoutReport',
+        'variance': 'varianceReport',
+        'labor-hours': 'laborHoursReport',
+        'abc-analysis': 'abcAnalysisReport'
     };
     
     const reportId = idMap[reportType] || (reportType + 'Report');
@@ -219,6 +275,18 @@ function showReport(reportType) {
                     showNotification('Chart function not available. Please refresh the page.', 'error');
                 }
             }
+            break;
+        case 'stockout':
+            loadStockoutReport();
+            break;
+        case 'variance':
+            loadVarianceReport();
+            break;
+        case 'labor-hours':
+            loadLaborHoursReport();
+            break;
+        case 'abc-analysis':
+            loadABCAnalysisReport();
             break;
     }
 }
@@ -588,8 +656,263 @@ function setupMobileSidebar() {
     updateCloseButton();
 }
 
+// TEST 001: Load Stockout Report
+async function loadStockoutReport() {
+    const tbody = document.getElementById('stockoutReportBody');
+    const reportSection = document.getElementById('stockoutReport');
+    
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading...</td></tr>';
+    }
+    
+    try {
+        const startDate = document.getElementById('stockoutStartDate')?.value || '';
+        const endDate = document.getElementById('stockoutEndDate')?.value || '';
+        const sku = document.getElementById('stockoutSKU')?.value || '';
+        
+        let url = '/api/reports/stockout?';
+        const params = [];
+        if (startDate) {
+            params.push(`start_date=${startDate}`);
+        }
+        if (endDate) {
+            params.push(`end_date=${endDate}`);
+        }
+        if (sku) {
+            params.push(`sku=${encodeURIComponent(sku)}`);
+        }
+        url += params.join('&');
+        
+        const data = await apiRequest(url.replace('/api', ''));
+        
+        // Update summary
+        if (data.summary) {
+            document.getElementById('stockoutTotalEvents').textContent = data.summary.total_events || 0;
+            document.getElementById('stockoutUnresolved').textContent = data.summary.unresolved_events || 0;
+            document.getElementById('stockoutAvgDuration').textContent = data.summary.average_duration_minutes || 0;
+        }
+        
+        // Render table
+        if (tbody) {
+            if (!data.events || data.events.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No stockout events found</td></tr>';
+            } else {
+                tbody.innerHTML = data.events.map(event => `
+                    <tr>
+                        <td>${event.sku || '-'}</td>
+                        <td>${event.item_name || '-'}</td>
+                        <td>${event.category_name || '-'}</td>
+                        <td>${new Date(event.stockout_date).toLocaleString()}</td>
+                        <td>${event.resolved_date ? new Date(event.resolved_date).toLocaleString() : '<span style="color: red;">Unresolved</span>'}</td>
+                        <td>${event.duration_minutes || '-'}</td>
+                        <td>${event.resolved_date ? '<span style="color: green;">Resolved</span>' : '<span style="color: red;">Active</span>'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading stockout report:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: red;">Error loading report</td></tr>';
+        }
+    }
+}
+
+// TEST 002: Load Variance Report
+async function loadVarianceReport() {
+    const tbody = document.getElementById('varianceReportBody');
+    
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">Loading...</td></tr>';
+    }
+    
+    try {
+        const startDate = document.getElementById('varianceStartDate')?.value || '';
+        const endDate = document.getElementById('varianceEndDate')?.value || '';
+        const severity = document.getElementById('varianceSeverity')?.value || '';
+        
+        let url = '/api/reports/variance?';
+        const params = [];
+        if (startDate) {
+            params.push(`start_date=${startDate}`);
+        }
+        if (endDate) {
+            params.push(`end_date=${endDate}`);
+        }
+        if (severity) {
+            params.push(`severity=${severity}`);
+        }
+        url += params.join('&');
+        
+        const data = await apiRequest(url.replace('/api', ''));
+        
+        // Update summary
+        if (data.summary) {
+            document.getElementById('varianceTotalCounts').textContent = data.summary.total_counts || 0;
+            document.getElementById('varianceAcceptable').textContent = data.summary.acceptable || 0;
+            document.getElementById('varianceConcerning').textContent = data.summary.concerning || 0;
+            document.getElementById('varianceCritical').textContent = data.summary.critical || 0;
+            const totalValue = data.summary.total_variance_value || 0;
+            document.getElementById('varianceTotalValue').textContent = formatCurrency(totalValue);
+        }
+        
+        // Render table
+        if (tbody) {
+            if (!data.variances || data.variances.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No variance data found</td></tr>';
+            } else {
+                tbody.innerHTML = data.variances.map(v => {
+                    const severityClass = v.variance_severity === 'critical' ? 'red' : 
+                                        v.variance_severity === 'concerning' ? 'orange' : 'green';
+                    return `
+                        <tr>
+                            <td>${v.item_name || '-'}</td>
+                            <td>${v.sku || '-'}</td>
+                            <td>${v.system_quantity_before || '-'}</td>
+                            <td>${v.physical_count || '-'}</td>
+                            <td>${v.variance_amount || 0}</td>
+                            <td>${v.variance_percentage ? v.variance_percentage.toFixed(2) + '%' : '-'}</td>
+                            <td>${v.variance_value ? formatCurrency(v.variance_value) : '-'}</td>
+                            <td><span style="color: ${severityClass};">${v.variance_severity || '-'}</span></td>
+                            <td>${new Date(v.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading variance report:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: red;">Error loading report</td></tr>';
+        }
+    }
+}
+
+// TEST 003: Load Labor Hours Report
+async function loadLaborHoursReport() {
+    const tbody = document.getElementById('laborHoursReportBody');
+    
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading...</td></tr>';
+    }
+    
+    try {
+        const startDate = document.getElementById('laborStartDate')?.value || '';
+        const endDate = document.getElementById('laborEndDate')?.value || '';
+        const activityType = document.getElementById('laborActivityType')?.value || '';
+        
+        let url = '/api/labor/hours?';
+        const params = [];
+        if (startDate) {
+            params.push(`start_date=${startDate}`);
+        }
+        if (endDate) {
+            params.push(`end_date=${endDate}`);
+        }
+        if (activityType) {
+            params.push(`activity_type=${activityType}`);
+        }
+        url += params.join('&');
+        
+        const data = await apiRequest(url.replace('/api', ''));
+        
+        // Update summary
+        if (data.summary) {
+            document.getElementById('laborTotalEntries').textContent = data.summary.total_entries || 0;
+            document.getElementById('laborTotalHours').textContent = (data.summary.total_hours || 0).toFixed(2);
+            document.getElementById('laborTotalCost').textContent = formatCurrency(data.summary.total_labor_cost || 0);
+        }
+        
+        // Render table
+        if (tbody) {
+            if (!data.hours || data.hours.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No labor hours found</td></tr>';
+            } else {
+                tbody.innerHTML = data.hours.map(h => `
+                    <tr>
+                        <td>${h.full_name || h.username || '-'}</td>
+                        <td>${h.activity_type ? h.activity_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'}</td>
+                        <td>${h.start_time ? new Date(h.start_time).toLocaleString() : '-'}</td>
+                        <td>${h.end_time ? new Date(h.end_time).toLocaleString() : '<span style="color: orange;">In Progress</span>'}</td>
+                        <td>${h.duration_minutes || '-'}</td>
+                        <td>${h.item_name || '-'}</td>
+                        <td>${h.labor_cost ? formatCurrency(h.labor_cost) : '-'}</td>
+                        <td>${h.notes || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading labor hours report:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: red;">Error loading report</td></tr>';
+        }
+    }
+}
+
+// TEST 009: Load ABC Analysis Report
+async function loadABCAnalysisReport() {
+    const tbody = document.getElementById('abcAnalysisReportBody');
+    
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading...</td></tr>';
+    }
+    
+    try {
+        // Optional: recalculate is triggered by button; here we just load
+        const category = document.getElementById('abcCategoryFilter')?.value || '';
+        
+        let url = '/api/reports/abc-analysis?';
+        const params = [];
+        if (category) {
+            params.push(`category=${encodeURIComponent(category)}`);
+        }
+        url += params.join('&');
+        
+        const data = await apiRequest(url.replace('/api', ''));
+        
+        // Update summary
+        if (data.summary) {
+            document.getElementById('abcTotalItems').textContent = data.summary.total_items || 0;
+            document.getElementById('abcCategoryA').textContent = data.summary.category_a || 0;
+            document.getElementById('abcCategoryB').textContent = data.summary.category_b || 0;
+            document.getElementById('abcCategoryC').textContent = data.summary.category_c || 0;
+            document.getElementById('abcTotalValue').textContent = formatCurrency(data.summary.total_value || 0);
+        }
+        
+        // Render table
+        if (tbody) {
+            if (!data.analysis || data.analysis.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No ABC analysis data found</td></tr>';
+            } else {
+                tbody.innerHTML = data.analysis.map(row => `
+                    <tr>
+                        <td>${row.item_name || '-'}</td>
+                        <td>${row.sku || '-'}</td>
+                        <td>${row.category || '-'}</td>
+                        <td>${row.annual_quantity_sold || 0}</td>
+                        <td>${formatCurrency(row.annual_usage_value || 0)}</td>
+                        <td>${row.percentage_of_value ? row.percentage_of_value.toFixed(2) + '%' : '-'}</td>
+                        <td>${row.percentage_of_skus ? row.percentage_of_skus.toFixed(2) + '%' : '-'}</td>
+                        <td>${row.analysis_date || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading ABC analysis report:', error);
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: red;">Error loading report</td></tr>';
+        }
+    }
+}
+
 // Make functions globally available
 window.showReport = showReport;
 window.loadSalesReport = loadSalesReport;
 window.loadPurchasesReport = loadPurchasesReport;
+window.loadStockoutReport = loadStockoutReport;
+window.loadVarianceReport = loadVarianceReport;
+window.loadLaborHoursReport = loadLaborHoursReport;
+window.loadABCAnalysisReport = loadABCAnalysisReport;
 

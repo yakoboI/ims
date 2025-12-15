@@ -85,7 +85,19 @@ async function refreshDashboard() {
     
     // Show button loading state
     if (refreshBtn) {
-        const refreshingText = window.i18n ? window.i18n.t('common.refreshing') : 'Refreshing...';
+        let refreshingText = 'Refreshing...';
+        try {
+            if (window.i18n && typeof window.i18n.t === 'function') {
+                const translated = window.i18n.t('common.refreshing');
+                // Only use translation if it's not the key itself (meaning it was found)
+                if (translated && translated !== 'common.refreshing') {
+                    refreshingText = translated;
+                }
+            }
+        } catch (e) {
+            // Fallback to default if translation fails
+            refreshingText = 'Refreshing...';
+        }
         showButtonLoading(refreshBtn, refreshingText);
     }
     
@@ -112,7 +124,15 @@ async function refreshDashboard() {
                 await loadAdminDashboard();
         }
     } catch (error) {
-        showNotification('Error refreshing dashboard', 'error');
+        // Handle 403 permission errors gracefully
+        if (error.code === 403 || error.status === 403 || (error.data && error.data.code === 403)) {
+            const errorMsg = window.i18n ? window.i18n.t('messages.permissionDenied') : 'You do not have permission to access this data';
+            showNotification(errorMsg, 'warning');
+        } else {
+            const errorMsg = window.i18n ? window.i18n.t('messages.errorRefreshingDashboard') : 'Error refreshing dashboard';
+            showNotification(errorMsg, 'error');
+        }
+        console.error('Dashboard refresh error:', error);
     } finally {
         if (refreshBtn) {
             hideButtonLoading(refreshBtn);
@@ -125,6 +145,12 @@ window.refreshDashboard = refreshDashboard;
 async function loadAdminDashboard() {
     try {
         const data = await apiRequest('/reports/dashboard');
+        
+        // Check if response has error code
+        if (data && data.code === 403) {
+            console.warn('Permission denied for admin dashboard');
+            return;
+        }
         
         document.getElementById('adminTotalItems').textContent = data.totalItems?.count || 0;
         document.getElementById('adminLowStockItems').textContent = data.lowStockItems?.count || 0;
@@ -141,6 +167,12 @@ async function loadAdminDashboard() {
             await loadAdminClearDataStatus();
         }
     } catch (error) {
+        // Handle 403 permission errors gracefully
+        if (error.code === 403 || error.status === 403 || (error.data && error.data.code === 403)) {
+            console.warn('Permission denied for admin dashboard:', error);
+        } else {
+            console.error('Error loading admin dashboard:', error);
+        }
     }
 }
 
