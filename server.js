@@ -84,12 +84,18 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 // Cloudinary Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
+// Only configure if credentials are provided (optional for development)
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+  });
+  logger.info('Cloudinary configured successfully');
+} else {
+  logger.warn('Cloudinary credentials not configured. Image uploads will be disabled. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to enable image uploads.');
+}
 
 // SECURITY: Configure CORS to only allow specific origins
 // Automatically detect Railway domain from environment variables
@@ -1750,7 +1756,11 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
+      // Distinguish between expired and invalid tokens
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expired. Please login again.' });
+      }
+      return res.status(401).json({ error: 'Invalid token. Please login again.' });
     }
     req.user = user;
     next();
@@ -5404,6 +5414,14 @@ app.post('/api/items/upload-image', authenticateToken, requireRole('admin', 'sto
     return res.status(400).json({ error: 'No image file provided' });
   }
 
+  // Check if Cloudinary is configured
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    logger.error('Cloudinary credentials not configured');
+    return res.status(500).json({ 
+      error: 'Image upload service is not configured. Please configure Cloudinary credentials (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) in environment variables.' 
+    });
+  }
+
   try {
     const shopFilter = getShopFilter(req);
     const shopId = shopFilter.shop_id || req.user.shop_id || 'global';
@@ -5419,7 +5437,7 @@ app.post('/api/items/upload-image', authenticateToken, requireRole('admin', 'sto
         .webp({ quality: 85 })
         .toBuffer();
     } catch (sharpError) {
-      console.error('Sharp optimization error, using original:', sharpError);
+      logger.error('Sharp optimization error, using original:', sharpError);
       // Fallback to original if Sharp fails
       optimizedBuffer = req.file.buffer;
     }
@@ -5457,8 +5475,17 @@ app.post('/api/items/upload-image', authenticateToken, requireRole('admin', 'sto
       bytes: uploadResult.bytes
     });
   } catch (error) {
-    console.error('Error uploading image to Cloudinary:', error);
-    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
+    logger.error('Error uploading image to Cloudinary:', error);
+    
+    // Provide more helpful error messages
+    let errorMessage = 'Failed to upload image';
+    if (error.message && error.message.includes('api_key')) {
+      errorMessage = 'Cloudinary API credentials are missing or invalid. Please configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your environment variables.';
+    } else if (error.message) {
+      errorMessage = 'Failed to upload image: ' + error.message;
+    }
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 

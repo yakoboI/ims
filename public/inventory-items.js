@@ -1023,7 +1023,7 @@ async function handleItemSubmit(e) {
     
     // For new items, include required fields with defaults
     // For updates, only send the fields we're editing
-    const itemData = {
+    let itemData = {
         name: document.getElementById('itemName').value.trim(),
         description: document.getElementById('itemDescription').value.trim() || null,
         unit: document.getElementById('itemUnit').value || 'pcs',
@@ -1084,8 +1084,8 @@ async function handleItemSubmit(e) {
         
         closeItemModal();
         
-        // Notify product flow of change
-        if (window.ProductFlow) {
+        // Notify product flow of change (only if item has an id)
+        if (window.ProductFlow && itemData.id) {
             window.ProductFlow.handleProductChange(itemData, !itemId);
         }
         
