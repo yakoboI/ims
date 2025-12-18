@@ -740,35 +740,6 @@ async function printAllReceipts() {
         const currentDate = new Date();
         const totalAmount = receiptsWithDetails.reduce((sum, r) => sum + (parseFloat(r.total_amount) || 0), 0);
         
-        // Helper functions for formatting (will be used before writing to print window)
-        const formatCurrencyForPrint = (amount) => {
-            if (amount == null) return 'Tshs 0.00';
-            return 'Tshs ' + parseFloat(amount).toFixed(2);
-        };
-        
-        const formatDateForPrint = (dateString) => {
-            if (!dateString) return '-';
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch (e) {
-                return dateString;
-            }
-        };
-        
-        const escapeHtmlForPrint = (text) => {
-            if (text == null) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        };
-        
         // Format all data before generating HTML
         const formattedReceipts = receiptsWithDetails.map(sale => {
             let items = [];
@@ -789,15 +760,15 @@ async function printAllReceipts() {
                 ...sale,
                 items: items.map(item => ({
                     ...item,
-                    formattedUnitPrice: formatCurrencyForPrint(item.unit_price || 0),
-                    formattedTotalPrice: formatCurrencyForPrint(item.total_price || (item.quantity || 0) * (item.unit_price || 0)),
-                    escapedItemName: escapeHtmlForPrint(item.item_name || '-')
+                    formattedUnitPrice: formatCurrency(item.unit_price || 0),
+                    formattedTotalPrice: formatCurrency(item.total_price || (item.quantity || 0) * (item.unit_price || 0)),
+                    escapedItemName: escapeHtml(item.item_name || '-')
                 })),
-                formattedDate: formatDateForPrint(sale.sale_date),
-                formattedTotal: formatCurrencyForPrint(sale.total_amount || 0),
-                escapedCustomer: escapeHtmlForPrint(sale.customer_name || 'Walk-in Customer'),
-                escapedCashier: escapeHtmlForPrint(sale.created_by_name || 'System'),
-                escapedNotes: sale.notes ? escapeHtmlForPrint(sale.notes) : null
+                formattedDate: formatDate(sale.sale_date),
+                formattedTotal: formatCurrency(sale.total_amount || 0),
+                escapedCustomer: escapeHtml(sale.customer_name || 'Walk-in Customer'),
+                escapedCashier: escapeHtml(sale.created_by_name || 'System'),
+                escapedNotes: sale.notes ? escapeHtml(sale.notes) : null
             };
         });
         
@@ -926,7 +897,7 @@ async function printAllReceipts() {
                     <p><strong>All Receipts Report</strong></p>
                     <p>Date Range: ${startDate} to ${endDate}</p>
                     <p>Total Receipts: ${receiptsWithDetails.length}</p>
-                    <p>Grand Total: ${formatCurrencyForPrint(totalAmount)}</p>
+                    <p>Grand Total: ${formatCurrency(totalAmount)}</p>
                     <p>Generated: ${currentDate.toLocaleString()}</p>
                 </div>
                 

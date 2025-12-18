@@ -341,11 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (navUser) {
             navUser.textContent = `${currentUser.full_name || currentUser.username} (${currentUser.role})`;
         }
-        // Update brand user ID
-        const navBrandUserId = document.getElementById('navBrandUserId');
-        if (navBrandUserId) {
-            navBrandUserId.textContent = currentUser.username || currentUser.id || '-';
-        }
         loadAndApplyRolePermissions(currentUser.role);
     }
 });
@@ -1078,6 +1073,10 @@ function updateNavLinkTooltips(isCollapsed) {
 function applySidebarState(isCollapsed) {
     const navbar = document.querySelector('.navbar');
     const body = document.body;
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const navMenu = document.querySelector('.nav-menu');
+    const navBrandRight = document.querySelector('.nav-brand-right');
+    const firstNavLink = navMenu?.querySelector('.nav-link:first-child');
     
     if (!navbar) return;
     
@@ -1085,9 +1084,39 @@ function applySidebarState(isCollapsed) {
     if (isCollapsed) {
         navbar.classList.add('collapsed');
         body.classList.add('sidebar-collapsed');
+        
+        // Move toggle button to nav-menu, between first and second nav-link
+        if (sidebarToggle && navMenu && firstNavLink && navBrandRight) {
+            // Remove from nav-brand-right if it's there
+            if (sidebarToggle.parentElement === navBrandRight) {
+                navBrandRight.removeChild(sidebarToggle);
+            }
+            // Insert after first nav-link
+            if (firstNavLink.nextSibling) {
+                navMenu.insertBefore(sidebarToggle, firstNavLink.nextSibling);
+            } else {
+                navMenu.appendChild(sidebarToggle);
+            }
+            sidebarToggle.style.display = 'flex';
+            sidebarToggle.style.width = '45px';
+            sidebarToggle.style.margin = '0.25rem auto';
+        }
     } else {
         navbar.classList.remove('collapsed');
         body.classList.remove('sidebar-collapsed');
+        
+        // Move toggle button back to nav-brand-right
+        if (sidebarToggle && navBrandRight && navMenu) {
+            // Remove from nav-menu if it's there
+            if (sidebarToggle.parentElement === navMenu) {
+                navMenu.removeChild(sidebarToggle);
+            }
+            // Add back to nav-brand-right
+            navBrandRight.appendChild(sidebarToggle);
+            sidebarToggle.style.display = '';
+            sidebarToggle.style.width = '';
+            sidebarToggle.style.margin = '';
+        }
     }
     
     // Update toggle icon

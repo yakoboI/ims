@@ -1342,7 +1342,7 @@ code, .code,
 }
 
 .navbar {
-    background: var(--card-bg);
+    background: #F5F5F5; /* Pearl - warm, elegant light background */
     width: 260px;
     height: 100vh;
     position: fixed;
@@ -1363,7 +1363,7 @@ code, .code,
 }
 
 .navbar.collapsed {
-    width: 50px;
+    width: 45px;
 }
 
 .navbar.collapsed .nav-brand {
@@ -1371,9 +1371,42 @@ code, .code,
     padding: 0.875rem 0.5rem;
 }
 
-.navbar.collapsed .nav-brand-left span,
+.navbar.collapsed .nav-brand-left span {
+    display: none;
+}
+
 .navbar.collapsed .nav-brand-right {
     display: none;
+}
+
+/* When collapsed, toggle button is moved to nav-menu by JavaScript */
+/* Style the toggle button when it's in nav-menu (between first and second nav-link) */
+.navbar.collapsed .nav-menu .sidebar-toggle {
+    display: flex !important;
+    width: 45px;
+    margin: 0.25rem auto;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 1rem;
+}
+
+.navbar.collapsed .nav-menu .sidebar-toggle:hover {
+    background: #f1f5f9;
+    color: var(--primary-color);
+}
+
+.navbar.collapsed .nav-menu .sidebar-toggle:active {
+    background: #e2e8f0;
+    transform: scale(0.95);
 }
 
 .navbar.collapsed .nav-link {
@@ -1555,24 +1588,10 @@ body.menu-open {
     font-weight: 500;
 }
 
-.nav-brand-user-id {
-    background: var(--bg-color);
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
 @media (min-width: 769px) {
     .nav-brand-right {
         font-size: 0.75rem;
         font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
-    }
-    
-    .nav-brand-user-id {
-        font-size: 0.75rem;
-        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
-        padding: 0.25rem 0.625rem;
     }
 }
 
@@ -1786,14 +1805,14 @@ body.menu-open {
 }
 
 body.sidebar-collapsed .container {
-    margin-left: 50px;
-    width: calc(100% - 50px);
+    margin-left: 45px;
+    width: calc(100% - 45px);
 }
 
 @supports selector(:has(*)) {
     body:has(.navbar.collapsed) .container {
-        margin-left: 50px;
-        width: calc(100% - 50px);
+        margin-left: 45px;
+        width: calc(100% - 45px);
     }
 }
 
