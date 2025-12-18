@@ -362,14 +362,43 @@ function formatCurrency(amount) {
 }
 
 function formatDate(dateString) {
+    if (!dateString) return '';
+
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+
+    // Get per-shop date/time settings stored by loadAndApplyDisplaySettings
+    const dateFormat = safeStorageGet('dateFormat', 'YYYY-MM-DD');
+    const timeFormat = safeStorageGet('timeFormat', '24h');
+    const timezone = safeStorageGet('systemTimezone', 'UTC');
+
+    // Map date_format patterns to locales that roughly match the ordering
+    let locale = 'en-GB'; // DD/MM/YYYY
+    if (dateFormat.startsWith('YYYY')) {
+        // e.g. YYYY-MM-DD
+        locale = 'en-CA';
+    } else if (dateFormat.startsWith('MM')) {
+        // e.g. MM/DD/YYYY
+        locale = 'en-US';
+    }
+
+    const options = {
+        timeZone: timezone,
         year: 'numeric',
-        month: 'short',
-        day: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
-    });
+        minute: '2-digit',
+        hour12: timeFormat === '12h'
+    };
+
+    try {
+        return new Intl.DateTimeFormat(locale, options).format(date);
+    } catch (e) {
+        // Fallback to local timezone if invalid timezone is configured
+        const fallbackOptions = { ...options };
+        delete fallbackOptions.timeZone;
+        return new Intl.DateTimeFormat(locale, fallbackOptions).format(date);
+    }
 }
 
 // Initialize display settings on app load (if settings functions are available)

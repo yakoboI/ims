@@ -152,7 +152,7 @@ function renderItemsTable(itemsList) {
                 </div>
             </td>
             <td data-label="Image">
-                ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : '<span style="color: var(--text-secondary);">-</span>'}
+                ${item.image_url ? `<img src="${window.ImageUtils ? window.ImageUtils.getThumbnailUrl(item.image_url) : item.image_url}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" loading="lazy">` : '<span style="color: var(--text-secondary);">-</span>'}
             </td>
             <td data-label="Name"><strong>${item.name}</strong></td>
             <td data-label="Category">${item.category_name || '-'}</td>

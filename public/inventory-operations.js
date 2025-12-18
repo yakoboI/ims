@@ -7,6 +7,7 @@ let currentSort = { column: null, direction: 'asc' };
 // Column visibility - only show the columns we're using
 let visibleColumns = new Set(['sku', 'barcode', 'image', 'actions']);
 let uploadedImageData = null;
+let uploadedImagePublicId = null; // Cloudinary public_id for deletion
 let uploadedImages = []; // For batch upload
 let itemVariants = [];
 let reorderAutoEnabled = false;
@@ -706,7 +707,7 @@ function renderItemsTable(itemsList) {
                 </div>
             </td>
             <td data-label="Image" data-column="image" class="col-image">
-                ${safeImageUrl ? `<img src="${safeImageUrl}" alt="Product image for ${safeName}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : '<span style="color: var(--text-secondary);">-</span>'}
+                ${safeImageUrl ? `<img src="${window.ImageUtils ? window.ImageUtils.getThumbnailUrl(safeImageUrl) : safeImageUrl}" alt="Product image for ${safeName}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" loading="lazy">` : '<span style="color: var(--text-secondary);">-</span>'}
             </td>
             <td data-label="Actions" data-column="actions" class="col-actions">
                 <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
@@ -1585,8 +1586,8 @@ function optimizeImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.85) 
     });
 }
 
-// Single image upload with optimization
-function handleImageUpload(event) {
+// Single image upload to Cloudinary
+async function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
@@ -1598,6 +1599,8 @@ function handleImageUpload(event) {
     // Show loading state
     const preview = document.getElementById('imagePreview');
     const container = document.getElementById('imagePreviewContainer');
+    const imageUrlInput = document.getElementById('itemImageUrl');
+    
     if (container) {
         container.style.display = 'block';
         if (preview) {
@@ -1606,34 +1609,72 @@ function handleImageUpload(event) {
         }
     }
     
-    optimizeImage(file, 1920, 1080, 0.85)
-        .then(result => {
-            uploadedImageData = result.dataUrl;
-            if (preview && container) {
-                preview.src = uploadedImageData;
-                preview.style.opacity = '1';
-            }
-            document.getElementById('itemImageUrl').value = uploadedImageData;
-            
-            const savings = result.originalSize - result.optimizedSize;
-            if (savings > 0) {
-                console.log(`Image optimized: ${(savings / 1024).toFixed(2)}KB saved`);
-            }
-        })
-        .catch(error => {
-            console.error('Image optimization error:', error);
-            // Fallback to original file
+    // Show loading indicator
+    if (preview) {
+        preview.alt = 'Uploading...';
+    }
+    
+    try {
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        // Get auth token
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            showNotification('Please login to upload images', 'error');
+            return;
+        }
+        
+        // Upload to Cloudinary via backend
+        const response = await fetch('/api/items/upload-image', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Upload failed');
+        }
+        
+        const result = await response.json();
+        
+        // Store Cloudinary URL
+        uploadedImageData = result.image_url;
+        uploadedImagePublicId = result.public_id;
+        
+        // Update UI
+        if (preview && container) {
+            preview.src = result.image_url;
+            preview.style.opacity = '1';
+            preview.alt = 'Product image preview';
+        }
+        
+        if (imageUrlInput) {
+            imageUrlInput.value = result.image_url;
+        }
+        
+        showNotification('Image uploaded successfully!', 'success');
+        console.log(`Image uploaded to Cloudinary: ${result.image_url} (${(result.bytes / 1024).toFixed(2)}KB)`);
+        
+    } catch (error) {
+        console.error('Image upload error:', error);
+        showNotification('Failed to upload image: ' + error.message, 'error');
+        
+        // Fallback: show local preview but don't store base64
+        if (preview && container) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                uploadedImageData = e.target.result;
-                if (preview && container) {
-                    preview.src = uploadedImageData;
-                    preview.style.opacity = '1';
-                }
-                document.getElementById('itemImageUrl').value = uploadedImageData;
+                preview.src = e.target.result;
+                preview.style.opacity = '0.5';
+                preview.alt = 'Preview (not uploaded)';
             };
             reader.readAsDataURL(file);
-        });
+        }
+    }
 }
 
 // Batch image upload handler
@@ -1735,12 +1776,15 @@ function removeBatchImage(index) {
 
 function clearImagePreview() {
     uploadedImageData = null;
+    uploadedImagePublicId = null;
     uploadedImages = [];
     const preview = document.getElementById('imagePreview');
     const container = document.getElementById('imagePreviewContainer');
     const batchContainer = document.getElementById('batchImagePreview');
+    const imageUrlInput = document.getElementById('itemImageUrl');
     if (preview) preview.src = '';
     if (container) container.style.display = 'none';
+    if (imageUrlInput) imageUrlInput.value = '';
     if (batchContainer) {
         batchContainer.innerHTML = '';
         batchContainer.style.display = 'none';

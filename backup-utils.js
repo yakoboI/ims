@@ -162,10 +162,120 @@ function getNextBackupTime(frequency) {
   return next;
 }
 
+/**
+ * Verify backup integrity
+ * @param {String} backupPath - Path to backup file
+ * @returns {Promise<Object>} Verification result
+ */
+async function verifyBackup(backupPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!fs.existsSync(backupPath)) {
+        return reject(new Error('Backup file not found'));
+      }
+
+      const stats = fs.statSync(backupPath);
+      const size = stats.size;
+
+      // Basic verification: check file exists and has size > 0
+      if (size === 0) {
+        return resolve({
+          valid: false,
+          error: 'Backup file is empty'
+        });
+      }
+
+      // Check if it's a valid SQLite database
+      const sqlite3 = require('sqlite3').verbose();
+      const testDb = new sqlite3.Database(backupPath, sqlite3.OPEN_READONLY, (err) => {
+        if (err) {
+          testDb.close();
+          return resolve({
+            valid: false,
+            error: 'Invalid SQLite database: ' + err.message
+          });
+        }
+
+        // Try a simple query
+        testDb.get('SELECT 1', (queryErr) => {
+          testDb.close();
+          if (queryErr) {
+            return resolve({
+              valid: false,
+              error: 'Database query failed: ' + queryErr.message
+            });
+          }
+
+          resolve({
+            valid: true,
+            size: size,
+            sizeMB: (size / 1024 / 1024).toFixed(2),
+            created: stats.birthtime,
+            modified: stats.mtime
+          });
+        });
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Get backup status and statistics
+ * @param {String} backupDir - Directory containing backups
+ * @returns {Promise<Object>} Backup statistics
+ */
+async function getBackupStats(backupDir) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!fs.existsSync(backupDir)) {
+        return resolve({
+          total_backups: 0,
+          total_size: 0,
+          total_sizeMB: 0,
+          backups: []
+        });
+      }
+
+      const files = fs.readdirSync(backupDir)
+        .filter(file => file.endsWith('.db') && file.startsWith('ims_backup_'))
+        .map(file => {
+          const filePath = path.join(backupDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            filename: file,
+            size: stats.size,
+            sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+            created: stats.birthtime,
+            modified: stats.mtime,
+            age_days: Math.floor((Date.now() - stats.birthtime.getTime()) / (1000 * 60 * 60 * 24))
+          };
+        })
+        .sort((a, b) => b.created - a.created); // Newest first
+
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+      resolve({
+        total_backups: files.length,
+        total_size: totalSize,
+        total_sizeMB: (totalSize / 1024 / 1024).toFixed(2),
+        latest_backup: files[0] || null,
+        oldest_backup: files[files.length - 1] || null,
+        backups: files
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 module.exports = {
   createBackup,
   cleanupOldBackups,
   getBackupInterval,
-  getNextBackupTime
+  getNextBackupTime,
+  verifyBackup,
+  getBackupStats
 };
 

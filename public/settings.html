@@ -126,6 +126,18 @@
         <header class="page-header">
             <h1>System Settings</h1>
             <div class="header-actions">
+                <!-- Superadmin Mode Toggle (Inspect/Configure) -->
+                <div id="superadminModeToggle" style="display: none; margin-right: 1rem;">
+                    <div class="mode-toggle-container" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-secondary); border-radius: 6px; border: 2px solid var(--border-color);">
+                        <span style="font-size: 0.875rem; color: var(--text-secondary); font-weight: 500;">Mode:</span>
+                        <button id="modeToggleBtn" class="btn btn-sm" onclick="toggleSuperadminMode()" aria-label="Toggle between Inspect and Configure mode" style="min-width: 120px;">
+                            <span id="modeToggleText">Inspect</span>
+                        </button>
+                        <span id="modeIndicator" class="badge" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                            <i class="fas fa-eye"></i> View Only
+                        </span>
+                    </div>
+                </div>
                 <button class="btn btn-secondary" onclick="exportSettings()" aria-label="Export settings">
                     <i class="fas fa-download"></i> <span class="btn-text">Export</span>
                 </button>

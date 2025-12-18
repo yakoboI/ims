@@ -186,10 +186,12 @@ async function loadAdminLowStockItems() {
         
         if (lowStockItems.length === 0) {
             hideEmptyState(container);
+            const title = window.i18n ? window.i18n.t('dashboard.allStockLevelsGood') : 'All Stock Levels Good';
+            const message = window.i18n ? window.i18n.t('dashboard.noLowStockItems') : 'No low stock items at this time.';
             showEmptyState(container, {
                 icon: '<i class="fas fa-check-circle fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'All Stock Levels Good',
-                message: 'No low stock items at this time.',
+                title: title,
+                message: message,
                 actionLabel: null,
                 actionCallback: null,
                 className: 'empty-state-small'
@@ -228,8 +230,8 @@ async function loadAdminRecentSales() {
             hideEmptyState(container);
             showEmptyState(container, {
                 icon: '<i class="fas fa-dollar-sign fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'No Recent Sales',
-                message: 'No sales recorded today.',
+                title: window.i18n ? window.i18n.t('common.noRecentSales') : 'No Recent Sales',
+                message: window.i18n ? window.i18n.t('common.noSalesRecordedTodayCommon') : 'No sales recorded today.',
                 actionLabel: null,
                 actionCallback: null,
                 className: 'empty-state-small'
@@ -243,7 +245,7 @@ async function loadAdminRecentSales() {
             <div class="recent-item">
                 <div class="recent-item-row">
                     <div class="recent-item-info">
-                        <strong>Sale #${sale.id}</strong>
+                        <strong>${window.i18n ? window.i18n.t('dashboard.saleNumber', {id: sale.id}) : `Sale #${sale.id}`}</strong>
                         <div class="recent-item-date">${formatDate(sale.sale_date)}</div>
                     </div>
                     <div class="recent-item-amount">${formatCurrency(sale.total_amount || 0)}</div>
@@ -288,7 +290,7 @@ async function loadAdminRecentPurchases() {
             <div class="recent-item">
                 <div class="recent-item-row">
                     <div class="recent-item-info">
-                        <strong>Purchase #${purchase.id}</strong>
+                        <strong>${window.i18n ? window.i18n.t('dashboard.purchaseNumber', {id: purchase.id}) : `Purchase #${purchase.id}`}</strong>
                         <div class="recent-item-date">${formatDate(purchase.purchase_date)}</div>
                     </div>
                     <div class="recent-item-amount">${formatCurrency(purchase.total_amount || 0)}</div>
@@ -358,8 +360,8 @@ function renderStorekeeperCriticalStock(items) {
     if (items.length === 0) {
         showEmptyState(container, {
             icon: '<i class="fas fa-check-circle fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'All Stock Levels Good',
-            message: 'No critical stock items at this time.',
+            title: window.i18n ? window.i18n.t('dashboard.allStockLevelsGood') : 'All Stock Levels Good',
+            message: window.i18n ? window.i18n.t('dashboard.noCriticalStockItems') : 'No critical stock items at this time.',
             className: 'empty-state-small'
         });
         return;
@@ -631,8 +633,8 @@ async function loadStorekeeperRecentPurchases() {
             hideEmptyState(container);
             showEmptyState(container, {
                 icon: '<i class="fas fa-shopping-cart fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'No Recent Purchases',
-                message: 'No purchases have been recorded yet.',
+                title: window.i18n ? window.i18n.t('common.noRecentPurchases') : 'No Recent Purchases',
+                message: window.i18n ? window.i18n.t('messages.noPurchasesMessage') : 'No purchases have been recorded yet.',
                 actionLabel: null,
                 actionCallback: null,
                 className: 'empty-state-small'
@@ -645,7 +647,7 @@ async function loadStorekeeperRecentPurchases() {
             <div class="recent-item">
                 <div class="recent-item-row">
                     <div class="recent-item-info">
-                        <strong>Purchase #${purchase.id}</strong>
+                        <strong>${window.i18n ? window.i18n.t('dashboard.purchaseNumber', {id: purchase.id}) : `Purchase #${purchase.id}`}</strong>
                         <div class="recent-item-date">${formatDate(purchase.purchase_date)}</div>
                         <small>Supplier: ${purchase.supplier_name || 'N/A'}</small>
                     </div>
@@ -787,8 +789,8 @@ function renderSalesRecentSales(sales) {
     if (sales.length === 0) {
         showEmptyState(container, {
             icon: '<i class="fas fa-dollar-sign fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'No Recent Sales',
-            message: 'No sales transactions recorded yet.',
+            title: window.i18n ? window.i18n.t('common.noRecentSales') : 'No Recent Sales',
+            message: window.i18n ? window.i18n.t('messages.noSalesMessage') : 'No sales transactions recorded yet.',
             className: 'empty-state-small'
         });
         return;
@@ -1031,8 +1033,8 @@ async function loadSalesRecentSales() {
             hideEmptyState(container);
             showEmptyState(container, {
                 icon: '<i class="fas fa-dollar-sign fa-icon-success" style="font-size: 4rem;"></i>',
-                title: 'No Recent Sales',
-                message: 'No sales recorded today.',
+                title: window.i18n ? window.i18n.t('common.noRecentSales') : 'No Recent Sales',
+                message: window.i18n ? window.i18n.t('common.noSalesRecordedTodayCommon') : 'No sales recorded today.',
                 actionLabel: null,
                 actionCallback: null,
                 className: 'empty-state-small'
@@ -1045,7 +1047,7 @@ async function loadSalesRecentSales() {
             <div class="recent-item">
                 <div class="recent-item-row">
                     <div class="recent-item-info">
-                        <strong>Sale #${sale.id}</strong>
+                        <strong>${window.i18n ? window.i18n.t('dashboard.saleNumber', {id: sale.id}) : `Sale #${sale.id}`}</strong>
                         <div class="recent-item-date">${formatDate(sale.sale_date)}</div>
                         <small>Customer: ${sale.customer_name || 'Walk-in'}</small>
                     </div>
@@ -1371,10 +1373,12 @@ function renderManagerLowStockItems(items) {
     if (!container) return;
     
     if (items.length === 0) {
+        const title = window.i18n ? window.i18n.t('dashboard.allStockLevelsGood') : 'All Stock Levels Good';
+        const message = window.i18n ? window.i18n.t('dashboard.noLowStockItems') : 'No low stock items at this time.';
         showEmptyState(container, {
             icon: '<i class="fas fa-check-circle fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'All Stock Levels Good',
-            message: 'No low stock items at this time.',
+            title: title,
+            message: message,
             className: 'empty-state-small'
         });
         return;
@@ -1396,8 +1400,8 @@ function renderManagerRecentSales(sales) {
     if (sales.length === 0) {
         showEmptyState(container, {
             icon: '<i class="fas fa-dollar-sign fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'No Recent Sales',
-            message: 'No sales transactions recorded yet.',
+            title: window.i18n ? window.i18n.t('common.noRecentSales') : 'No Recent Sales',
+            message: window.i18n ? window.i18n.t('messages.noSalesMessage') : 'No sales transactions recorded yet.',
             className: 'empty-state-small'
         });
         return;
@@ -1426,8 +1430,8 @@ function renderManagerRecentPurchases(purchases) {
     if (purchases.length === 0) {
         showEmptyState(container, {
             icon: '<i class="fas fa-shopping-cart fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'No Recent Purchases',
-            message: 'No purchases recorded yet.',
+            title: window.i18n ? window.i18n.t('common.noRecentPurchases') : 'No Recent Purchases',
+            message: window.i18n ? window.i18n.t('messages.noPurchasesMessage') : 'No purchases recorded yet.',
             className: 'empty-state-small'
         });
         return;
@@ -1457,8 +1461,8 @@ function renderManagerCriticalStock(items) {
     if (items.length === 0) {
         showEmptyState(container, {
             icon: '<i class="fas fa-check-circle fa-icon-success" style="font-size: 4rem;"></i>',
-            title: 'All Stock Levels Good',
-            message: 'No critical stock items at this time.',
+            title: window.i18n ? window.i18n.t('dashboard.allStockLevelsGood') : 'All Stock Levels Good',
+            message: window.i18n ? window.i18n.t('dashboard.noCriticalStockItems') : 'No critical stock items at this time.',
             className: 'empty-state-small'
         });
         return;

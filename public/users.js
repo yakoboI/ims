@@ -106,13 +106,19 @@ function handleRoleChange() {
     
     if (!shopGroup || !shopSelect || !shopDisplay) return;
     
-    // Show shop selection for non-superadmin roles
-    if (role && role !== 'superadmin') {
+    // Show shop selection for non-superadmin and non-auditor roles
+    // Auditor role is system-wide (no shop assignment) like superadmin
+    if (role && role !== 'superadmin' && role !== 'auditor') {
         shopSelect.style.display = 'block';
         shopDisplay.style.display = 'none';
     } else {
         shopSelect.style.display = 'none';
         shopDisplay.style.display = 'block';
+        if (role === 'auditor') {
+            shopDisplayText.textContent = 'Auditor role is system-wide (no shop assignment)';
+        } else if (role === 'superadmin') {
+            shopDisplayText.textContent = 'Superadmin role is system-wide (no shop assignment)';
+        }
     }
 }
 
@@ -205,12 +211,13 @@ async function handleUserSubmit(e) {
         role: document.getElementById('userRole').value
     };
     
-    // Add shop_id if selected and role is not superadmin
+    // Add shop_id if selected and role is not superadmin or auditor
+    // Auditor role is system-wide (no shop assignment) like superadmin
     const shopId = document.getElementById('userShop').value;
-    if (shopId && userData.role !== 'superadmin') {
+    if (shopId && userData.role !== 'superadmin' && userData.role !== 'auditor') {
         userData.shop_id = parseInt(shopId);
-    } else if (userData.role !== 'superadmin') {
-        // For non-superadmin roles, shop_id is required
+    } else if (userData.role !== 'superadmin' && userData.role !== 'auditor') {
+        // For non-superadmin and non-auditor roles, shop_id is required
         showNotification('Please select a shop for this user', 'error');
         hideFormLoading(form);
         return;
@@ -459,7 +466,7 @@ async function deleteBackup(filename) {
 
 let rolePermissions = {};
 const pages = ['dashboard', 'inventory', 'purchases', 'sales', 'reports', 'users'];
-const roles = ['admin', 'storekeeper', 'sales', 'manager'];
+const roles = ['admin', 'storekeeper', 'sales', 'manager', 'auditor'];
 const pageLabels = {
     'dashboard': 'Dashboard',
     'inventory': 'Inventory',
@@ -502,23 +509,27 @@ function renderRolePermissions() {
                 </tr>
             </thead>
             <tbody>
-                ${roles.map(role => `
+                ${roles.map(role => {
+                    const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+                    const isReadOnly = role === 'admin' || role === 'auditor';
+                    return `
                     <tr>
-                        <td><strong>${role.charAt(0).toUpperCase() + role.slice(1)}</strong></td>
+                        <td><strong>${roleLabel}</strong>${role === 'auditor' ? ' <span class="badge badge-info" style="font-size: 0.75rem;">View Only</span>' : ''}</td>
                         ${pages.map(page => `
                             <td class="text-center">
                                 <input type="checkbox" 
                                        id="perm-${role}-${page}" 
                                        ${rolePermissions[role] && rolePermissions[role][page] ? 'checked' : ''}
-                                       ${role === 'admin' ? 'disabled' : ''}
+                                       ${isReadOnly ? 'disabled title="' + (role === 'auditor' ? 'Auditor role has fixed permissions' : 'Admin role has full access') + '"' : ''}
                                        onchange="updatePermission('${role}', '${page}', this.checked)">
                             </td>
                         `).join('')}
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="saveRolePermissions('${role}')">Save</button>
+                            ${!isReadOnly ? `<button class="btn btn-sm btn-primary" onclick="saveRolePermissions('${role}')">Save</button>` : '<span style="color: var(--text-secondary); font-size: 0.875rem;">Fixed</span>'}
                         </td>
                     </tr>
-                `).join('')}
+                `;
+                }).join('')}
             </tbody>
         </table>
         <div style="margin-top: 1.5rem;">

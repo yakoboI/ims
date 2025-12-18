@@ -185,7 +185,7 @@
 
         <section class="page-header" style="margin-top: 3rem;" aria-labelledby="roleAccessHeading">
             <h2 id="roleAccessHeading">Role Access Management</h2>
-            <button class="btn btn-primary" onclick="loadRolePermissions()" aria-label="Refresh role permissions">🔄 Refresh Permissions</button>
+            <button class="btn btn-primary" onclick="loadRolePermissions()" aria-label="Refresh role permissions" data-i18n="common.refreshPermissions">🔄 <span data-i18n="common.refreshPermissions">Refresh Permissions</span></button>
         </section>
 
         <section class="section-card" aria-labelledby="roleAccessHeading">
@@ -204,7 +204,7 @@
         <section class="section-card" aria-labelledby="backupHeading">
             <div class="backup-actions" aria-label="Backup actions">
                 <button class="btn btn-primary" onclick="createBackup()" aria-label="Create database backup">💾 Create Backup</button>
-                <button class="btn btn-secondary" onclick="loadBackups()" aria-label="Refresh backup list">🔄 Refresh List</button>
+                <button class="btn btn-secondary" onclick="loadBackups()" aria-label="Refresh backup list" data-i18n="common.refreshList">🔄 <span data-i18n="common.refreshList">Refresh List</span></button>
             </div>
 
             <div id="backupMessage" class="backup-message" role="alert" aria-live="polite"></div>
@@ -258,6 +258,7 @@
                         <option value="storekeeper">Storekeeper</option>
                         <option value="sales">Sales/Staff</option>
                         <option value="manager">Manager</option>
+                        <option value="auditor">Auditor</option>
                     </select>
                 </div>
                 <div class="form-group" id="shopGroup">

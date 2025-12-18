@@ -14,8 +14,17 @@ const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const multer = require('multer');
 const compression = require('compression');
+const cloudinary = require('cloudinary').v2;
+const sharp = require('sharp');
 const { sendTestEmail } = require('./email-utils');
-const { createBackup, cleanupOldBackups, getBackupInterval, getNextBackupTime } = require('./backup-utils');
+const { createBackup, cleanupOldBackups, getBackupInterval, getNextBackupTime, verifyBackup, getBackupStats } = require('./backup-utils');
+const { cacheMiddleware, productCache } = require('./cache-middleware');
+const { encrypt, decrypt, encryptFields, decryptFields } = require('./encryption-utils');
+const { enforceShopIsolation, validateShopAccess } = require('./shop-isolation-middleware');
+const { setupSwagger } = require('./swagger-config');
+const { enhancedErrorHandler, notFoundHandler } = require('./enhanced-error-handler');
+const logger = require('./logger');
+const { setupMonitoringEndpoints } = require('./monitoring-endpoints');
 require('dotenv').config();
 
 const app = express();
@@ -63,7 +72,7 @@ const validateEnvironment = () => {
     process.exit(1);
   }
   
-  console.log('✓ Environment variables validated');
+  logger.info('Environment variables validated');
 };
 
 validateEnvironment();
@@ -73,6 +82,14 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || JWT_SECRET + '_refresh';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
+});
 
 // SECURITY: Configure CORS to only allow specific origins
 // Automatically detect Railway domain from environment variables
@@ -253,6 +270,12 @@ if (process.env.NODE_ENV === 'production') {
 // Apply general API rate limiting to all API routes
 app.use('/api/', apiLimiter);
 
+// Setup Swagger API documentation
+setupSwagger(app);
+
+// Setup monitoring endpoints will be initialized after database is ready
+// See initialization after initDatabase() call
+
 // Version endpoint for cache busting
 app.get('/version.json', (req, res) => {
   try {
@@ -373,7 +396,7 @@ try {
       // Don't exit - let the app start and handle errors gracefully
       // Database will be null, and routes will handle it
     } else {
-      console.log('Connected to SQLite database at:', DB_PATH);
+      logger.info('Connected to SQLite database', { path: DB_PATH });
     }
   });
 } catch (error) {
@@ -610,7 +633,7 @@ const initDatabase = () => {
       username TEXT UNIQUE NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('superadmin', 'admin', 'storekeeper', 'sales', 'manager')),
+      role TEXT NOT NULL CHECK(role IN ('superadmin', 'admin', 'storekeeper', 'sales', 'manager', 'auditor')),
       full_name TEXT,
       shop_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -1116,6 +1139,29 @@ const initDatabase = () => {
       UNIQUE(role, page)
     )`);
 
+    // Capabilities table for fine-grained permission control
+    db.run(`CREATE TABLE IF NOT EXISTS capabilities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      category TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Role_Capabilities junction table
+    db.run(`CREATE TABLE IF NOT EXISTS role_capabilities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL,
+      capability_id INTEGER NOT NULL,
+      granted INTEGER DEFAULT 1,
+      UNIQUE(role, capability_id),
+      FOREIGN KEY (capability_id) REFERENCES capabilities(id) ON DELETE CASCADE
+    )`);
+
+    // Create indexes for capabilities
+    db.run(`CREATE INDEX IF NOT EXISTS idx_role_capabilities_role ON role_capabilities(role)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_role_capabilities_capability ON role_capabilities(capability_id)`);
+
     // SECURITY: Login attempts table for account lockout
     db.run(`CREATE TABLE IF NOT EXISTS login_attempts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1288,6 +1334,14 @@ const initDatabase = () => {
     db.run(`CREATE INDEX IF NOT EXISTS idx_items_is_archived ON items(is_archived)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_items_stock_quantity ON items(stock_quantity)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_items_name ON items(name)`);
+    
+    // PERFORMANCE: Composite indexes for common query patterns
+    // Optimizes queries filtering by shop_id + category_id + is_archived (most common pattern)
+    db.run(`CREATE INDEX IF NOT EXISTS idx_items_shop_category_archived ON items(shop_id, category_id, is_archived)`);
+    // Optimizes queries filtering by shop_id + is_archived (common pattern)
+    db.run(`CREATE INDEX IF NOT EXISTS idx_items_shop_archived ON items(shop_id, is_archived)`);
+    // Optimizes queries filtering by shop_id + category_id (common pattern)
+    db.run(`CREATE INDEX IF NOT EXISTS idx_items_shop_category ON items(shop_id, category_id)`);
     
     // Sales table indexes
     db.run(`CREATE INDEX IF NOT EXISTS idx_sales_shop_id ON sales(shop_id)`);
@@ -1490,6 +1544,109 @@ const initDatabase = () => {
       });
     });
 
+    // Initialize capabilities system
+    const capabilities = [
+      // User management capabilities
+      { name: 'manage_users', description: 'Create, edit, and delete users', category: 'users' },
+      { name: 'view_users', description: 'View user list and details', category: 'users' },
+      { name: 'change_user_password', description: 'Change passwords for other users', category: 'users' },
+      
+      // Shop management capabilities
+      { name: 'manage_shops', description: 'Create, edit, and delete shops', category: 'shops' },
+      { name: 'view_shops', description: 'View shop list and details', category: 'shops' },
+      
+      // Settings capabilities
+      { name: 'manage_shop_settings', description: 'Modify shop-specific settings (currency, display, etc.)', category: 'settings' },
+      { name: 'manage_sensitive_settings', description: 'Modify sensitive settings (security, email, backup)', category: 'settings' },
+      { name: 'view_all_settings', description: 'View all settings including global defaults', category: 'settings' },
+      
+      // Audit and monitoring capabilities
+      { name: 'view_audit_logs', description: 'View audit logs and system activity', category: 'monitoring' },
+      { name: 'view_notifications_dashboard', description: 'View notifications dashboard', category: 'monitoring' },
+      { name: 'manage_notifications', description: 'Configure notification settings', category: 'monitoring' },
+      
+      // Inventory capabilities
+      { name: 'manage_inventory', description: 'Create, edit, and delete inventory items', category: 'inventory' },
+      { name: 'view_inventory', description: 'View inventory items', category: 'inventory' },
+      
+      // Sales capabilities
+      { name: 'manage_sales', description: 'Create and process sales transactions', category: 'sales' },
+      { name: 'view_sales', description: 'View sales transactions and reports', category: 'sales' },
+      
+      // Reports capabilities
+      { name: 'view_reports', description: 'View all reports and analytics', category: 'reports' },
+      { name: 'export_reports', description: 'Export reports to various formats', category: 'reports' }
+    ];
+
+    // Insert capabilities
+    capabilities.forEach(cap => {
+      db.run(`INSERT OR IGNORE INTO capabilities (name, description, category) 
+              VALUES (?, ?, ?)`, [cap.name, cap.description, cap.category]);
+    });
+
+    // Assign capabilities to roles (after capabilities are inserted)
+    // We'll do this in a separate query after a short delay to ensure capabilities exist
+    setTimeout(() => {
+      // Get capability IDs
+      db.all('SELECT id, name FROM capabilities', [], (err, caps) => {
+        if (err) {
+          console.error('Error fetching capabilities:', err);
+          return;
+        }
+        
+        const capMap = {};
+        caps.forEach(cap => {
+          capMap[cap.name] = cap.id;
+        });
+
+        // Define role capabilities
+        const roleCapabilities = {
+          'superadmin': Object.keys(capMap), // All capabilities
+          'admin': [
+            'manage_users', 'view_users', 'change_user_password',
+            'view_shops',
+            'manage_shop_settings', 'view_all_settings',
+            'manage_inventory', 'view_inventory',
+            'manage_sales', 'view_sales',
+            'view_reports', 'export_reports'
+          ],
+          'storekeeper': [
+            'view_users',
+            'manage_inventory', 'view_inventory',
+            'view_sales'
+          ],
+          'sales': [
+            'view_users',
+            'view_inventory',
+            'manage_sales', 'view_sales'
+          ],
+          'manager': [
+            'view_users',
+            'view_inventory',
+            'view_sales',
+            'view_reports', 'export_reports'
+          ],
+          'auditor': [
+            'view_audit_logs',
+            'view_notifications_dashboard'
+          ]
+        };
+
+        // Insert role capabilities
+        Object.keys(roleCapabilities).forEach(role => {
+          roleCapabilities[role].forEach(capName => {
+            const capId = capMap[capName];
+            if (capId) {
+              db.run(`INSERT OR REPLACE INTO role_capabilities (role, capability_id, granted) 
+                      VALUES (?, ?, 1)`, [role, capId]);
+            }
+          });
+        });
+        
+        console.log('✓ Capabilities system initialized');
+      });
+    }, 100);
+
     // Create default admin user if not exists
     const defaultPassword = bcrypt.hashSync('admin123', 10);
     db.run(`INSERT OR IGNORE INTO users (username, email, password, role, full_name) 
@@ -1542,6 +1699,21 @@ const initDatabase = () => {
 
 // Initialize database tables
 initDatabase();
+
+// Setup monitoring endpoints after database is initialized
+// Delay to ensure database connection is established
+setTimeout(() => {
+  if (db) {
+    // Make db available globally for shop isolation middleware
+    global.db = db;
+    // Setup monitoring endpoints
+    try {
+      setupMonitoringEndpoints(app, db);
+    } catch (error) {
+      logger.error('Failed to setup monitoring endpoints', error);
+    }
+  }
+}, 2000);
 
 // Middleware to check database readiness
 const checkDatabaseReady = (req, res, next) => {
@@ -1603,6 +1775,41 @@ const requireRole = (...roles) => {
   };
 };
 
+// Capability-based access control middleware
+const requireCapability = (...capabilityNames) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(403).json({ error: 'Authentication required' });
+    }
+    
+    // Superadmin has all capabilities
+    if (req.user.role === 'superadmin') {
+      return next();
+    }
+
+    // Check if user has at least one of the required capabilities
+    const query = `
+      SELECT COUNT(*) as count
+      FROM role_capabilities rc
+      JOIN capabilities c ON rc.capability_id = c.id
+      WHERE rc.role = ? AND rc.granted = 1 AND c.name IN (${capabilityNames.map(() => '?').join(',')})
+    `;
+    
+    db.get(query, [req.user.role, ...capabilityNames], (err, row) => {
+      if (err) {
+        console.error('Error checking capabilities:', err);
+        return res.status(500).json({ error: 'Error checking permissions' });
+      }
+      
+      if (row && row.count > 0) {
+        return next();
+      }
+      
+      return res.status(403).json({ error: 'Insufficient permissions. Required capability: ' + capabilityNames.join(' or ') });
+    });
+  };
+};
+
 // Helper to get shop filter for queries (superadmin can filter by shop_id, others use their shop_id)
 const getShopFilter = (req) => {
   const user = req.user;
@@ -1628,12 +1835,13 @@ const getShopFilter = (req) => {
   return {};
 };
 
+// SECURITY: Make logAudit and db available globally for shop isolation middleware
+// These will be set after logAudit function is defined (see below)
+
 // SECURITY: Helper function to sanitize error messages in production
 const sanitizeError = (err, isProduction = process.env.NODE_ENV === 'production') => {
-  // Always log the full error for debugging
-  console.error('Error details:', {
-    message: err.message,
-    stack: err.stack,
+  // Always log the full error for debugging (using centralized logger)
+  logger.error('Error occurred', err, {
     name: err.name,
     code: err.code
   });
@@ -1667,9 +1875,10 @@ const getSecuritySetting = (key, defaultValue, callback) => {
     return callback(null, defaultValue);
   }
   
+  // Security settings are always global (shop_id IS NULL) and apply to all shops
   db.get(
-    'SELECT value FROM settings WHERE key = ? AND (shop_id IS NULL OR shop_id = ?) ORDER BY shop_id DESC LIMIT 1',
-    [key, null],
+    'SELECT value FROM settings WHERE key = ? AND shop_id IS NULL',
+    [key],
     (err, row) => {
       if (err || !row || !row.value) {
         return callback(null, defaultValue);
@@ -1726,18 +1935,18 @@ const validatePasswordStrengthAsync = (password, shopId, callback) => {
     return callback(validatePasswordStrength(password));
   }
   
-  // Get password settings
+  // Get password settings - SECURITY settings are always global (shop_id IS NULL)
   db.get(
-    'SELECT value FROM settings WHERE key = ? AND (shop_id IS NULL OR shop_id = ?) ORDER BY shop_id DESC LIMIT 1',
-    ['password_min_length', shopId],
+    'SELECT value FROM settings WHERE key = ? AND shop_id IS NULL',
+    ['password_min_length'],
     (err, minLengthRow) => {
       if (err) {
         console.error('Error getting password_min_length setting:', err);
       }
       
       db.get(
-        'SELECT value FROM settings WHERE key = ? AND (shop_id IS NULL OR shop_id = ?) ORDER BY shop_id DESC LIMIT 1',
-        ['require_strong_password', shopId],
+        'SELECT value FROM settings WHERE key = ? AND shop_id IS NULL',
+        ['require_strong_password'],
         (err2, requireStrongRow) => {
           if (err2) {
             console.error('Error getting require_strong_password setting:', err2);
@@ -1781,18 +1990,18 @@ const checkAccountLockout = (username, shopId = null, callback) => {
     return callback(new Error('Database not initialized'), false);
   }
   
-  // Get lockout settings
+  // Get lockout settings - SECURITY settings are always global (shop_id IS NULL)
   db.get(
-    'SELECT value FROM settings WHERE key = ? AND (shop_id IS NULL OR shop_id = ?) ORDER BY shop_id DESC LIMIT 1',
-    ['max_login_attempts', shopId],
+    'SELECT value FROM settings WHERE key = ? AND shop_id IS NULL',
+    ['max_login_attempts'],
     (err, maxAttemptsRow) => {
       if (err) {
         console.error('Error getting max_login_attempts setting:', err);
       }
       
       db.get(
-        'SELECT value FROM settings WHERE key = ? AND (shop_id IS NULL OR shop_id = ?) ORDER BY shop_id DESC LIMIT 1',
-        ['lockout_duration', shopId],
+        'SELECT value FROM settings WHERE key = ? AND shop_id IS NULL',
+        ['lockout_duration'],
         (err2, lockoutDurationRow) => {
           if (err2) {
             console.error('Error getting lockout_duration setting:', err2);
@@ -2508,6 +2717,10 @@ const logAudit = async (req, action, resourceType = null, resourceId = null, det
   );
 };
 
+// SECURITY: Make logAudit available globally for shop isolation middleware
+// This is done here after logAudit function is defined
+global.logAudit = logAudit;
+
 // SECURITY: Generate refresh token
 const generateRefreshToken = () => {
   return crypto.randomBytes(64).toString('hex');
@@ -3105,39 +3318,41 @@ app.post('/api/users/change-password', authenticateToken, (req, res) => {
     return res.status(400).json({ error: 'Old password and new password are required' });
   }
 
-  // SECURITY: Validate new password strength
-  const passwordValidation = validatePasswordStrength(newPassword);
-  if (!passwordValidation.valid) {
-    return res.status(400).json({ error: passwordValidation.message });
-  }
-
-  // Verify old password
-  db.get('SELECT password FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err || !user) {
-      return res.status(500).json({ error: sanitizeError(err) || 'User not found' });
+  // SECURITY: Validate new password strength using global security settings
+  // Security settings are global now, so shopId is not needed (pass null)
+  validatePasswordStrengthAsync(newPassword, null, (result) => {
+    if (!result.valid) {
+      return res.status(400).json({ error: result.message });
     }
 
-    bcrypt.compare(oldPassword, user.password, (err, match) => {
-      if (err || !match) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
+    // Verify old password
+    db.get('SELECT password FROM users WHERE id = ?', [userId], (err, user) => {
+      if (err || !user) {
+        return res.status(500).json({ error: sanitizeError(err) || 'User not found' });
       }
 
-      // Hash new password
-      const hashedPassword = bcrypt.hashSync(newPassword, 10);
-
-      // Update password
-      db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], (err) => {
-        if (err) {
-          return res.status(500).json({ error: sanitizeError(err) });
+      bcrypt.compare(oldPassword, user.password, (err, match) => {
+        if (err || !match) {
+          return res.status(401).json({ error: 'Current password is incorrect' });
         }
 
-        // Revoke all refresh tokens for this user (force re-login)
-        db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId], () => {});
+        // Hash new password
+        const hashedPassword = bcrypt.hashSync(newPassword, 10);
 
-        // Log password change
-        logAudit(req, 'PASSWORD_CHANGE', 'user', userId);
+        // Update password (username and role remain unchanged)
+        db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], (err) => {
+          if (err) {
+            return res.status(500).json({ error: sanitizeError(err) });
+          }
 
-        res.json({ message: 'Password changed successfully' });
+          // Revoke all refresh tokens for this user (force re-login)
+          db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId], () => {});
+
+          // Log password change
+          logAudit(req, 'PASSWORD_CHANGE', 'user', userId);
+
+          res.json({ message: 'Password changed successfully' });
+        });
       });
     });
   });
@@ -3186,42 +3401,43 @@ app.post('/api/users/:id/change-password', authenticateToken, requireRole('admin
     return res.status(400).json({ error: 'New password is required' });
   }
 
-  // SECURITY: Validate new password strength
-  const passwordValidation = validatePasswordStrength(newPassword);
-  if (!passwordValidation.valid) {
-    return res.status(400).json({ error: passwordValidation.message });
-  }
-
-  // Check if user exists
-  db.get('SELECT id, username FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: sanitizeError(err) });
-    }
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+  // SECURITY: Validate new password strength using global security settings
+  validatePasswordStrengthAsync(newPassword, null, (result) => {
+    if (!result.valid) {
+      return res.status(400).json({ error: result.message });
     }
 
-    // Hash new password
-    const hashedPassword = bcrypt.hashSync(newPassword, 10);
-
-    // Update password
-    db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], (err) => {
+    // Check if user exists (we never change username or role here)
+    db.get('SELECT id, username FROM users WHERE id = ?', [userId], (err, user) => {
       if (err) {
         return res.status(500).json({ error: sanitizeError(err) });
       }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-      // Revoke all refresh tokens for this user (force re-login)
-      db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId], () => {});
+      // Hash new password
+      const hashedPassword = bcrypt.hashSync(newPassword, 10);
 
-      // SECURITY: Log admin password change
-      logAudit(req, 'ADMIN_PASSWORD_CHANGE', 'user', userId, { target_username: user.username });
+      // Update password
+      db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], (err) => {
+        if (err) {
+          return res.status(500).json({ error: sanitizeError(err) });
+        }
 
-      res.json({ message: 'Password changed successfully' });
+        // Revoke all refresh tokens for this user (force re-login)
+        db.run('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId], () => {});
+
+        // SECURITY: Log admin password change
+        logAudit(req, 'ADMIN_PASSWORD_CHANGE', 'user', userId, { target_username: user.username });
+
+        res.json({ message: 'Password changed successfully' });
+      });
     });
   });
 });
 
-app.post('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
+app.post('/api/users', authenticateToken, requireCapability('manage_users'), (req, res) => {
   const { username, email, password, role, full_name, shop_id } = req.body;
 
   // SECURITY: Input validation
@@ -3241,7 +3457,7 @@ app.post('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
     return res.status(400).json({ error: passwordValidation.message });
   }
 
-  if (!role || !['superadmin', 'admin', 'storekeeper', 'sales', 'manager'].includes(role)) {
+  if (!role || !['superadmin', 'admin', 'storekeeper', 'sales', 'manager', 'auditor'].includes(role)) {
     return res.status(400).json({ error: 'Valid role is required' });
   }
 
@@ -3255,8 +3471,8 @@ app.post('/api/users', authenticateToken, requireRole('admin'), (req, res) => {
     finalShopId = req.user.shop_id || null;
   }
   
-  // Superadmin users should not have shop_id
-  if (role === 'superadmin') {
+  // Superadmin and auditor users should not have shop_id (system-wide roles)
+  if (role === 'superadmin' || role === 'auditor') {
     finalShopId = null;
   }
 
@@ -3300,7 +3516,7 @@ app.put('/api/users/:id', authenticateToken, requireRole('admin'), (req, res) =>
   if (email && !validateEmail(email)) {
     return res.status(400).json({ error: 'Valid email address is required' });
   }
-  if (role && !['superadmin', 'admin', 'storekeeper', 'sales', 'manager'].includes(role)) {
+  if (role && !['superadmin', 'admin', 'storekeeper', 'sales', 'manager', 'auditor'].includes(role)) {
     return res.status(400).json({ error: 'Valid role is required' });
   }
 
@@ -3907,7 +4123,7 @@ app.get('/api/shops/:id/subscription', authenticateToken, requireRole('superadmi
 
 // ==================== CATEGORIES ROUTES ====================
 
-app.get('/api/categories', authenticateToken, (req, res) => {
+app.get('/api/categories', authenticateToken, cacheMiddleware({ ttl: 600 }), (req, res) => {
   db.all('SELECT * FROM categories ORDER BY name', (err, categories) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
@@ -3937,7 +4153,7 @@ app.post('/api/categories', authenticateToken, requireRole('admin', 'storekeeper
 
 // ==================== ITEMS ROUTES ====================
 
-app.get('/api/items', authenticateToken, (req, res) => {
+app.get('/api/items', authenticateToken, cacheMiddleware({ ttl: 300 }), (req, res) => {
   const shopFilter = getShopFilter(req);
   let query = `
     SELECT i.*, c.name as category_name,
@@ -3987,7 +4203,7 @@ app.get('/api/items', authenticateToken, (req, res) => {
   });
 });
 
-app.get('/api/items/:id', authenticateToken, (req, res) => {
+app.get('/api/items/:id', authenticateToken, enforceShopIsolation('items'), cacheMiddleware({ ttl: 300 }), (req, res) => {
   const id = req.params.id;
   
   // Validate ID
@@ -4072,7 +4288,7 @@ app.get('/api/items/barcode/:barcode', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), validateShopAccess(), (req, res) => {
   const { name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url, expiration_date, shop_id } = req.body;
   const shopFilter = getShopFilter(req);
   
@@ -4134,12 +4350,15 @@ app.post('/api/items', authenticateToken, requireRole('admin', 'storekeeper'), (
       // SECURITY: Log item creation
       logAudit(req, 'ITEM_CREATED', 'item', this.lastID, { name: name.trim(), sku: sku ? sku.trim() : null });
       
+      // PERFORMANCE: Invalidate cache after creating item
+      productCache.invalidateItems(itemShopId);
+      
       res.json({ id: this.lastID, message: 'Item created successfully' });
     }
   );
 });
 
-app.put('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.put('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), enforceShopIsolation('items'), (req, res) => {
   const { name, sku, description, category_id, unit_price, cost_price, stock_quantity, min_stock_level, unit, image_url, expiration_date } = req.body;
   const id = req.params.id;
   
@@ -4295,6 +4514,9 @@ app.put('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper')
           if (cost_price !== undefined) updateFields.cost_price = finalCostPrice;
           logAudit(req, 'ITEM_UPDATED', 'item', parseInt(id), updateFields);
           
+          // PERFORMANCE: Invalidate cache after updating item
+          productCache.invalidateItem(parseInt(id), existingItem.shop_id);
+          
           res.json({ message: 'Item updated successfully' });
         }
       );
@@ -4302,18 +4524,28 @@ app.put('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper')
   });
 });
 
-app.delete('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.delete('/api/items/:id', authenticateToken, requireRole('admin', 'storekeeper'), enforceShopIsolation('items'), (req, res) => {
   const id = req.params.id;
-  db.run('UPDATE items SET stock_quantity = 0 WHERE id = ?', [id], function(err) {
+  // Get item shop_id before deletion for cache invalidation
+  db.get('SELECT shop_id FROM items WHERE id = ?', [id], (err, item) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
-    res.json({ message: 'Item deactivated successfully' });
+    db.run('UPDATE items SET stock_quantity = 0 WHERE id = ?', [id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: sanitizeError(err) });
+      }
+      // PERFORMANCE: Invalidate cache after deleting item
+      if (item) {
+        productCache.invalidateItem(parseInt(id), item.shop_id);
+      }
+      res.json({ message: 'Item deactivated successfully' });
+    });
   });
 });
 
 // Item archive endpoint
-app.post('/api/items/:id/archive', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.post('/api/items/:id/archive', authenticateToken, requireRole('admin', 'storekeeper'), enforceShopIsolation('items'), (req, res) => {
   const id = req.params.id;
   const shopFilter = getShopFilter(req);
   
@@ -4345,13 +4577,16 @@ app.post('/api/items/:id/archive', authenticateToken, requireRole('admin', 'stor
       // Log archive action
       logAudit(req, 'ITEM_ARCHIVED', 'item', parseInt(id), { name: item.name });
       
+      // PERFORMANCE: Invalidate cache after archiving item
+      productCache.invalidateItem(parseInt(id), item.shop_id);
+      
       res.json({ message: 'Item archived successfully' });
     });
   });
 });
 
 // Item unarchive endpoint
-app.post('/api/items/:id/unarchive', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.post('/api/items/:id/unarchive', authenticateToken, requireRole('admin', 'storekeeper'), enforceShopIsolation('items'), (req, res) => {
   const id = req.params.id;
   const shopFilter = getShopFilter(req);
   
@@ -4383,13 +4618,16 @@ app.post('/api/items/:id/unarchive', authenticateToken, requireRole('admin', 'st
       // Log unarchive action
       logAudit(req, 'ITEM_UNARCHIVED', 'item', parseInt(id), { name: item.name });
       
+      // PERFORMANCE: Invalidate cache after unarchiving item
+      productCache.invalidateItem(parseInt(id), item.shop_id);
+      
       res.json({ message: 'Item unarchived successfully' });
     });
   });
 });
 
 // Item history endpoint
-app.get('/api/items/:id/history', authenticateToken, (req, res) => {
+app.get('/api/items/:id/history', authenticateToken, enforceShopIsolation('items'), (req, res) => {
   const id = req.params.id;
   const shopFilter = getShopFilter(req);
   
@@ -4656,7 +4894,7 @@ app.get('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper')
   });
 });
 
-app.get('/api/purchases/:id', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.get('/api/purchases/:id', authenticateToken, requireRole('admin', 'storekeeper'), enforceShopIsolation('purchases'), (req, res) => {
   const id = req.params.id;
   const query = `
     SELECT p.*, s.name as supplier_name,
@@ -4687,7 +4925,7 @@ app.get('/api/purchases/:id', authenticateToken, requireRole('admin', 'storekeep
   });
 });
 
-app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'), (req, res) => {
+app.post('/api/purchases', authenticateToken, requireRole('admin', 'storekeeper'), validateShopAccess(), (req, res) => {
   const { supplier_id, items, notes, delivery_date, status } = req.body;
   const created_by = req.user.id;
   let total_amount = 0;
@@ -4908,7 +5146,7 @@ app.get('/api/sales/returns', authenticateToken, requireRole('admin', 'sales', '
   });
 });
 
-app.get('/api/sales/:id', authenticateToken, requireRole('admin', 'sales', 'manager'), (req, res) => {
+app.get('/api/sales/:id', authenticateToken, requireRole('admin', 'sales', 'manager'), enforceShopIsolation('sales'), (req, res) => {
   const id = req.params.id;
   const query = `
     SELECT s.*,
@@ -4938,7 +5176,7 @@ app.get('/api/sales/:id', authenticateToken, requireRole('admin', 'sales', 'mana
   });
 });
 
-app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), validateShopAccess(), (req, res) => {
   const { items, customer_name, notes } = req.body;
   const created_by = req.user.id;
   let total_amount = 0;
@@ -5137,9 +5375,113 @@ app.post('/api/sales', authenticateToken, requireRole('admin', 'sales'), (req, r
   });
 });
 
+// ==================== IMAGE UPLOAD CONFIGURATION ====================
+
+// Configure multer for image uploads (memory storage for Cloudinary)
+const imageStorage = multer.memoryStorage();
+
+const imageUpload = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for product images
+  },
+  fileFilter: function (req, file, cb) {
+    // Only allow image files
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only image files are allowed.'));
+    }
+  }
+});
+
+// ==================== PRODUCT IMAGE UPLOAD ROUTES ====================
+
+// Upload product image to Cloudinary with optimization
+app.post('/api/items/upload-image', authenticateToken, requireRole('admin', 'storekeeper'), imageUpload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+
+  try {
+    const shopFilter = getShopFilter(req);
+    const shopId = shopFilter.shop_id || req.user.shop_id || 'global';
+    
+    // Optimize image with Sharp before uploading
+    let optimizedBuffer;
+    try {
+      optimizedBuffer = await sharp(req.file.buffer)
+        .resize(1920, 1920, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .webp({ quality: 85 })
+        .toBuffer();
+    } catch (sharpError) {
+      console.error('Sharp optimization error, using original:', sharpError);
+      // Fallback to original if Sharp fails
+      optimizedBuffer = req.file.buffer;
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: `ims/products/shop_${shopId}`,
+          resource_type: 'image',
+          format: 'webp',
+          quality: 'auto',
+          fetch_format: 'auto',
+          transformation: [
+            { width: 1920, height: 1920, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      
+      uploadStream.end(optimizedBuffer);
+    });
+
+    // Return Cloudinary URL (CDN-enabled)
+    res.json({
+      image_url: uploadResult.secure_url,
+      public_id: uploadResult.public_id,
+      width: uploadResult.width,
+      height: uploadResult.height,
+      format: uploadResult.format,
+      bytes: uploadResult.bytes
+    });
+  } catch (error) {
+    console.error('Error uploading image to Cloudinary:', error);
+    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
+  }
+});
+
+// Delete product image from Cloudinary
+app.delete('/api/items/delete-image', authenticateToken, requireRole('admin', 'storekeeper'), async (req, res) => {
+  const { public_id } = req.body;
+  
+  if (!public_id) {
+    return res.status(400).json({ error: 'Public ID is required' });
+  }
+
+  try {
+    const result = await cloudinary.uploader.destroy(public_id);
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('Error deleting image from Cloudinary:', error);
+    res.status(500).json({ error: 'Failed to delete image: ' + error.message });
+  }
+});
+
 // ==================== SALES RETURN ROUTES ====================
 
-// PERFORMANCE: Configure multer for optimized file uploads
+// PERFORMANCE: Configure multer for return receipt uploads (local storage)
 const uploadsDir = path.join(__dirname, 'public', 'uploads', 'returns');
 
 // Ensure uploads directory exists (only runs once at startup, so sync is OK)
@@ -5464,7 +5806,7 @@ app.get('/api/expenses', authenticateToken, requireRole('admin', 'manager'), (re
   });
 });
 
-app.get('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+app.get('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), enforceShopIsolation('expenses'), (req, res) => {
   const id = req.params.id;
   const shopFilter = getShopFilter(req);
   let query = `
@@ -5495,7 +5837,7 @@ app.get('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'),
   });
 });
 
-app.post('/api/expenses', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+app.post('/api/expenses', authenticateToken, requireRole('admin', 'manager'), validateShopAccess(), (req, res) => {
   const { expense_date, category, description, amount, payment_method } = req.body;
   const created_by = parseInt(req.user.id);
   
@@ -5518,7 +5860,7 @@ app.post('/api/expenses', authenticateToken, requireRole('admin', 'manager'), (r
   );
 });
 
-app.put('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+app.put('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), enforceShopIsolation('expenses'), (req, res) => {
   const id = req.params.id;
   const { expense_date, category, description, amount, payment_method } = req.body;
   const shopFilter = getShopFilter(req);
@@ -5574,7 +5916,7 @@ app.put('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'),
   });
 });
 
-app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), (req, res) => {
+app.delete('/api/expenses/:id', authenticateToken, requireRole('admin', 'manager'), enforceShopIsolation('expenses'), (req, res) => {
   const id = req.params.id;
   const shopFilter = getShopFilter(req);
   
@@ -6557,18 +6899,25 @@ app.get('/api/customers', authenticateToken, (req, res) => {
     if (err) {
       return res.status(500).json({ error: sanitizeError(err) });
     }
-    res.json(customers);
+    // SECURITY: Decrypt sensitive customer data before sending to client
+    const decryptedCustomers = customers.map(customer => decryptFields(customer, ['email', 'phone', 'address']));
+    res.json(decryptedCustomers);
   });
 });
 
-app.post('/api/customers', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.post('/api/customers', authenticateToken, requireRole('admin', 'sales'), validateShopAccess(), (req, res) => {
   const { name, email, phone, address } = req.body;
   const shopFilter = getShopFilter(req);
   const shopId = shopFilter.shop_id || req.user.shop_id || null;
   
+  // SECURITY: Encrypt sensitive customer data
+  const encryptedEmail = email ? encrypt(email) : null;
+  const encryptedPhone = phone ? encrypt(phone) : null;
+  const encryptedAddress = address ? encrypt(address) : null;
+  
   db.run(
     'INSERT INTO customers (name, email, phone, address, shop_id) VALUES (?, ?, ?, ?, ?)',
-    [name, email, phone, address, shopId],
+    [name, encryptedEmail, encryptedPhone, encryptedAddress, shopId],
     function(err) {
       if (err) {
         return res.status(500).json({ error: sanitizeError(err) });
@@ -6578,13 +6927,28 @@ app.post('/api/customers', authenticateToken, requireRole('admin', 'sales'), (re
   );
 });
 
-app.put('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.put('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), enforceShopIsolation('customers'), (req, res) => {
   const id = req.params.id;
   const { name, email, phone, address } = req.body;
   
+  // SECURITY: Encrypt sensitive customer data if provided
+  const encryptedEmail = email !== undefined ? (email ? encrypt(email) : null) : undefined;
+  const encryptedPhone = phone !== undefined ? (phone ? encrypt(phone) : null) : undefined;
+  const encryptedAddress = address !== undefined ? (address ? encrypt(address) : null) : undefined;
+  
+  // Build dynamic update query
+  const updates = [];
+  const params = [];
+  if (name !== undefined) { updates.push('name = ?'); params.push(name); }
+  if (encryptedEmail !== undefined) { updates.push('email = ?'); params.push(encryptedEmail); }
+  if (encryptedPhone !== undefined) { updates.push('phone = ?'); params.push(encryptedPhone); }
+  if (encryptedAddress !== undefined) { updates.push('address = ?'); params.push(encryptedAddress); }
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+  params.push(id);
+  
   db.run(
-    'UPDATE customers SET name = ?, email = ?, phone = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [name, email, phone, address, id],
+    `UPDATE customers SET ${updates.join(', ')} WHERE id = ?`,
+    params,
     function(err) {
       if (err) {
         return res.status(500).json({ error: sanitizeError(err) });
@@ -6597,7 +6961,7 @@ app.put('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), 
   );
 });
 
-app.delete('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.delete('/api/customers/:id', authenticateToken, requireRole('admin', 'sales'), enforceShopIsolation('customers'), (req, res) => {
   const id = req.params.id;
   
   db.run('DELETE FROM customers WHERE id = ?', [id], function(err) {
@@ -7214,7 +7578,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
   });
 });
 
-app.get('/api/invoices/:id', authenticateToken, (req, res) => {
+app.get('/api/invoices/:id', authenticateToken, enforceShopIsolation('invoices'), (req, res) => {
   const id = req.params.id;
   const query = `
     SELECT i.*,
@@ -7347,7 +7711,7 @@ app.post('/api/invoices', authenticateToken, requireRole('admin', 'sales'), (req
   );
 });
 
-app.put('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.put('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), enforceShopIsolation('invoices'), (req, res) => {
   const id = req.params.id;
   const {
     invoice_number,
@@ -7440,7 +7804,7 @@ app.put('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (
   );
 });
 
-app.delete('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), (req, res) => {
+app.delete('/api/invoices/:id', authenticateToken, requireRole('admin', 'sales'), enforceShopIsolation('invoices'), (req, res) => {
   const id = req.params.id;
   
   db.run('DELETE FROM invoices WHERE id = ?', [id], function(err) {
@@ -10226,6 +10590,7 @@ app.post('/api/backup', authenticateToken, requireRole('admin'), (req, res) => {
   }
 });
 
+// Get backup statistics
 app.get('/api/backups', authenticateToken, requireRole('admin'), (req, res) => {
   const backupDir = path.join(__dirname, 'backups');
   
@@ -10303,12 +10668,12 @@ app.post('/api/restore', authenticateToken, requireRole('admin'), (req, res) => 
       // Create backup of current database if it exists
       if (fs.existsSync(dbPath)) {
         fs.copyFileSync(dbPath, currentBackupPath);
-        console.log('Pre-restore backup created:', currentBackupPath);
+        logger.info('Pre-restore backup created', { path: currentBackupPath });
       }
       
       // Copy backup file to database location
       fs.copyFileSync(backupPath, dbPath);
-      console.log('Database file restored from:', filename);
+      logger.info('Database file restored', { filename });
       
       // Small delay to ensure file operations complete
       setTimeout(() => {
@@ -10324,7 +10689,7 @@ app.post('/api/restore', authenticateToken, requireRole('admin'), (req, res) => 
             });
           })
           .catch((reconnectErr) => {
-            console.error('Failed to reconnect database:', reconnectErr);
+            logger.error('Failed to reconnect database', reconnectErr);
             res.status(500).json({ 
               error: 'Database restored but failed to reconnect. Please restart the server.'
             });
@@ -10332,9 +10697,9 @@ app.post('/api/restore', authenticateToken, requireRole('admin'), (req, res) => 
       }, 100);
       
     } catch (error) {
-      console.error('Restore error:', error);
+      logger.error('Restore error', error);
       // Try to reconnect even if restore failed
-      reconnectDatabase().catch(err => console.error('Reconnect failed:', err));
+      reconnectDatabase().catch(err => logger.error('Reconnect failed', err));
       res.status(500).json({ error: sanitizeError(error) });
     }
   });
@@ -10369,7 +10734,46 @@ app.delete('/api/backups/:filename', authenticateToken, requireRole('admin'), (r
     fs.unlinkSync(backupPath);
     res.json({ success: true, message: 'Backup deleted successfully' });
   } catch (error) {
-    console.error('Error deleting backup:', error);
+    logger.error('Error deleting backup', error);
+    res.status(500).json({ error: sanitizeError(error) });
+  }
+});
+
+// Get backup statistics
+app.get('/api/backups/stats', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const backupDir = path.join(__dirname, 'backups');
+    const stats = await getBackupStats(backupDir);
+    res.json(stats);
+  } catch (error) {
+    logger.error('Error getting backup stats', error);
+    res.status(500).json({ error: sanitizeError(error) });
+  }
+});
+
+// Verify backup integrity
+app.post('/api/backups/verify', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { filename } = req.body;
+    
+    if (!filename) {
+      return res.status(400).json({ error: 'Backup filename is required' });
+    }
+    
+    const backupDir = path.join(__dirname, 'backups');
+    const backupPath = path.join(backupDir, filename);
+    
+    // Security: Ensure backup path is within backup directory
+    const resolvedBackupDir = path.resolve(backupDir);
+    const resolvedBackupPath = path.resolve(backupPath);
+    if (!resolvedBackupPath.startsWith(resolvedBackupDir)) {
+      return res.status(400).json({ error: 'Invalid backup path' });
+    }
+    
+    const verification = await verifyBackup(backupPath);
+    res.json(verification);
+  } catch (error) {
+    logger.error('Error verifying backup', error);
     res.status(500).json({ error: sanitizeError(error) });
   }
 });
@@ -10505,7 +10909,7 @@ app.post('/api/role-permissions/reset', authenticateToken, requireRole('admin'),
 // ==================== SETTINGS ROUTES ====================
 
 // Get all settings grouped by category
-app.get('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+app.get('/api/settings', authenticateToken, requireCapability('view_all_settings'), (req, res) => {
   const shopFilter = getShopFilter(req);
   let query = `
     SELECT * FROM settings 
@@ -10513,21 +10917,27 @@ app.get('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), 
   `;
   const params = [];
   
+  // Security settings are always global (shop_id IS NULL) and apply to all shops
+  // For security category, always show only global settings
+  const securityKeys = ['session_timeout', 'password_min_length', 'require_strong_password', 'enable_two_factor', 'max_login_attempts', 'lockout_duration'];
+  
   if (req.user.role !== 'superadmin' && req.user.shop_id) {
+    // Shop admin: sees their shop settings + global settings
+    // But security settings are always global only
     query += ' AND (shop_id = ? OR shop_id IS NULL)';
     params.push(req.user.shop_id);
   } else if (shopFilter.shop_id && req.user.role === 'superadmin') {
+    // Superadmin with specific shop selected: sees that shop's settings + global settings
+    // But security settings are always global only
     query += ' AND (shop_id = ? OR shop_id IS NULL)';
     params.push(shopFilter.shop_id);
   } else if (req.user.role === 'superadmin') {
-    // Superadmin can see global settings (shop_id IS NULL) or all shop settings
-    query += ' AND (shop_id IS NULL OR shop_id IN (SELECT id FROM shops))';
+    // Superadmin viewing "All Shops": sees only global settings (shop_id IS NULL)
+    // This allows them to manage system-wide defaults without seeing individual shop overrides
+    query += ' AND shop_id IS NULL';
   } else {
-    // Regular admin sees only global settings or their shop settings
-    query += ' AND (shop_id IS NULL OR shop_id = ?)';
-    if (req.user.shop_id) {
-      params.push(req.user.shop_id);
-    }
+    // Regular admin without shop_id: sees only global settings
+    query += ' AND shop_id IS NULL';
   }
   
   query += ' ORDER BY category, key';
@@ -10537,22 +10947,57 @@ app.get('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), 
       return res.status(500).json({ error: sanitizeError(err) });
     }
     
-    // Group settings by category
-    const grouped = {};
+    // Deduplicate settings by key, preferring shop-specific over global
+    // EXCEPTION: Security settings are always global (shop_id IS NULL) and apply to all shops
+    const securityKeys = ['session_timeout', 'password_min_length', 'require_strong_password', 'enable_two_factor', 'max_login_attempts', 'lockout_duration'];
+    const settingsMap = new Map();
     settings.forEach(setting => {
+      const key = setting.key;
+      const isSecurityKey = securityKeys.includes(key) || setting.category === 'security';
+      const existing = settingsMap.get(key);
+      
+      // For security settings: only use global (shop_id IS NULL)
+      if (isSecurityKey) {
+        if (setting.shop_id === null) {
+          settingsMap.set(key, {
+            id: setting.id,
+            key: setting.key,
+            value: setting.value,
+            category: setting.category,
+            description: setting.description,
+            shop_id: setting.shop_id,
+            is_encrypted: setting.is_encrypted === 1
+          });
+        }
+        // Skip shop-specific security settings
+      } else {
+        // For non-security settings: prefer shop-specific over global
+        if (!existing || (setting.shop_id !== null && existing.shop_id === null)) {
+          settingsMap.set(key, {
+            id: setting.id,
+            key: setting.key,
+            value: setting.value,
+            category: setting.category,
+            description: setting.description,
+            shop_id: setting.shop_id,
+            is_encrypted: setting.is_encrypted === 1
+          });
+        }
+      }
+    });
+    
+    // Group deduplicated settings by category
+    const grouped = {};
+    settingsMap.forEach(setting => {
       const category = setting.category || 'general';
       if (!grouped[category]) {
         grouped[category] = [];
       }
-      grouped[category].push({
-        id: setting.id,
-        key: setting.key,
-        value: setting.value,
-        category: setting.category,
-        description: setting.description,
-        shop_id: setting.shop_id,
-        is_encrypted: setting.is_encrypted === 1
-      });
+      // SECURITY: Decrypt encrypted settings before sending to client
+      if (setting.is_encrypted && setting.value) {
+        setting.value = decrypt(setting.value);
+      }
+      grouped[category].push(setting);
     });
     
     res.json(grouped);
@@ -10560,68 +11005,204 @@ app.get('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), 
 });
 
 // Update settings
-app.put('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), (req, res) => {
+app.put('/api/settings', authenticateToken, (req, res, next) => {
   const { settings } = req.body;
-  const shopFilter = getShopFilter(req);
   
   if (!settings || !Array.isArray(settings)) {
     return res.status(400).json({ error: 'Settings array is required' });
   }
+
+  // Check capabilities based on settings categories
+  // SECURITY: Treat security/backup/notification as sensitive categories.
+  // For email, only the SMTP/server-level keys are treated as sensitive here.
+  const sensitiveCategories = ['security', 'backup', 'notification'];
+  const sensitiveKeys = [
+    'email_host',
+    'email_port',
+    'email_secure',
+    'email_username',
+    'email_password',
+    'email_from',
+    'backup_path',
+    'backup_encryption_key',
+    'backup_cloud_credentials'
+  ];
   
-  let shopId = null;
-  if (req.user.role === 'superadmin' && shopFilter.shop_id) {
-    shopId = shopFilter.shop_id;
-  } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
-    shopId = req.user.shop_id;
+  const hasSensitiveSettings = settings.some(s => 
+    (s.category && sensitiveCategories.includes(s.category)) || 
+    sensitiveKeys.includes(s.key)
+  );
+  
+  const hasShopSettings = settings.some(s => 
+    ['currency', 'display', 'datetime'].includes(s.category)
+  );
+
+  // Superadmin bypasses capability checks
+  if (req.user.role === 'superadmin') {
+    return next();
   }
-  
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO settings (key, value, category, description, shop_id, is_encrypted, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `);
-  
-  let successCount = 0;
-  let errorCount = 0;
-  let completedCount = 0;
-  const totalSettings = settings.length;
-  
-  settings.forEach(setting => {
-    if (!setting.key) {
-      errorCount++;
-      completedCount++;
-      checkCompletion();
-      return;
+
+  // Check if user has required capabilities
+  if (hasSensitiveSettings) {
+    // Non-superadmin needs manage_sensitive_settings capability
+    return requireCapability('manage_sensitive_settings')(req, res, next);
+  } else if (hasShopSettings) {
+    // Non-superadmin needs manage_shop_settings capability
+    return requireCapability('manage_shop_settings')(req, res, next);
+  } else {
+    // General settings - check view_all_settings (but allow if they can view)
+    return requireCapability('view_all_settings')(req, res, next);
+  }
+}, (req, res) => {
+  const { settings } = req.body;
+  const shopFilter = getShopFilter(req);
+    let shopId = null;
+    if (req.user.role === 'superadmin' && shopFilter.shop_id) {
+      shopId = shopFilter.shop_id;
+    } else if (req.user.role !== 'superadmin' && req.user.shop_id) {
+      shopId = req.user.shop_id;
     }
-    
-    // Determine category from key if not provided
-    let category = setting.category || 'general';
-    if (!category) {
-      // Auto-detect category from key prefix
-      if (setting.key.startsWith('email_')) category = 'email';
-      else if (setting.key.startsWith('backup_')) category = 'backup';
-      else if (setting.key.startsWith('security_') || setting.key.includes('password') || setting.key.includes('login')) category = 'security';
-      else if (setting.key.includes('currency') || setting.key.includes('tax')) category = 'currency';
-      else if (setting.key.includes('date') || setting.key.includes('time') || setting.key.includes('timezone')) category = 'datetime';
-      else if (setting.key.includes('display') || setting.key.includes('theme') || setting.key.includes('language')) category = 'display';
-      else if (setting.key.includes('notification') || setting.key.includes('low_stock')) category = 'notification';
-      else category = 'general';
-    }
-    
-    const value = setting.value !== null && setting.value !== undefined ? String(setting.value) : null;
-    
-    // Mark email_password as encrypted
-    const isEncrypted = setting.key === 'email_password' ? 1 : 0;
-    
-    stmt.run([setting.key, value, category, setting.description || null, shopId, isEncrypted], (err) => {
-      completedCount++;
-      if (err) {
-        errorCount++;
-        console.error('Error saving setting:', setting.key, err);
-      } else {
-        successCount++;
+
+    // CURRENCY: Superadmin must target a specific shop to change currency settings.
+    // When viewing "All Shops" (no shop_id filter), currency updates are not allowed.
+    const currencyKeysGlobal = ['currency_code', 'currency_symbol', 'currency_position', 'decimal_places'];
+    if (req.user.role === 'superadmin' && !shopFilter.shop_id) {
+      const hasCurrencySetting = settings.some(setting =>
+        currencyKeysGlobal.includes(setting.key) ||
+        (setting.category && setting.category === 'currency')
+      );
+      if (hasCurrencySetting) {
+        return res.status(400).json({
+          error: 'Currency settings must be updated for a specific shop. Please select a shop in "View Shop" first.'
+        });
       }
-      checkCompletion();
-    });
+    }
+    
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO settings (key, value, category, description, shop_id, is_encrypted, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    let completedCount = 0;
+    const totalSettings = settings.length;
+    
+    settings.forEach(setting => {
+      if (!setting.key) {
+        errorCount++;
+        completedCount++;
+        checkCompletion();
+        return;
+      }
+      
+      // Determine category from key if not provided
+      let category = setting.category || 'general';
+      if (!category) {
+        // Auto-detect category from key prefix
+        if (setting.key.startsWith('email_')) category = 'email';
+        else if (setting.key.startsWith('backup_')) category = 'backup';
+        else if (setting.key.startsWith('security_') || setting.key.includes('password') || setting.key.includes('login')) category = 'security';
+        else if (setting.key.includes('currency') || setting.key.includes('tax')) category = 'currency';
+        else if (setting.key.includes('date') || setting.key.includes('time') || setting.key.includes('timezone')) category = 'datetime';
+        else if (setting.key.includes('display') || setting.key.includes('theme') || setting.key.includes('language')) category = 'display';
+        else if (setting.key.includes('notification') || setting.key.includes('low_stock')) category = 'notification';
+        else category = 'general';
+      }
+      
+      // Work with a per-setting shop_id so we can mix global and per-shop in a single request
+      let effectiveShopId = shopId;
+      
+      // SECURITY: Prevent non-superadmin from modifying security settings
+      // SECURITY: Force security settings to be global (shop_id = NULL) to apply to all shops
+      const securityKeys = ['session_timeout', 'password_min_length', 'require_strong_password', 'enable_two_factor', 'max_login_attempts', 'lockout_duration'];
+      const isSecuritySetting = category === 'security' || securityKeys.includes(setting.key);
+      
+      if (isSecuritySetting) {
+        if (req.user.role !== 'superadmin') {
+          errorCount++;
+          completedCount++;
+          console.warn(`Non-superadmin user ${req.user.username} attempted to modify security setting: ${setting.key}`);
+          checkCompletion();
+          return;
+        }
+        // Force security settings to be global (shop_id = NULL) so they apply to all shops
+        effectiveShopId = null;
+        
+        // Delete any existing shop-specific security settings for this key to ensure only global exists
+        db.run('DELETE FROM settings WHERE key = ? AND shop_id IS NOT NULL', [setting.key], (deleteErr) => {
+          if (deleteErr) {
+            console.warn(`Warning: Could not clean up shop-specific security setting for ${setting.key}:`, deleteErr);
+          }
+        });
+      }
+
+      // CURRENCY: Prevent non-superadmin from modifying currency settings (system-level)
+      const currencyKeys = ['currency_code', 'currency_symbol', 'currency_position', 'decimal_places'];
+      const isCurrencySetting = category === 'currency' || currencyKeys.includes(setting.key);
+
+      if (isCurrencySetting && req.user.role !== 'superadmin') {
+        errorCount++;
+        completedCount++;
+        console.warn(`Non-superadmin user ${req.user.username} attempted to modify currency setting: ${setting.key}`);
+        checkCompletion();
+        return;
+      }
+
+      // EMAIL: Central SMTP (global) + per-shop identity
+      const smtpKeys = ['email_host', 'email_port', 'email_secure', 'email_username', 'email_password', 'email_from'];
+      const identityKeys = ['email_from_name', 'reply_to'];
+      const isEmailSetting = category === 'email' || setting.key.startsWith('email_') || setting.key === 'reply_to';
+      const isSmtpKey = smtpKeys.includes(setting.key);
+      const isIdentityKey = identityKeys.includes(setting.key);
+
+      if (isEmailSetting) {
+        // SMTP/server settings: superadmin only
+        if (isSmtpKey) {
+          if (req.user.role !== 'superadmin') {
+            errorCount++;
+            completedCount++;
+            console.warn(`Non-superadmin user ${req.user.username} attempted to modify SMTP email setting: ${setting.key}`);
+            checkCompletion();
+            return;
+          }
+          // Central SMTP: always global (shop_id = NULL)
+          effectiveShopId = null;
+        }
+
+        // Identity settings: must be per-shop (no global identities)
+        if (isIdentityKey) {
+          if (!effectiveShopId) {
+            errorCount++;
+            completedCount++;
+            console.warn(`Attempt to save identity email setting without shop context: ${setting.key}`);
+            checkCompletion();
+            return;
+          }
+        }
+      }
+      
+      const value = setting.value !== null && setting.value !== undefined ? String(setting.value) : null;
+      
+      // SECURITY: Encrypt sensitive settings
+      let finalValue = value;
+      const isEncrypted = setting.key === 'email_password' ? 1 : 0;
+      
+      // Encrypt email_password if provided
+      if (setting.key === 'email_password' && value && value.trim() !== '') {
+        finalValue = encrypt(value);
+      }
+      
+      stmt.run([setting.key, finalValue, category, setting.description || null, effectiveShopId, isEncrypted], (err) => {
+        completedCount++;
+        if (err) {
+          errorCount++;
+          console.error('Error saving setting:', setting.key, err);
+        } else {
+          successCount++;
+        }
+        checkCompletion();
+      });
   });
   
   function checkCompletion() {
@@ -10633,6 +11214,28 @@ app.put('/api/settings', authenticateToken, requireRole('admin', 'superadmin'), 
         
         if (errorCount > 0 && successCount === 0) {
           return res.status(500).json({ error: 'Failed to save settings' });
+        }
+        
+        // Audit logging for superadmin changes
+        if (req.user.role === 'superadmin' && successCount > 0) {
+          const superadminMode = req.body.superadminMode || 'configure';
+          const category = req.body.category || 'general';
+          const changedKeys = settings.slice(0, successCount).map(s => s.key);
+          
+          logAudit(
+            req,
+            'SETTINGS_UPDATE',
+            'settings',
+            null,
+            {
+              mode: superadminMode,
+              category: category,
+              shop_id: shopId,
+              changed_count: successCount,
+              changed_keys: changedKeys,
+              shop_context: shopFilter.shop_id ? `Shop ID: ${shopFilter.shop_id}` : 'Global Settings'
+            }
+          );
         }
         
         // Clear notification settings cache when settings are updated
@@ -10676,7 +11279,7 @@ app.get('/api/settings/export', authenticateToken, requireRole('admin', 'superad
       export_date: new Date().toISOString(),
       settings: settings.map(s => ({
         key: s.key,
-        value: s.is_encrypted ? null : s.value, // Don't export encrypted values
+            value: s.is_encrypted ? decrypt(s.value) : s.value, // Decrypt encrypted values for export
         category: s.category,
         description: s.description
       }))
@@ -10901,22 +11504,22 @@ const gracefulShutdown = (signal) => {
       if (db) {
         db.close((err) => {
           if (err) {
-            console.error('Error closing database:', err);
+            logger.error('Error closing database', err);
           } else {
-            console.log('✓ Database connection closed');
+            logger.info('Database connection closed');
           }
-          console.log('✓ Graceful shutdown complete');
+          logger.info('Graceful shutdown complete');
           process.exit(0);
         });
       } else {
-        console.log('✓ Graceful shutdown complete');
+        logger.info('Graceful shutdown complete');
         process.exit(0);
       }
     });
     
     // Force close after 10 seconds
     setTimeout(() => {
-      console.error('⚠ Forced shutdown after timeout');
+      logger.error('Forced shutdown after timeout', null, { timeout: 10000 });
       if (db) {
         db.close();
       }
@@ -10939,7 +11542,15 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 let server;
 try {
   // Listen on 0.0.0.0 to accept connections from Railway's network
+  // Enhanced error handlers (must be last)
+  app.use(notFoundHandler);
+  app.use(enhancedErrorHandler);
+
   server = app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server started on port ${PORT}`, {
+      environment: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version
+    });
     console.log(`IMS Server running on port ${PORT}`);
     console.log(`✓ Listening on 0.0.0.0:${PORT} (Railway compatible)`);
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);

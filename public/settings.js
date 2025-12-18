@@ -1,6 +1,7 @@
 let allSettings = {};
 let currentCategory = 'general';
 let hasUnsavedChanges = false;
+let superadminMode = 'inspect'; // 'inspect' or 'configure'
 
 // Category display order and labels
 const categoryConfig = {
@@ -177,9 +178,10 @@ const fieldConfigs = {
             { value: 'fr', label: 'French (Français)' },
             { value: 'es', label: 'Spanish (Español)' },
             { value: 'hi', label: 'Hindi (हिन्दी)' },
-            { value: 'ar', label: 'Arabic (العربية)' }
+            { value: 'ar', label: 'Arabic (العربية)' },
+            { value: 'zh', label: 'Chinese (中文)' }
         ],
-        description: 'Select the language for the application interface. Multiple languages are now available including English, Kiswahili, French, Spanish, Hindi, and Arabic. Some pages may require a refresh to see all translations.'
+        description: 'Select the language for the application interface. Multiple languages are now available including English, Kiswahili, French, Spanish, Hindi, Arabic, and Chinese. Some pages may require a refresh to see all translations.'
     },
     enable_barcode_scanning: { 
         type: 'checkbox', 
@@ -240,7 +242,10 @@ function updateShopContextDisplay() {
     
     let shopContext = '';
     
-    if (currentUser.role === 'superadmin') {
+    // Security settings are always global, regardless of shop selection
+    if (currentCategory === 'security') {
+        shopContext = ' - Global Settings (Applies to All Shops)';
+    } else if (currentUser.role === 'superadmin') {
         // Superadmin can select shop
         const shopId = window.selectedShopId || (localStorage.getItem('selectedShopId') ? parseInt(localStorage.getItem('selectedShopId')) : null);
         if (shopId) {
@@ -271,6 +276,33 @@ function updateShopContextDisplay() {
 function renderSettings() {
     const content = document.getElementById('settingsContent');
     if (!content) return;
+    
+    // Check if user is superadmin
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+    
+    // Use wizard for email and backup settings
+    if (currentCategory === 'email') {
+        renderEmailSettingsWizard();
+        return;
+    }
+    
+    if (currentCategory === 'backup') {
+        renderBackupSettingsWizard();
+        return;
+    }
+    
+    if (currentCategory === 'notification') {
+        renderNotificationSettingsWizard();
+        return;
+    }
+    
+    // Categories that should be view-only for non-superadmin users
+    const isSecurityViewOnly = currentCategory === 'security' && !isSuperadmin;
+    const isCurrencyViewOnly = currentCategory === 'currency' && !isSuperadmin;
+    // In Inspect mode, superadmin cannot edit settings
+    const isViewOnlyCategory = isSecurityViewOnly || isCurrencyViewOnly || isInspectMode;
     
     let category = allSettings[currentCategory] || [];
     
@@ -308,6 +340,10 @@ function renderSettings() {
             shop_id: null,
             is_encrypted: fieldConfigs[key]?.type === 'password' ? 1 : 0
         }));
+
+        // Store these defaults back into allSettings so save functions
+        // can detect and persist changes even when the DB has no rows yet.
+        allSettings[currentCategory] = category;
     }
     
     if (category.length === 0) {
@@ -329,12 +365,22 @@ function renderSettings() {
         
         if (config.type === 'checkbox') {
             const description = config.description || setting.description;
+            const disabledAttr = isViewOnlyCategory ? 'disabled' : '';
+            const cursorStyle = isViewOnlyCategory ? 'cursor: not-allowed;' : 'cursor: pointer;';
+            
+            // Properly handle checkbox value - can be boolean, string "true"/"false", "1"/"0", or null
+            const isChecked = setting.value === true || 
+                             setting.value === 1 || 
+                             setting.value === '1' || 
+                             (typeof setting.value === 'string' && setting.value.toLowerCase() === 'true');
+            
             inputHTML = `
                 <div class="form-group">
-                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="${fieldId}" ${setting.value ? 'checked' : ''} 
-                               onchange="markAsChanged('${setting.key}')" 
-                               style="width: auto; margin: 0; margin-top: 0.25rem; flex-shrink: 0;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; ${cursorStyle}">
+                        <input type="checkbox" id="${fieldId}" ${isChecked ? 'checked' : ''} 
+                               ${disabledAttr}
+                               ${isViewOnlyCategory ? '' : 'onchange="markAsChanged(\'' + setting.key + '\')"'}
+                               style="width: auto; margin: 0; margin-top: 0.25rem; flex-shrink: 0; ${isViewOnlyCategory ? 'opacity: 0.6;' : ''}">
                         <div style="flex: 1;">
                             <span style="font-weight: 500;">${config.label || setting.key}</span>
                             ${description ? `<small style="color: var(--text-secondary); display: block; margin-top: 0.25rem; line-height: 1.4;">${description}</small>` : ''}
@@ -359,10 +405,12 @@ function renderSettings() {
                     const optLabelStr = escapeHtml(String(optLabel));
                     return `<option value="${optValueStr}" ${setting.value === optValue || (!hasValue && opt === config.options[0]) ? 'selected' : ''}>${optLabelStr}</option>`;
                 }).join('');
+            const disabledAttr = isViewOnlyCategory ? 'disabled' : '';
+            const readonlyStyle = isViewOnlyCategory ? 'background-color: #f5f5f5; cursor: not-allowed; opacity: 0.7;' : '';
             inputHTML = `
                 <div class="form-group">
                     <label for="${fieldId}">${config.label || setting.key}</label>
-                    <select id="${fieldId}" class="form-control" onchange="markAsChanged('${setting.key}')">
+                    <select id="${fieldId}" class="form-control" ${disabledAttr} ${isViewOnlyCategory ? '' : 'onchange="markAsChanged(\'' + setting.key + '\')"'} style="${readonlyStyle}">
                         ${options}
                     </select>
                     ${setting.description ? `<small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">${setting.description}</small>` : ''}
@@ -387,40 +435,53 @@ function renderSettings() {
                 ? formatNumberWithSeparator(setting.value) 
                 : (setting.value !== null && setting.value !== undefined ? setting.value : defaultValue);
             
+            const disabledAttr = isViewOnlyCategory ? 'disabled readonly' : '';
+            const readonlyStyle = isViewOnlyCategory ? 'background-color: #f5f5f5; cursor: not-allowed; opacity: 0.7;' : '';
+            const eventHandlers = isViewOnlyCategory ? '' : (needsThousandSeparator ? `oninput="handleNumberInputWithSeparator(this, '${setting.key}')"` : `onchange="markAsChanged('${setting.key}')"`);
             inputHTML = `
                 <div class="form-group">
                     <label for="${fieldId}">${config.label || setting.key}</label>
                     <input type="${inputType}" id="${fieldId}" class="form-control ${needsThousandSeparator ? 'number-with-separator' : ''}" 
                            value="${displayValue}"
+                           ${disabledAttr}
                            ${config.min !== undefined ? `min="${config.min}"` : ''}
                            ${config.max !== undefined ? `max="${config.max}"` : ''}
                            ${config.step !== undefined ? `step="${config.step}"` : ''}
                            data-original-type="number"
                            data-setting-key="${setting.key}"
-                           ${needsThousandSeparator ? `oninput="handleNumberInputWithSeparator(this, '${setting.key}')"` : `onchange="markAsChanged('${setting.key}')"`}
+                           ${eventHandlers}
+                           style="${readonlyStyle}"
                            placeholder="${config.placeholder || ''}">
                     ${description ? `<small style="color: var(--text-secondary); display: block; margin-top: 0.25rem; line-height: 1.4;">${description}</small>` : ''}
                     <div id="${fieldId}_validation" class="setting-validation" style="display: none; margin-top: 0.25rem;"></div>
                 </div>
             `;
         } else if (config.type === 'password') {
+            const disabledAttr = isViewOnlyCategory ? 'disabled readonly' : '';
+            const readonlyStyle = isViewOnlyCategory ? 'background-color: #f5f5f5; cursor: not-allowed; opacity: 0.7;' : '';
             inputHTML = `
                 <div class="form-group">
                     <label for="${fieldId}">${config.label || setting.key}</label>
                     <input type="password" id="${fieldId}" class="form-control" 
                            value="" 
-                           onchange="markAsChanged('${setting.key}')"
+                           ${disabledAttr}
+                           ${isViewOnlyCategory ? '' : 'onchange="markAsChanged(\'' + setting.key + '\')"'}
+                           style="${readonlyStyle}"
                            placeholder="${setting.is_encrypted ? '•••••••• (leave blank to keep current)' : config.placeholder || 'Enter password'}">
                     ${setting.description ? `<small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">${setting.description}</small>` : ''}
                 </div>
             `;
         } else {
+            const disabledAttr = isViewOnlyCategory ? 'disabled readonly' : '';
+            const readonlyStyle = isViewOnlyCategory ? 'background-color: #f5f5f5; cursor: not-allowed; opacity: 0.7;' : '';
             inputHTML = `
                 <div class="form-group">
                     <label for="${fieldId}">${config.label || setting.key}</label>
                     <input type="${config.type || 'text'}" id="${fieldId}" class="form-control" 
                            value="${setting.value !== null && setting.value !== undefined ? escapeHtml(String(setting.value)) : ''}"
-                           onchange="markAsChanged('${setting.key}')"
+                           ${disabledAttr}
+                           ${isViewOnlyCategory ? '' : 'onchange="markAsChanged(\'' + setting.key + '\')"'}
+                           style="${readonlyStyle}"
                            placeholder="${config.placeholder || ''}">
                     ${setting.description ? `<small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">${setting.description}</small>` : ''}
                 </div>
@@ -431,15 +492,30 @@ function renderSettings() {
     }).join('');
     
     // Add per-category save button and test email button
+    // Hide save button for security & currency settings if user is not superadmin, or if in Inspect mode
+    const viewOnlyMessage = isInspectMode
+        ? 'Inspect Mode: Settings are read-only. Switch to Configure Mode to make changes.'
+        : (currentCategory === 'security'
+            ? 'Security settings are view-only. Only superadmin can modify these settings.'
+            : (currentCategory === 'currency'
+                ? 'Currency settings are view-only. Only superadmin can modify these settings.'
+                : ''));
+
+    const saveButtonHTML = (isViewOnlyCategory && viewOnlyMessage)
+        ? `<div style="padding: 0.75rem 1rem; background: ${isInspectMode ? 'var(--info-bg)' : '#fff3cd'}; border: 1px solid ${isInspectMode ? 'var(--info-color)' : '#ffc107'}; border-radius: 4px; color: ${isInspectMode ? 'var(--info-color)' : '#856404'};">
+            <i class="fas ${isInspectMode ? 'fa-eye' : 'fa-lock'}"></i> ${viewOnlyMessage}
+           </div>`
+        : `<button type="button" class="btn btn-primary" onclick="saveCurrentCategory()">
+            <i class="fas fa-save"></i> Save ${categoryConfig[currentCategory]?.label || currentCategory}
+           </button>`;
+    
     let categoryHeader = `
         <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
             <h2 style="margin: 0;">
                 <i class="fas ${categoryConfig[currentCategory]?.icon || 'fa-cog'} fa-icon-primary"></i>
                 ${categoryConfig[currentCategory]?.label || currentCategory}
             </h2>
-            <button type="button" class="btn btn-primary" onclick="saveCurrentCategory()">
-                <i class="fas fa-save"></i> Save ${categoryConfig[currentCategory]?.label || currentCategory}
-            </button>
+            ${saveButtonHTML}
         </div>
     `;
     
@@ -526,10 +602,25 @@ function renderSettings() {
 function setupTabNavigation() {
     const tabs = document.querySelectorAll('.settings-tabs .tab-btn');
     tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const category = tab.getAttribute('data-category');
+        // Remove existing click listeners by cloning and replacing
+        const newTab = tab.cloneNode(true);
+        tab.parentNode.replaceChild(newTab, tab);
+        
+        // Add click listener to new tab
+        newTab.addEventListener('click', () => {
+            const category = newTab.getAttribute('data-category');
             switchCategory(category);
         });
+        
+        // Update active state based on currentCategory
+        const category = newTab.getAttribute('data-category');
+        if (category === currentCategory) {
+            newTab.classList.add('active');
+            newTab.setAttribute('aria-selected', 'true');
+        } else {
+            newTab.classList.remove('active');
+            newTab.setAttribute('aria-selected', 'false');
+        }
     });
 }
 
@@ -765,17 +856,22 @@ function validateSecuritySetting(key) {
 function addSecurityInfoSection() {
     if (currentCategory !== 'security') return '';
     
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    
     return `
         <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid var(--primary-color); margin-bottom: 1.5rem; border-radius: 0;">
             <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color); font-size: 1rem;">
-                <i class="fas fa-info-circle"></i> Security Best Practices
+                <i class="fas fa-info-circle"></i> Security Settings Information
             </h3>
             <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">
+                <li><strong>Global Settings:</strong> Security settings apply to <strong>all shops</strong> system-wide</li>
                 <li>Use strong passwords (minimum 8 characters with mixed case, numbers, and symbols)</li>
                 <li>Set session timeout to 30-60 minutes for balance between security and usability</li>
                 <li>Limit login attempts to 5 to prevent brute force attacks</li>
                 <li>Enable two-factor authentication for additional security</li>
                 <li>Regularly review audit logs to monitor system access</li>
+                ${isSuperadmin ? '<li style="color: var(--primary-color); font-weight: 500;"><i class="fas fa-shield-alt"></i> As superadmin, your changes will apply to all shops in the system</li>' : ''}
             </ul>
         </div>
     `;
@@ -955,7 +1051,10 @@ async function saveAllSettings() {
             // Compare with original value - only save if changed
             let valueChanged = false;
             if (config && config.type === 'checkbox') {
-                valueChanged = value !== (originalValue === true || originalValue === 'true' || originalValue === 1);
+                // Normalize both values for comparison
+                const normalizedValue = value === true || value === 1 || value === '1' || (typeof value === 'string' && value.toLowerCase() === 'true');
+                const normalizedOriginal = originalValue === true || originalValue === 1 || originalValue === '1' || (typeof originalValue === 'string' && originalValue.toLowerCase() === 'true');
+                valueChanged = normalizedValue !== normalizedOriginal;
             } else if (value === null && originalValue === null) {
                 valueChanged = false;
             } else if (value === null || originalValue === null) {
@@ -1230,23 +1329,57 @@ function applyTheme(theme) {
 
 // Apply language setting
 async function applyLanguage(language) {
+    if (!language) {
+        console.warn('No language provided to applyLanguage');
+        return;
+    }
+    
     // Store language preference
     safeStorageSet('appLanguage', language);
     
     // Set HTML lang attribute (helps with accessibility and browser features)
     document.documentElement.lang = language;
     
+    const langNames = {
+        'en': 'English',
+        'sw': 'Kiswahili',
+        'fr': 'French',
+        'es': 'Spanish',
+        'hi': 'Hindi',
+        'ar': 'Arabic',
+        'zh': 'Chinese'
+    };
+    const langName = langNames[language] || language;
+    
     // Apply translations using i18n system
     if (window.i18n && typeof window.i18n.setLanguage === 'function') {
         try {
             await window.i18n.setLanguage(language);
             console.log('Language changed to:', language);
+            
+            // Dispatch custom event to notify other components
+            window.dispatchEvent(new CustomEvent('languageChanged', { 
+                detail: { language: language } 
+            }));
+            
+            // Show notification to user
+            if (window.showNotification) {
+                showNotification(`Language changed to ${langName}. Some elements may require a page refresh to fully translate.`, 'success');
+            }
         } catch (error) {
             console.error('Error applying language:', error);
+            if (window.showNotification) {
+                showNotification(`Language preference saved: ${langName}. Please refresh the page to see changes.`, 'info');
+            }
         }
     } else {
         // i18n.js not loaded yet, will be applied on next page load
-        console.log('Language preference saved. Will apply on page reload.');
+        console.log('i18n.js not loaded. Language preference saved. Will apply on page reload.');
+        
+        // Show notification
+        if (window.showNotification) {
+            showNotification(`Language preference saved: ${langName}. Please refresh the page to see changes.`, 'info');
+        }
     }
 }
 
@@ -1378,6 +1511,20 @@ async function loadAndApplyDisplaySettings() {
                 }
             }
         });
+
+        // Find date/time settings (per shop) and store for global usage
+        ['date_format', 'time_format', 'system_timezone'].forEach(key => {
+            const setting = allSettingsArray.find(s => s.key === key);
+            if (setting && setting.value !== null && setting.value !== undefined) {
+                if (key === 'date_format') {
+                    safeStorageSet('dateFormat', setting.value);
+                } else if (key === 'time_format') {
+                    safeStorageSet('timeFormat', setting.value);
+                } else if (key === 'system_timezone') {
+                    safeStorageSet('systemTimezone', setting.value);
+                }
+            }
+        });
         
         // Apply settings
         if (Object.keys(displaySettingsMap).length > 0) {
@@ -1397,6 +1544,22 @@ async function saveCurrentCategory() {
     const form = document.getElementById('settingsForm');
     if (!form) {
         showNotification('No settings form found', 'error');
+        return;
+    }
+    
+    // Prevent non-superadmin from saving security & currency settings
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+    
+    // Prevent saving in Inspect mode
+    if (isInspectMode) {
+        showNotification('Cannot save in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+    
+    if ((currentCategory === 'security' || currentCategory === 'currency') && !isSuperadmin) {
+        showNotification('Access denied. Only superadmin can modify these settings.', 'error');
         return;
     }
     
@@ -1472,9 +1635,14 @@ async function saveCurrentCategory() {
     }
     
     try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
         await apiRequest('/settings', {
             method: 'PUT',
-            body: { settings: settingsToSave }
+            body: { 
+                settings: settingsToSave,
+                category: currentCategory,
+                superadminMode: currentUser && currentUser.role === 'superadmin' ? superadminMode : null
+            }
         });
         
         showNotification(`${categoryConfig[currentCategory]?.label || currentCategory} settings saved successfully`, 'success');
@@ -1741,6 +1909,2050 @@ document.addEventListener('DOMContentLoaded', async () => {
         await window.initShopSelector();
     }
     
+    // Initialize superadmin mode toggle
+    initSuperadminModeToggle();
+    
     await loadSettings();
 });
+
+// Superadmin Mode Toggle Functions
+function initSuperadminModeToggle() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const modeToggle = document.getElementById('superadminModeToggle');
+    
+    if (!modeToggle || !currentUser || currentUser.role !== 'superadmin') {
+        return;
+    }
+    
+    // Show mode toggle for superadmin
+    modeToggle.style.display = 'block';
+    
+    // Load saved mode from localStorage (default to 'inspect' for safety)
+    superadminMode = localStorage.getItem('superadminMode') || 'inspect';
+    updateModeToggleUI();
+}
+
+function toggleSuperadminMode() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!currentUser || currentUser.role !== 'superadmin') {
+        return;
+    }
+    
+    // Toggle between inspect and configure
+    superadminMode = superadminMode === 'inspect' ? 'configure' : 'inspect';
+    
+    // Save to localStorage
+    localStorage.setItem('superadminMode', superadminMode);
+    
+    // Update UI
+    updateModeToggleUI();
+    
+    // Re-render settings to reflect read-only state
+    renderSettings();
+    
+    // Show notification
+    const modeText = superadminMode === 'inspect' ? 'Inspect Mode' : 'Configure Mode';
+    const message = superadminMode === 'inspect' 
+        ? 'Switched to Inspect Mode. Settings are read-only.' 
+        : 'Switched to Configure Mode. You can now modify settings.';
+    showNotification(message, superadminMode === 'configure' ? 'success' : 'info');
+}
+
+function updateModeToggleUI() {
+    const toggleBtn = document.getElementById('modeToggleBtn');
+    const toggleText = document.getElementById('modeToggleText');
+    const modeIndicator = document.getElementById('modeIndicator');
+    
+    if (!toggleBtn || !toggleText || !modeIndicator) return;
+    
+    if (superadminMode === 'inspect') {
+        toggleText.textContent = 'Inspect';
+        toggleBtn.className = 'btn btn-sm btn-secondary';
+        modeIndicator.className = 'badge badge-info';
+        modeIndicator.innerHTML = '<i class="fas fa-eye"></i> View Only';
+    } else {
+        toggleText.textContent = 'Configure';
+        toggleBtn.className = 'btn btn-sm btn-primary';
+        modeIndicator.className = 'badge badge-success';
+        modeIndicator.innerHTML = '<i class="fas fa-edit"></i> Edit Mode';
+    }
+}
+
+function isSuperadminInspectMode() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!currentUser || currentUser.role !== 'superadmin') {
+        return false;
+    }
+    return superadminMode === 'inspect';
+}
+
+// Email Settings Wizard State
+let emailWizardState = {
+    currentStep: 1,
+    data: {
+        email_enabled: false,
+        email_host: '',
+        email_port: '',
+        email_secure: false,
+        email_username: '',
+        email_password: '',
+        email_from: '',
+        email_from_name: '',
+        reply_to: ''
+    },
+    testEmailSent: false,
+    testEmailAddress: '',
+    understandingAccepted: false
+};
+
+// Render Email Settings Wizard
+function renderEmailSettingsWizard() {
+    const content = document.getElementById('settingsContent');
+    if (!content) return;
+    
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+    const isShopAdmin = currentUser && currentUser.role === 'admin' && !isSuperadmin;
+    
+    // Load existing email settings into wizard state
+    if (allSettings.email && allSettings.email.length > 0) {
+        allSettings.email.forEach(setting => {
+            if (emailWizardState.data.hasOwnProperty(setting.key)) {
+                emailWizardState.data[setting.key] = setting.value || '';
+            }
+        });
+    }
+    
+    // Determine which fields shop admin can edit
+    const editableFields = isSuperadmin 
+        ? Object.keys(emailWizardState.data) // Superadmin can edit all
+        : ['email_from_name', 'reply_to']; // Shop admin can only edit these
+    
+    let wizardHTML = '';
+    
+    // Step 1: Risk Warning and Understanding
+    if (emailWizardState.currentStep === 1) {
+        wizardHTML = renderEmailWizardStep1(isSuperadmin, isShopAdmin, isInspectMode);
+    }
+    // Step 2: Guided Input
+    else if (emailWizardState.currentStep === 2) {
+        wizardHTML = renderEmailWizardStep2(isSuperadmin, isShopAdmin, isInspectMode, editableFields);
+    }
+    // Step 3: Test Email
+    else if (emailWizardState.currentStep === 3) {
+        wizardHTML = renderEmailWizardStep3(isSuperadmin, isInspectMode);
+    }
+    // Step 4: Confirm and Summary
+    else if (emailWizardState.currentStep === 4) {
+        wizardHTML = renderEmailWizardStep4(isSuperadmin, isInspectMode);
+    }
+    
+    content.innerHTML = wizardHTML;
+    
+    // Setup event listeners after rendering
+    setTimeout(() => {
+        setupEmailWizardListeners(isSuperadmin, isShopAdmin, editableFields);
+    }, 100);
+}
+
+// Step 1: Risk Warning and Understanding
+function renderEmailWizardStep1(isSuperadmin, isShopAdmin, isInspectMode) {
+    const canProceed = !isInspectMode;
+    
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-envelope"></i> Email Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step active">1</span>
+                    <span class="step">2</span>
+                    <span class="step">3</span>
+                    <span class="step">4</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #dc2626;">
+                        <i class="fas fa-exclamation-triangle"></i> Important: Email Configuration Risks
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #991b1b; line-height: 1.8;">
+                        <li><strong>System Impact:</strong> Incorrect email settings can prevent all system emails from being sent</li>
+                        <li><strong>Security Risk:</strong> Email credentials are sensitive and must be protected</li>
+                        <li><strong>Testing Required:</strong> You must send a test email before saving to verify configuration</li>
+                        <li><strong>Shop Impact:</strong> ${isSuperadmin ? 'These settings apply to all shops' : 'These settings apply to your shop'}</li>
+                        ${isSuperadmin ? '<li><strong>SMTP Credentials:</strong> Only superadmin can configure SMTP server settings</li>' : ''}
+                        ${isShopAdmin ? '<li><strong>Limited Access:</strong> You can only modify sender name and reply-to address</li>' : ''}
+                    </ul>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #2563eb;">
+                        <i class="fas fa-info-circle"></i> What You'll Configure
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #1e40af; line-height: 1.8;">
+                        ${isSuperadmin ? `
+                            <li>SMTP server host and port</li>
+                            <li>Email authentication credentials</li>
+                            <li>Security settings (TLS/SSL)</li>
+                            <li>Sender email address and name</li>
+                            <li>Reply-to address</li>
+                        ` : `
+                            <li>Sender name (display name for emails)</li>
+                            <li>Reply-to address</li>
+                            <li>SMTP settings are managed by superadmin</li>
+                        `}
+                    </ul>
+                </div>
+                
+                <div style="background: #fff; border: 2px solid ${isInspectMode ? '#94a3b8' : '#3b82f6'}; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; cursor: ${canProceed ? 'pointer' : 'not-allowed'};">
+                        <input type="checkbox" id="emailWizardUnderstanding" 
+                               ${emailWizardState.understandingAccepted ? 'checked' : ''}
+                               ${isInspectMode ? 'disabled' : ''}
+                               style="width: auto; margin-top: 0.25rem; flex-shrink: 0;">
+                        <div style="flex: 1;">
+                            <strong style="display: block; margin-bottom: 0.5rem;">I understand the risks and requirements:</strong>
+                            <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                                <li>I have verified my SMTP server details are correct</li>
+                                <li>I understand that incorrect settings will prevent emails from being sent</li>
+                                <li>I will test the configuration before saving</li>
+                                <li>I will keep email credentials secure</li>
+                            </ul>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Email settings are read-only. Switch to Configure Mode to make changes.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="emailWizardNextStep()" id="emailWizardNextBtn" disabled>
+                            Next: Configure Settings <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 2: Guided Input with Real-time Validation
+function renderEmailWizardStep2(isSuperadmin, isShopAdmin, isInspectMode, editableFields) {
+    const smtpFieldsReadOnly = isShopAdmin || isInspectMode;
+    
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-envelope"></i> Email Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step active">2</span>
+                    <span class="step">3</span>
+                    <span class="step">4</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                ${isShopAdmin ? `
+                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+                        <i class="fas fa-info-circle"></i> <strong>Limited Access:</strong> You can only modify sender name and reply-to address. SMTP settings are managed by superadmin.
+                    </div>
+                ` : ''}
+                
+                <form id="emailWizardForm" style="display: grid; gap: 1.5rem;">
+                    ${isSuperadmin ? `
+                        <!-- SMTP Server Configuration -->
+                        <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                            <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-server"></i> SMTP Server Configuration</h3>
+                            
+                            <div class="form-group">
+                                <label for="wizard_email_host">SMTP Host *</label>
+                                <input type="text" id="wizard_email_host" value="${emailWizardState.data.email_host || ''}" 
+                                       ${isInspectMode ? 'readonly' : ''}
+                                       placeholder="smtp.gmail.com" 
+                                       oninput="validateEmailWizardField('email_host', this.value)">
+                                <div id="validation_email_host" class="validation-message"></div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label for="wizard_email_port">SMTP Port *</label>
+                                    <input type="number" id="wizard_email_port" value="${emailWizardState.data.email_port || ''}" 
+                                           ${isInspectMode ? 'readonly' : ''}
+                                           min="1" max="65535" 
+                                           placeholder="587" 
+                                           oninput="validateEmailWizardField('email_port', this.value)">
+                                    <div id="validation_email_port" class="validation-message"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="wizard_email_secure">Security</label>
+                                    <select id="wizard_email_secure" ${isInspectMode ? 'disabled' : ''}>
+                                        <option value="false" ${emailWizardState.data.email_secure === 'false' || !emailWizardState.data.email_secure ? 'selected' : ''}>STARTTLS (Port 587)</option>
+                                        <option value="true" ${emailWizardState.data.email_secure === 'true' ? 'selected' : ''}>SSL/TLS (Port 465)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="wizard_email_username">SMTP Username *</label>
+                                <input type="text" id="wizard_email_username" value="${emailWizardState.data.email_username || ''}" 
+                                       ${isInspectMode ? 'readonly' : ''}
+                                       placeholder="your-email@example.com" 
+                                       oninput="validateEmailWizardField('email_username', this.value)">
+                                <div id="validation_email_username" class="validation-message"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="wizard_email_password">SMTP Password ${emailWizardState.data.email_password ? '(leave blank to keep current)' : '*'}</label>
+                                <input type="password" id="wizard_email_password" 
+                                       ${isInspectMode ? 'readonly' : ''}
+                                       placeholder="${emailWizardState.data.email_password ? 'Enter new password or leave blank' : 'Enter password'}" 
+                                       oninput="validateEmailWizardField('email_password', this.value)">
+                                <div id="validation_email_password" class="validation-message"></div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div style="background: #f1f5f9; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                            <i class="fas fa-lock"></i> SMTP server settings are managed by superadmin and cannot be modified here.
+                        </div>
+                    `}
+                    
+                    <!-- Email Identity Configuration -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-user"></i> Email Identity</h3>
+                        
+                        ${isSuperadmin ? `
+                            <div class="form-group">
+                                <label for="wizard_email_from">From Email Address *</label>
+                                <input type="email" id="wizard_email_from" value="${emailWizardState.data.email_from || ''}" 
+                                       ${isInspectMode ? 'readonly' : ''}
+                                       placeholder="noreply@example.com" 
+                                       oninput="validateEmailWizardField('email_from', this.value)">
+                                <div id="validation_email_from" class="validation-message"></div>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="form-group">
+                            <label for="wizard_email_from_name">From Name (Display Name) *</label>
+                            <input type="text" id="wizard_email_from_name" value="${emailWizardState.data.email_from_name || ''}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   placeholder="Your Company Name" 
+                                   oninput="validateEmailWizardField('email_from_name', this.value)">
+                            <div id="validation_email_from_name" class="validation-message"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wizard_reply_to">Reply-To Address</label>
+                            <input type="email" id="wizard_reply_to" value="${emailWizardState.data.reply_to || ''}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   placeholder="support@example.com" 
+                                   oninput="validateEmailWizardField('reply_to', this.value)">
+                            <div id="validation_reply_to" class="validation-message"></div>
+                            <small style="color: var(--text-secondary);">Optional: Where replies should be sent</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Enable Email -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: ${isInspectMode ? 'not-allowed' : 'pointer'};">
+                            <input type="checkbox" id="wizard_email_enabled" 
+                                   ${emailWizardState.data.email_enabled === 'true' || emailWizardState.data.email_enabled === true ? 'checked' : ''}
+                                   ${isInspectMode ? 'disabled' : ''}
+                                   style="width: auto;">
+                            <div>
+                                <strong>Enable Email Sending</strong>
+                                <small style="display: block; color: var(--text-secondary); margin-top: 0.25rem;">
+                                    When enabled, the system will send emails using the configured settings
+                                </small>
+                            </div>
+                        </label>
+                    </div>
+                </form>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="emailWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="emailWizardNextStep()" id="emailWizardNextBtn">
+                            Next: Test Configuration <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 3: Test Email (Mandatory)
+function renderEmailWizardStep3(isSuperadmin, isInspectMode) {
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-envelope"></i> Email Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step active">3</span>
+                    <span class="step">4</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #d97706;">
+                        <i class="fas fa-exclamation-circle"></i> Test Email Required
+                    </h3>
+                    <p style="margin: 0; color: #92400e; line-height: 1.6;">
+                        Before saving your email configuration, you <strong>must</strong> send a test email to verify that your settings are correct. 
+                        This helps prevent email delivery issues after saving.
+                    </p>
+                </div>
+                
+                <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-paper-plane"></i> Send Test Email</h3>
+                    
+                    <div class="form-group">
+                        <label for="wizard_test_email">Test Email Address *</label>
+                        <input type="email" id="wizard_test_email" 
+                               value="${emailWizardState.testEmailAddress || ''}"
+                               ${isInspectMode ? 'readonly' : ''}
+                               placeholder="your-email@example.com" 
+                               style="margin-bottom: 0.5rem;">
+                        <button type="button" class="btn btn-primary" 
+                                onclick="sendEmailWizardTestEmail()" 
+                                id="wizardTestEmailBtn"
+                                ${isInspectMode ? 'disabled' : ''}>
+                            <i class="fas fa-paper-plane"></i> Send Test Email
+                        </button>
+                    </div>
+                    
+                    <div id="wizardTestEmailResult" style="margin-top: 1rem;"></div>
+                </div>
+                
+                ${emailWizardState.testEmailSent ? `
+                    <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        <i class="fas fa-check-circle"></i> <strong>Test email sent successfully!</strong> Please check your inbox (and spam folder) to confirm receipt.
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="emailWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" 
+                                onclick="emailWizardNextStep()" 
+                                id="emailWizardNextBtn"
+                                ${emailWizardState.testEmailSent ? '' : 'disabled'}>
+                            Next: Confirm & Save <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 4: Confirm and Summary
+function renderEmailWizardStep4(isSuperadmin, isInspectMode) {
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-envelope"></i> Email Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step completed">3</span>
+                    <span class="step active">4</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #16a34a;">
+                        <i class="fas fa-check-circle"></i> Configuration Summary
+                    </h3>
+                    <p style="margin: 0; color: #15803d;">
+                        Review your email configuration below. Click "Save Configuration" to apply these settings.
+                    </p>
+                </div>
+                
+                <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0;">Settings Summary</h3>
+                    <div style="display: grid; gap: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Email Enabled:</strong>
+                            <span>${emailWizardState.data.email_enabled === 'true' || emailWizardState.data.email_enabled === true ? 'Yes' : 'No'}</span>
+                        </div>
+                        ${isSuperadmin ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>SMTP Host:</strong>
+                                <span>${emailWizardState.data.email_host || 'Not set'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>SMTP Port:</strong>
+                                <span>${emailWizardState.data.email_port || 'Not set'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Security:</strong>
+                                <span>${emailWizardState.data.email_secure === 'true' ? 'SSL/TLS' : 'STARTTLS'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>SMTP Username:</strong>
+                                <span>${emailWizardState.data.email_username || 'Not set'}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>From Email:</strong>
+                                <span>${emailWizardState.data.email_from || 'Not set'}</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>From Name:</strong>
+                            <span>${emailWizardState.data.email_from_name || 'Not set'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Reply-To:</strong>
+                            <span>${emailWizardState.data.reply_to || 'Not set'}</span>
+                        </div>
+                        ${emailWizardState.testEmailSent ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f0fdf4; border-radius: 4px;">
+                                <strong>Test Email:</strong>
+                                <span style="color: #22c55e;"><i class="fas fa-check-circle"></i> Sent to ${emailWizardState.testEmailAddress}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="emailWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-success" onclick="saveEmailWizardSettings()" id="emailWizardSaveBtn">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== EMAIL WIZARD HELPERS ====================
+
+function emailWizardNextStep() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot continue in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Basic validation per step before moving forward
+    if (emailWizardState.currentStep === 1) {
+        const understandingCheckbox = document.getElementById('emailWizardUnderstanding');
+        if (!understandingCheckbox || !understandingCheckbox.checked) {
+            showNotification('Please confirm that you understand the risks and requirements before continuing.', 'error');
+            return;
+        }
+        emailWizardState.understandingAccepted = true;
+    } else if (emailWizardState.currentStep === 2) {
+        // Validate key fields in step 2 (only for superadmin)
+        if (isSuperadmin) {
+            const host = document.getElementById('wizard_email_host')?.value.trim();
+            const port = document.getElementById('wizard_email_port')?.value.trim();
+            const username = document.getElementById('wizard_email_username')?.value.trim();
+            const fromEmail = document.getElementById('wizard_email_from')?.value?.trim();
+
+            if (!host || !port || !username || !fromEmail) {
+                showNotification('Please fill in all required SMTP and email fields before continuing.', 'error');
+                return;
+            }
+        } else {
+            const fromName = document.getElementById('wizard_email_from_name')?.value.trim();
+            if (!fromName) {
+                showNotification('Please provide a From Name before continuing.', 'error');
+                return;
+            }
+        }
+    } else if (emailWizardState.currentStep === 3) {
+        if (!emailWizardState.testEmailSent) {
+            showNotification('Please send a test email and confirm it succeeds before continuing.', 'error');
+            return;
+        }
+    }
+
+    // Move to next step
+    if (emailWizardState.currentStep < 4) {
+        emailWizardState.currentStep += 1;
+        renderEmailSettingsWizard();
+    }
+}
+
+function emailWizardPreviousStep() {
+    if (emailWizardState.currentStep > 1) {
+        emailWizardState.currentStep -= 1;
+        renderEmailSettingsWizard();
+    }
+}
+
+function setupEmailWizardListeners(isSuperadmin, isShopAdmin, editableFields) {
+    // Step 1: understanding checkbox controls Next button
+    const understandingCheckbox = document.getElementById('emailWizardUnderstanding');
+    const nextBtn = document.getElementById('emailWizardNextBtn');
+    if (understandingCheckbox && nextBtn && emailWizardState.currentStep === 1) {
+        understandingCheckbox.addEventListener('change', () => {
+            emailWizardState.understandingAccepted = understandingCheckbox.checked;
+            nextBtn.disabled = !understandingCheckbox.checked;
+        });
+    }
+
+    // Step 2: bind field changes into state
+    if (emailWizardState.currentStep === 2) {
+        const bindField = (id, key, isCheckbox = false) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', () => {
+                const value = isCheckbox ? el.checked : el.value;
+                emailWizardState.data[key] = value;
+            });
+            if (isCheckbox) {
+                el.addEventListener('change', () => {
+                    emailWizardState.data[key] = el.checked;
+                });
+            }
+        };
+
+        if (isSuperadmin) {
+            bindField('wizard_email_host', 'email_host');
+            bindField('wizard_email_port', 'email_port');
+            bindField('wizard_email_username', 'email_username');
+            bindField('wizard_email_password', 'email_password');
+            bindField('wizard_email_from', 'email_from');
+
+            const secureSelect = document.getElementById('wizard_email_secure');
+            if (secureSelect) {
+                secureSelect.addEventListener('change', () => {
+                    emailWizardState.data.email_secure = secureSelect.value === 'true';
+                });
+            }
+        }
+
+        bindField('wizard_email_from_name', 'email_from_name');
+        bindField('wizard_reply_to', 'reply_to');
+
+        const enabledCheckbox = document.getElementById('wizard_email_enabled');
+        if (enabledCheckbox) {
+            enabledCheckbox.addEventListener('change', () => {
+                emailWizardState.data.email_enabled = enabledCheckbox.checked;
+            });
+        }
+    }
+
+    // Step 3: test email field
+    if (emailWizardState.currentStep === 3) {
+        const testInput = document.getElementById('wizard_test_email');
+        if (testInput) {
+            testInput.addEventListener('input', () => {
+                emailWizardState.testEmailAddress = testInput.value.trim();
+            });
+        }
+    }
+}
+
+function validateEmailWizardField(key, value) {
+    let message = '';
+    let isValid = true;
+
+    if (key === 'email_host') {
+        if (!value || value.trim().length < 3) {
+            isValid = false;
+            message = 'SMTP host is required.';
+        }
+    } else if (key === 'email_port') {
+        const port = parseInt(value, 10);
+        if (isNaN(port) || port <= 0 || port > 65535) {
+            isValid = false;
+            message = 'Port must be between 1 and 65535.';
+        } else if (port === 25) {
+            isValid = true;
+            message = '⚠ Port 25 is often blocked by providers. Consider using 587 or 465.';
+        }
+    } else if (key === 'email_username') {
+        if (!value || value.trim().length < 3) {
+            isValid = false;
+            message = 'SMTP username is required.';
+        }
+    } else if (key === 'email_password') {
+        // Optional when editing existing config
+        if (!emailWizardState.data.email_password && !value) {
+            isValid = true;
+            message = 'Leave blank to keep existing password.';
+        }
+    } else if (key === 'email_from') {
+        if (!value || !value.includes('@')) {
+            isValid = false;
+            message = 'Valid From email address is required.';
+        }
+    } else if (key === 'email_from_name') {
+        if (!value || value.trim().length < 2) {
+            isValid = false;
+            message = 'From Name is required.';
+        }
+    } else if (key === 'reply_to') {
+        if (value && !value.includes('@')) {
+            isValid = false;
+            message = 'Reply-To must be a valid email address if provided.';
+        }
+    }
+
+    const validationDiv = document.getElementById(`validation_${key}`);
+    if (validationDiv) {
+        if (message) {
+            validationDiv.style.display = 'block';
+            validationDiv.style.color = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+            validationDiv.style.fontSize = '0.875rem';
+            validationDiv.innerHTML = message;
+        } else {
+            validationDiv.style.display = 'none';
+            validationDiv.innerHTML = '';
+        }
+    }
+}
+
+async function sendEmailWizardTestEmail() {
+    const testInput = document.getElementById('wizard_test_email');
+    if (!testInput) {
+        showNotification('Test email input not found', 'error');
+        return;
+    }
+
+    const email = testInput.value.trim();
+    if (!email || !email.includes('@')) {
+        showNotification('Please enter a valid email address', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('wizardTestEmailBtn');
+    const resultDiv = document.getElementById('wizardTestEmailResult');
+    const originalText = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    }
+
+    try {
+        await apiRequest('/settings/test-email', {
+            method: 'POST',
+            body: { test_email: email }
+        });
+
+        emailWizardState.testEmailSent = true;
+        emailWizardState.testEmailAddress = email;
+
+        if (resultDiv) {
+            resultDiv.style.color = 'var(--success-color)';
+            resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> Test email sent successfully to ${email}. Please check your inbox.`;
+        }
+
+        const nextBtn = document.getElementById('emailWizardNextBtn');
+        if (nextBtn) {
+            nextBtn.disabled = false;
+        }
+
+        showNotification(`Test email sent successfully to ${email}.`, 'success');
+    } catch (error) {
+        if (resultDiv) {
+            resultDiv.style.color = 'var(--danger-color)';
+            resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> Error sending test email: ${(error && error.message) || 'Unknown error'}`;
+        }
+        showNotification('Error testing email: ' + (error && error.message ? error.message : 'Unknown error'), 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function saveEmailWizardSettings() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot save in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Build settings to save from wizard state
+    const settingsToSave = [];
+
+    // Shop admins can only update identity fields
+    if (isSuperadmin) {
+        settingsToSave.push(
+            { key: 'email_host', value: emailWizardState.data.email_host, category: 'email' },
+            { key: 'email_port', value: emailWizardState.data.email_port, category: 'email' },
+            { key: 'email_secure', value: emailWizardState.data.email_secure ? 'true' : 'false', category: 'email' },
+            { key: 'email_username', value: emailWizardState.data.email_username, category: 'email' },
+            { key: 'email_from', value: emailWizardState.data.email_from, category: 'email' }
+        );
+
+        // Only include password if changed
+        const passwordInput = document.getElementById('wizard_email_password');
+        if (passwordInput && passwordInput.value) {
+            settingsToSave.push({ key: 'email_password', value: passwordInput.value, category: 'email' });
+        }
+    }
+
+    settingsToSave.push(
+        { key: 'email_from_name', value: emailWizardState.data.email_from_name, category: 'email' },
+        { key: 'reply_to', value: emailWizardState.data.reply_to, category: 'email' },
+        { key: 'email_enabled', value: emailWizardState.data.email_enabled ? 'true' : 'false', category: 'email' }
+    );
+
+    const saveBtn = document.getElementById('emailWizardSaveBtn');
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        await apiRequest('/settings', {
+            method: 'PUT',
+            body: {
+                settings: settingsToSave,
+                category: 'email',
+                superadminMode: currentUser && currentUser.role === 'superadmin' ? superadminMode : null
+            }
+        });
+
+        showNotification('Email settings saved successfully.', 'success');
+
+        // Reset wizard state and reload settings
+        emailWizardState.currentStep = 1;
+        emailWizardState.testEmailSent = false;
+        await loadSettings();
+    } catch (error) {
+        showNotification('Error saving email settings: ' + (error && error.message ? error.message : 'Unknown error'), 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// ==================== BACKUP SETTINGS WIZARD ====================
+
+// Backup Settings Wizard State
+let backupWizardState = {
+    currentStep: 1,
+    data: {
+        backup_auto_enabled: false,
+        backup_frequency: 'daily',
+        backup_retention_days: 30,
+        backup_location: 'local'
+    },
+    testBackupCreated: false,
+    understandingAccepted: false
+};
+
+// Render Backup Settings Wizard
+function renderBackupSettingsWizard() {
+    const content = document.getElementById('settingsContent');
+    if (!content) return;
+    
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+    
+    // Load existing backup settings into wizard state
+    if (allSettings.backup && allSettings.backup.length > 0) {
+        allSettings.backup.forEach(setting => {
+            if (backupWizardState.data.hasOwnProperty(setting.key)) {
+                if (setting.key === 'backup_auto_enabled') {
+                    backupWizardState.data[setting.key] = setting.value === 'true' || setting.value === true || setting.value === 1 || setting.value === '1';
+                } else if (setting.key === 'backup_retention_days') {
+                    backupWizardState.data[setting.key] = parseInt(setting.value || '30', 10);
+                } else {
+                    backupWizardState.data[setting.key] = setting.value || '';
+                }
+            }
+        });
+    }
+    
+    let wizardHTML = '';
+    
+    // Step 1: Risk Warning and Understanding
+    if (backupWizardState.currentStep === 1) {
+        wizardHTML = renderBackupWizardStep1(isSuperadmin, isInspectMode);
+    }
+    // Step 2: Configuration
+    else if (backupWizardState.currentStep === 2) {
+        wizardHTML = renderBackupWizardStep2(isSuperadmin, isInspectMode);
+    }
+    // Step 3: Test Backup and Confirm
+    else if (backupWizardState.currentStep === 3) {
+        wizardHTML = renderBackupWizardStep3(isSuperadmin, isInspectMode);
+    }
+    
+    content.innerHTML = wizardHTML;
+    
+    // Setup event listeners after rendering
+    setTimeout(() => {
+        setupBackupWizardListeners(isSuperadmin);
+    }, 100);
+}
+
+// Step 1: Risk Warning and Understanding
+function renderBackupWizardStep1(isSuperadmin, isInspectMode) {
+    const canProceed = !isInspectMode;
+    
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-database"></i> Backup Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step active">1</span>
+                    <span class="step">2</span>
+                    <span class="step">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #dc2626;">
+                        <i class="fas fa-exclamation-triangle"></i> Important: Backup Configuration Risks
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #991b1b; line-height: 1.8;">
+                        <li><strong>Data Protection:</strong> Incorrect backup settings can result in data loss</li>
+                        <li><strong>Storage Impact:</strong> Backups consume disk space - configure retention carefully</li>
+                        <li><strong>Testing Required:</strong> You must create a test backup before saving to verify configuration</li>
+                        <li><strong>Shop Impact:</strong> ${isSuperadmin ? 'These settings apply per-shop' : 'These settings apply to your shop'}</li>
+                        <li><strong>Automatic Backups:</strong> When enabled, backups run automatically based on frequency</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #2563eb;">
+                        <i class="fas fa-info-circle"></i> What You'll Configure
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #1e40af; line-height: 1.8;">
+                        <li>Enable or disable automatic backups</li>
+                        <li>Set backup frequency (daily, weekly, monthly)</li>
+                        <li>Configure retention period (how long to keep backups)</li>
+                        <li>Choose backup location (local storage or cloud - cloud coming soon)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #fff; border: 2px solid ${isInspectMode ? '#94a3b8' : '#3b82f6'}; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; cursor: ${canProceed ? 'pointer' : 'not-allowed'};">
+                        <input type="checkbox" id="backupWizardUnderstanding" 
+                               ${backupWizardState.understandingAccepted ? 'checked' : ''}
+                               ${isInspectMode ? 'disabled' : ''}
+                               style="width: auto; margin-top: 0.25rem; flex-shrink: 0;">
+                        <div style="flex: 1;">
+                            <strong style="display: block; margin-bottom: 0.5rem;">I understand the risks and requirements:</strong>
+                            <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                                <li>I understand that backups protect against data loss</li>
+                                <li>I will configure appropriate retention periods to manage storage</li>
+                                <li>I will test the backup configuration before saving</li>
+                                <li>I understand that automatic backups run in the background</li>
+                            </ul>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Backup settings are read-only. Switch to Configure Mode to make changes.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="backupWizardNextStep()" id="backupWizardNextBtn" disabled>
+                            Next: Configure Settings <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 2: Configuration
+function renderBackupWizardStep2(isSuperadmin, isInspectMode) {
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-database"></i> Backup Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step active">2</span>
+                    <span class="step">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <form id="backupWizardForm" style="display: grid; gap: 1.5rem;">
+                    <!-- Enable Automatic Backups -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: ${isInspectMode ? 'not-allowed' : 'pointer'};">
+                            <input type="checkbox" id="wizard_backup_auto_enabled" 
+                                   ${backupWizardState.data.backup_auto_enabled ? 'checked' : ''}
+                                   ${isInspectMode ? 'disabled' : ''}
+                                   style="width: auto;">
+                            <div>
+                                <strong>Enable Automatic Backups</strong>
+                                <small style="display: block; color: var(--text-secondary); margin-top: 0.25rem;">
+                                    When enabled, the system will automatically create backups based on the frequency setting below
+                                </small>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <!-- Backup Frequency -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <div class="form-group">
+                            <label for="wizard_backup_frequency">Backup Frequency *</label>
+                            <select id="wizard_backup_frequency" ${isInspectMode ? 'disabled' : ''}>
+                                <option value="daily" ${backupWizardState.data.backup_frequency === 'daily' ? 'selected' : ''}>Daily (Recommended for active systems)</option>
+                                <option value="weekly" ${backupWizardState.data.backup_frequency === 'weekly' ? 'selected' : ''}>Weekly (Good for moderate activity)</option>
+                                <option value="monthly" ${backupWizardState.data.backup_frequency === 'monthly' ? 'selected' : ''}>Monthly (For low-activity systems)</option>
+                            </select>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> More frequent backups provide better protection but consume more storage space.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Retention Days -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <div class="form-group">
+                            <label for="wizard_backup_retention_days">Backup Retention (days) *</label>
+                            <input type="number" id="wizard_backup_retention_days" 
+                                   value="${backupWizardState.data.backup_retention_days || 30}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   min="7" max="365" 
+                                   placeholder="30"
+                                   oninput="validateBackupWizardField('backup_retention_days', this.value)">
+                            <div id="validation_backup_retention_days" class="validation-message"></div>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> Backups older than this will be automatically deleted. Recommended: 30-90 days.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Backup Location -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <div class="form-group">
+                            <label for="wizard_backup_location">Backup Location *</label>
+                            <select id="wizard_backup_location" ${isInspectMode ? 'disabled' : ''}>
+                                <option value="local" ${backupWizardState.data.backup_location === 'local' ? 'selected' : ''}>Local Storage (Server filesystem)</option>
+                                <option value="cloud" ${backupWizardState.data.backup_location === 'cloud' ? 'selected' : ''} disabled>Cloud Storage (Coming Soon)</option>
+                            </select>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> Local backups are stored on the server. Cloud backups provide off-site protection (feature in development).
+                            </small>
+                        </div>
+                    </div>
+                </form>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="backupWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="backupWizardNextStep()" id="backupWizardNextBtn">
+                            Next: Test Backup <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 3: Test Backup and Confirm
+function renderBackupWizardStep3(isSuperadmin, isInspectMode) {
+    const nextBackupTime = calculateNextBackupTime(backupWizardState.data.backup_frequency);
+    
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-database"></i> Backup Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step active">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #d97706;">
+                        <i class="fas fa-exclamation-circle"></i> Test Backup Recommended
+                    </h3>
+                    <p style="margin: 0; color: #92400e; line-height: 1.6;">
+                        Before saving your backup configuration, it's recommended to create a test backup to verify that the system can successfully create backups with your settings.
+                    </p>
+                </div>
+                
+                <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-database"></i> Create Test Backup</h3>
+                    
+                    <div class="form-group">
+                        <button type="button" class="btn btn-primary" 
+                                onclick="createBackupWizardTestBackup()" 
+                                id="wizardTestBackupBtn"
+                                ${isInspectMode ? 'disabled' : ''}>
+                            <i class="fas fa-database"></i> Create Test Backup
+                        </button>
+                    </div>
+                    
+                    <div id="wizardTestBackupResult" style="margin-top: 1rem;"></div>
+                </div>
+                
+                ${backupWizardState.testBackupCreated ? `
+                    <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                        <i class="fas fa-check-circle"></i> <strong>Test backup created successfully!</strong> Your backup configuration is working correctly.
+                    </div>
+                ` : ''}
+                
+                <!-- Configuration Summary -->
+                <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0;">Configuration Summary</h3>
+                    <div style="display: grid; gap: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Automatic Backups:</strong>
+                            <span>${backupWizardState.data.backup_auto_enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        ${backupWizardState.data.backup_auto_enabled ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Frequency:</strong>
+                                <span>${backupWizardState.data.backup_frequency.charAt(0).toUpperCase() + backupWizardState.data.backup_frequency.slice(1)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Next Backup:</strong>
+                                <span>${nextBackupTime}</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Retention Period:</strong>
+                            <span>${backupWizardState.data.backup_retention_days} days</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Backup Location:</strong>
+                            <span>${backupWizardState.data.backup_location.charAt(0).toUpperCase() + backupWizardState.data.backup_location.slice(1)}</span>
+                        </div>
+                        ${backupWizardState.testBackupCreated ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f0fdf4; border-radius: 4px;">
+                                <strong>Test Backup:</strong>
+                                <span style="color: #22c55e;"><i class="fas fa-check-circle"></i> Created successfully</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="backupWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-success" onclick="saveBackupWizardSettings()" id="backupWizardSaveBtn">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function calculateNextBackupTime(frequency) {
+    if (!frequency || frequency === '') return 'N/A';
+    
+    const now = new Date();
+    const next = new Date(now);
+    
+    switch (frequency) {
+        case 'daily':
+            next.setDate(next.getDate() + 1);
+            next.setHours(2, 0, 0, 0);
+            break;
+        case 'weekly':
+            const daysUntilMonday = (8 - next.getDay()) % 7 || 7;
+            next.setDate(next.getDate() + daysUntilMonday);
+            next.setHours(2, 0, 0, 0);
+            break;
+        case 'monthly':
+            next.setMonth(next.getMonth() + 1, 1);
+            next.setHours(2, 0, 0, 0);
+            break;
+        default:
+            return 'N/A';
+    }
+    
+    return next.toLocaleString();
+}
+
+// ==================== BACKUP WIZARD HELPERS ====================
+
+function backupWizardNextStep() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot continue in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Basic validation per step before moving forward
+    if (backupWizardState.currentStep === 1) {
+        const understandingCheckbox = document.getElementById('backupWizardUnderstanding');
+        if (!understandingCheckbox || !understandingCheckbox.checked) {
+            showNotification('Please confirm that you understand the risks and requirements before continuing.', 'error');
+            return;
+        }
+        backupWizardState.understandingAccepted = true;
+    } else if (backupWizardState.currentStep === 2) {
+        // Validate retention days
+        const retentionDays = parseInt(backupWizardState.data.backup_retention_days, 10);
+        if (isNaN(retentionDays) || retentionDays < 7 || retentionDays > 365) {
+            showNotification('Backup retention must be between 7 and 365 days.', 'error');
+            return;
+        }
+    }
+
+    // Move to next step
+    if (backupWizardState.currentStep < 3) {
+        backupWizardState.currentStep += 1;
+        renderBackupSettingsWizard();
+    }
+}
+
+function backupWizardPreviousStep() {
+    if (backupWizardState.currentStep > 1) {
+        backupWizardState.currentStep -= 1;
+        renderBackupSettingsWizard();
+    }
+}
+
+function setupBackupWizardListeners(isSuperadmin) {
+    // Step 1: understanding checkbox controls Next button
+    const understandingCheckbox = document.getElementById('backupWizardUnderstanding');
+    const nextBtn = document.getElementById('backupWizardNextBtn');
+    if (understandingCheckbox && nextBtn && backupWizardState.currentStep === 1) {
+        understandingCheckbox.addEventListener('change', () => {
+            backupWizardState.understandingAccepted = understandingCheckbox.checked;
+            nextBtn.disabled = !understandingCheckbox.checked;
+        });
+    }
+
+    // Step 2: bind field changes into state
+    if (backupWizardState.currentStep === 2) {
+        const enabledCheckbox = document.getElementById('wizard_backup_auto_enabled');
+        if (enabledCheckbox) {
+            enabledCheckbox.addEventListener('change', () => {
+                backupWizardState.data.backup_auto_enabled = enabledCheckbox.checked;
+            });
+        }
+
+        const frequencySelect = document.getElementById('wizard_backup_frequency');
+        if (frequencySelect) {
+            frequencySelect.addEventListener('change', () => {
+                backupWizardState.data.backup_frequency = frequencySelect.value;
+            });
+        }
+
+        const retentionInput = document.getElementById('wizard_backup_retention_days');
+        if (retentionInput) {
+            retentionInput.addEventListener('input', () => {
+                backupWizardState.data.backup_retention_days = parseInt(retentionInput.value || '30', 10);
+            });
+        }
+
+        const locationSelect = document.getElementById('wizard_backup_location');
+        if (locationSelect) {
+            locationSelect.addEventListener('change', () => {
+                backupWizardState.data.backup_location = locationSelect.value;
+            });
+        }
+    }
+}
+
+function validateBackupWizardField(key, value) {
+    let message = '';
+    let isValid = true;
+
+    if (key === 'backup_retention_days') {
+        const days = parseInt(value, 10);
+        if (isNaN(days) || days < 7) {
+            isValid = false;
+            message = 'Retention must be at least 7 days.';
+        } else if (days > 365) {
+            isValid = false;
+            message = 'Retention cannot exceed 365 days.';
+        } else if (days < 30) {
+            isValid = true;
+            message = '⚠️ Short retention period may not provide enough backup history.';
+        } else if (days > 90) {
+            isValid = true;
+            message = '⚠️ Long retention period will consume significant storage space.';
+        } else {
+            isValid = true;
+            message = '✓ Good retention period for most use cases.';
+        }
+    }
+
+    const validationDiv = document.getElementById(`validation_${key}`);
+    if (validationDiv) {
+        if (message) {
+            validationDiv.style.display = 'block';
+            validationDiv.style.color = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+            validationDiv.style.fontSize = '0.875rem';
+            validationDiv.innerHTML = message;
+        } else {
+            validationDiv.style.display = 'none';
+            validationDiv.innerHTML = '';
+        }
+    }
+}
+
+async function createBackupWizardTestBackup() {
+    const btn = document.getElementById('wizardTestBackupBtn');
+    const resultDiv = document.getElementById('wizardTestBackupResult');
+    const originalText = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Backup...';
+    }
+
+    try {
+        const result = await apiRequest('/backup', {
+            method: 'POST'
+        });
+
+        backupWizardState.testBackupCreated = true;
+
+        if (resultDiv) {
+            resultDiv.style.color = 'var(--success-color)';
+            const sizeMB = result.size ? (result.size / 1024 / 1024).toFixed(2) : 'N/A';
+            resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> Test backup created successfully!<br><small>Filename: ${result.filename || 'N/A'}, Size: ${sizeMB} MB</small>`;
+        }
+
+        showNotification(`Test backup created successfully: ${result.filename || 'backup'}`, 'success');
+        
+        // Re-render step 3 to show success message
+        renderBackupSettingsWizard();
+    } catch (error) {
+        if (resultDiv) {
+            resultDiv.style.color = 'var(--danger-color)';
+            resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> Error creating test backup: ${(error && error.message) || 'Unknown error'}`;
+        }
+        showNotification('Error creating test backup: ' + (error && error.message ? error.message : 'Unknown error'), 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
+async function saveBackupWizardSettings() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot save in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Build settings to save from wizard state
+    const settingsToSave = [
+        { key: 'backup_auto_enabled', value: backupWizardState.data.backup_auto_enabled ? 'true' : 'false', category: 'backup' },
+        { key: 'backup_frequency', value: backupWizardState.data.backup_frequency, category: 'backup' },
+        { key: 'backup_retention_days', value: String(backupWizardState.data.backup_retention_days), category: 'backup' },
+        { key: 'backup_location', value: backupWizardState.data.backup_location, category: 'backup' }
+    ];
+
+    const saveBtn = document.getElementById('backupWizardSaveBtn');
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        await apiRequest('/settings', {
+            method: 'PUT',
+            body: {
+                settings: settingsToSave,
+                category: 'backup',
+                superadminMode: currentUser && currentUser.role === 'superadmin' ? superadminMode : null
+            }
+        });
+
+        showNotification('Backup settings saved successfully.', 'success');
+
+        // Reset wizard state and reload settings
+        backupWizardState.currentStep = 1;
+        backupWizardState.testBackupCreated = false;
+        backupWizardState.understandingAccepted = false;
+        await loadSettings();
+    } catch (error) {
+        showNotification('Error saving backup settings: ' + (error && error.message ? error.message : 'Unknown error'), 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// Expose backup wizard functions to global scope
+window.backupWizardNextStep = backupWizardNextStep;
+window.backupWizardPreviousStep = backupWizardPreviousStep;
+window.validateBackupWizardField = validateBackupWizardField;
+window.createBackupWizardTestBackup = createBackupWizardTestBackup;
+window.saveBackupWizardSettings = saveBackupWizardSettings;
+
+// ==================== NOTIFICATION SETTINGS WIZARD ====================
+
+// Notification Settings Wizard State
+let notificationWizardState = {
+    currentStep: 1,
+    data: {
+        low_stock_notification: false,
+        low_stock_threshold: 20,
+        enable_audit_log: true,
+        audit_log_retention_days: 90,
+        enable_api_rate_limit: true,
+        api_rate_limit_per_minute: 60
+    },
+    understandingAccepted: false
+};
+
+// Render Notification Settings Wizard
+function renderNotificationSettingsWizard() {
+    const content = document.getElementById('settingsContent');
+    if (!content) return;
+    
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+    
+    // Load existing notification settings into wizard state
+    if (allSettings.notification && allSettings.notification.length > 0) {
+        allSettings.notification.forEach(setting => {
+            if (notificationWizardState.data.hasOwnProperty(setting.key)) {
+                if (setting.key === 'low_stock_notification' || setting.key === 'enable_audit_log' || setting.key === 'enable_api_rate_limit') {
+                    notificationWizardState.data[setting.key] = setting.value === 'true' || setting.value === true || setting.value === 1 || setting.value === '1';
+                } else if (setting.key === 'low_stock_threshold' || setting.key === 'audit_log_retention_days' || setting.key === 'api_rate_limit_per_minute') {
+                    notificationWizardState.data[setting.key] = parseInt(setting.value || '0', 10);
+                } else {
+                    notificationWizardState.data[setting.key] = setting.value || '';
+                }
+            }
+        });
+    }
+    
+    let wizardHTML = '';
+    
+    // Step 1: Risk Warning and Understanding
+    if (notificationWizardState.currentStep === 1) {
+        wizardHTML = renderNotificationWizardStep1(isSuperadmin, isInspectMode);
+    }
+    // Step 2: Configuration
+    else if (notificationWizardState.currentStep === 2) {
+        wizardHTML = renderNotificationWizardStep2(isSuperadmin, isInspectMode);
+    }
+    // Step 3: Confirm and Summary
+    else if (notificationWizardState.currentStep === 3) {
+        wizardHTML = renderNotificationWizardStep3(isSuperadmin, isInspectMode);
+    }
+    
+    content.innerHTML = wizardHTML;
+    
+    // Setup event listeners after rendering
+    setTimeout(() => {
+        setupNotificationWizardListeners(isSuperadmin);
+    }, 100);
+}
+
+// Step 1: Risk Warning and Understanding
+function renderNotificationWizardStep1(isSuperadmin, isInspectMode) {
+    const canProceed = !isInspectMode;
+    
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-bell"></i> Notification Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step active">1</span>
+                    <span class="step">2</span>
+                    <span class="step">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #dc2626;">
+                        <i class="fas fa-exclamation-triangle"></i> Important: Notification Configuration Impact
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #991b1b; line-height: 1.8;">
+                        <li><strong>System Performance:</strong> Incorrect notification thresholds can generate excessive alerts</li>
+                        <li><strong>Storage Impact:</strong> Audit logs consume database space - configure retention carefully</li>
+                        <li><strong>Security Impact:</strong> API rate limits protect against abuse - set appropriately</li>
+                        <li><strong>Shop Impact:</strong> ${isSuperadmin ? 'These settings apply per-shop' : 'These settings apply to your shop'}</li>
+                        <li><strong>Low Stock Alerts:</strong> Threshold too low may cause alert fatigue, too high may miss critical shortages</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #2563eb;">
+                        <i class="fas fa-info-circle"></i> What You'll Configure
+                    </h3>
+                    <ul style="margin: 0; padding-left: 1.5rem; color: #1e40af; line-height: 1.8;">
+                        <li><strong>Low Stock Notifications:</strong> Enable alerts when inventory falls below threshold</li>
+                        <li><strong>Low Stock Threshold:</strong> Percentage of minimum stock level that triggers alerts</li>
+                        <li><strong>Audit Logging:</strong> Track system activities and user actions</li>
+                        <li><strong>Audit Log Retention:</strong> How long to keep audit log entries</li>
+                        <li><strong>API Rate Limiting:</strong> Protect API endpoints from abuse</li>
+                        <li><strong>Rate Limit Threshold:</strong> Maximum API requests per minute</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #fff; border: 2px solid ${isInspectMode ? '#94a3b8' : '#3b82f6'}; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; cursor: ${canProceed ? 'pointer' : 'not-allowed'};">
+                        <input type="checkbox" id="notificationWizardUnderstanding" 
+                               ${notificationWizardState.understandingAccepted ? 'checked' : ''}
+                               ${isInspectMode ? 'disabled' : ''}
+                               style="width: auto; margin-top: 0.25rem; flex-shrink: 0;">
+                        <div style="flex: 1;">
+                            <strong style="display: block; margin-bottom: 0.5rem;">I understand the risks and requirements:</strong>
+                            <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                                <li>I understand that notification thresholds affect alert frequency</li>
+                                <li>I will configure appropriate retention periods to manage storage</li>
+                                <li>I understand that API rate limits protect system security</li>
+                                <li>I will set thresholds that balance alerting and performance</li>
+                            </ul>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Notification settings are read-only. Switch to Configure Mode to make changes.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="notificationWizardNextStep()" id="notificationWizardNextBtn" disabled>
+                            Next: Configure Settings <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 2: Configuration
+function renderNotificationWizardStep2(isSuperadmin, isInspectMode) {
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-bell"></i> Notification Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step active">2</span>
+                    <span class="step">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <form id="notificationWizardForm" style="display: grid; gap: 1.5rem;">
+                    <!-- Low Stock Notifications -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-box"></i> Low Stock Notifications</h3>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: ${isInspectMode ? 'not-allowed' : 'pointer'};">
+                                <input type="checkbox" id="wizard_low_stock_notification" 
+                                       ${notificationWizardState.data.low_stock_notification ? 'checked' : ''}
+                                       ${isInspectMode ? 'disabled' : ''}
+                                       style="width: auto;">
+                                <div>
+                                    <strong>Enable Low Stock Notifications</strong>
+                                    <small style="display: block; color: var(--text-secondary); margin-top: 0.25rem;">
+                                        When enabled, system will send alerts when inventory falls below the threshold
+                                    </small>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wizard_low_stock_threshold">Low Stock Threshold (%) *</label>
+                            <input type="number" id="wizard_low_stock_threshold" 
+                                   value="${notificationWizardState.data.low_stock_threshold || 20}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   min="1" max="50" 
+                                   placeholder="20"
+                                   oninput="validateNotificationWizardField('low_stock_threshold', this.value)">
+                            <div id="validation_low_stock_threshold" class="validation-message"></div>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> Alert triggers when stock falls below this percentage of minimum stock level. Recommended: 20-30%.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Audit Logging -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-clipboard-list"></i> Audit Logging</h3>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: ${isInspectMode ? 'not-allowed' : 'pointer'};">
+                                <input type="checkbox" id="wizard_enable_audit_log" 
+                                       ${notificationWizardState.data.enable_audit_log ? 'checked' : ''}
+                                       ${isInspectMode ? 'disabled' : ''}
+                                       style="width: auto;">
+                                <div>
+                                    <strong>Enable Audit Logging</strong>
+                                    <small style="display: block; color: var(--text-secondary); margin-top: 0.25rem;">
+                                        When enabled, system tracks all user actions and system events for security and compliance
+                                    </small>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wizard_audit_log_retention_days">Audit Log Retention (days) *</label>
+                            <input type="number" id="wizard_audit_log_retention_days" 
+                                   value="${notificationWizardState.data.audit_log_retention_days || 90}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   min="7" max="365" 
+                                   placeholder="90"
+                                   oninput="validateNotificationWizardField('audit_log_retention_days', this.value)">
+                            <div id="validation_audit_log_retention_days" class="validation-message"></div>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> Audit logs older than this will be automatically deleted. Recommended: 90-180 days for compliance.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- API Rate Limiting -->
+                    <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px;">
+                        <h3 style="margin: 0 0 1rem 0;"><i class="fas fa-shield-alt"></i> API Rate Limiting</h3>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: ${isInspectMode ? 'not-allowed' : 'pointer'};">
+                                <input type="checkbox" id="wizard_enable_api_rate_limit" 
+                                       ${notificationWizardState.data.enable_api_rate_limit ? 'checked' : ''}
+                                       ${isInspectMode ? 'disabled' : ''}
+                                       style="width: auto;">
+                                <div>
+                                    <strong>Enable API Rate Limiting</strong>
+                                    <small style="display: block; color: var(--text-secondary); margin-top: 0.25rem;">
+                                        When enabled, API requests are limited to prevent abuse and protect system resources
+                                    </small>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wizard_api_rate_limit_per_minute">API Requests Per Minute *</label>
+                            <input type="number" id="wizard_api_rate_limit_per_minute" 
+                                   value="${notificationWizardState.data.api_rate_limit_per_minute || 60}" 
+                                   ${isInspectMode ? 'readonly' : ''}
+                                   min="10" max="1000" 
+                                   placeholder="60"
+                                   oninput="validateNotificationWizardField('api_rate_limit_per_minute', this.value)">
+                            <div id="validation_api_rate_limit_per_minute" class="validation-message"></div>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                                <i class="fas fa-info-circle"></i> Maximum API requests allowed per minute per IP address. Recommended: 60-120 for normal use, higher for high-traffic systems.
+                            </small>
+                        </div>
+                    </div>
+                </form>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="notificationWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-primary" onclick="notificationWizardNextStep()" id="notificationWizardNextBtn">
+                            Next: Confirm & Save <i class="fas fa-arrow-right"></i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 3: Confirm and Summary
+function renderNotificationWizardStep3(isSuperadmin, isInspectMode) {
+    return `
+        <div class="section-card">
+            <div class="wizard-header">
+                <h2><i class="fas fa-bell"></i> Notification Settings Configuration</h2>
+                <div class="wizard-steps">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step active">3</span>
+                </div>
+            </div>
+            
+            <div style="padding: 2rem;">
+                <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #16a34a;">
+                        <i class="fas fa-check-circle"></i> Configuration Summary
+                    </h3>
+                    <p style="margin: 0; color: #15803d;">
+                        Review your notification configuration below. Click "Save Configuration" to apply these settings.
+                    </p>
+                </div>
+                
+                <div style="border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 4px; margin-bottom: 2rem;">
+                    <h3 style="margin: 0 0 1rem 0;">Settings Summary</h3>
+                    <div style="display: grid; gap: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Low Stock Notifications:</strong>
+                            <span>${notificationWizardState.data.low_stock_notification ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        ${notificationWizardState.data.low_stock_notification ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Low Stock Threshold:</strong>
+                                <span>${notificationWizardState.data.low_stock_threshold}%</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>Audit Logging:</strong>
+                            <span>${notificationWizardState.data.enable_audit_log ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        ${notificationWizardState.data.enable_audit_log ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Audit Log Retention:</strong>
+                                <span>${notificationWizardState.data.audit_log_retention_days} days</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                            <strong>API Rate Limiting:</strong>
+                            <span>${notificationWizardState.data.enable_api_rate_limit ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        ${notificationWizardState.data.enable_api_rate_limit ? `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: #f8fafc; border-radius: 4px;">
+                                <strong>Rate Limit:</strong>
+                                <span>${notificationWizardState.data.api_rate_limit_per_minute} requests/minute</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="notificationWizardPreviousStep()">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    ${isInspectMode ? `
+                        <div style="padding: 1rem; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 4px; flex: 1;">
+                            <i class="fas fa-eye"></i> <strong>Inspect Mode:</strong> Settings are read-only.
+                        </div>
+                    ` : `
+                        <button type="button" class="btn btn-success" onclick="saveNotificationWizardSettings()" id="notificationWizardSaveBtn">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== NOTIFICATION WIZARD HELPERS ====================
+
+function notificationWizardNextStep() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot continue in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Basic validation per step before moving forward
+    if (notificationWizardState.currentStep === 1) {
+        const understandingCheckbox = document.getElementById('notificationWizardUnderstanding');
+        if (!understandingCheckbox || !understandingCheckbox.checked) {
+            showNotification('Please confirm that you understand the risks and requirements before continuing.', 'error');
+            return;
+        }
+        notificationWizardState.understandingAccepted = true;
+    } else if (notificationWizardState.currentStep === 2) {
+        // Validate thresholds and limits
+        if (notificationWizardState.data.low_stock_notification) {
+            const threshold = parseInt(notificationWizardState.data.low_stock_threshold, 10);
+            if (isNaN(threshold) || threshold < 1 || threshold > 50) {
+                showNotification('Low stock threshold must be between 1 and 50 percent.', 'error');
+                return;
+            }
+        }
+        
+        if (notificationWizardState.data.enable_audit_log) {
+            const retention = parseInt(notificationWizardState.data.audit_log_retention_days, 10);
+            if (isNaN(retention) || retention < 7 || retention > 365) {
+                showNotification('Audit log retention must be between 7 and 365 days.', 'error');
+                return;
+            }
+        }
+        
+        if (notificationWizardState.data.enable_api_rate_limit) {
+            const rateLimit = parseInt(notificationWizardState.data.api_rate_limit_per_minute, 10);
+            if (isNaN(rateLimit) || rateLimit < 10 || rateLimit > 1000) {
+                showNotification('API rate limit must be between 10 and 1000 requests per minute.', 'error');
+                return;
+            }
+        }
+    }
+
+    // Move to next step
+    if (notificationWizardState.currentStep < 3) {
+        notificationWizardState.currentStep += 1;
+        renderNotificationSettingsWizard();
+    }
+}
+
+function notificationWizardPreviousStep() {
+    if (notificationWizardState.currentStep > 1) {
+        notificationWizardState.currentStep -= 1;
+        renderNotificationSettingsWizard();
+    }
+}
+
+function setupNotificationWizardListeners(isSuperadmin) {
+    // Step 1: understanding checkbox controls Next button
+    const understandingCheckbox = document.getElementById('notificationWizardUnderstanding');
+    const nextBtn = document.getElementById('notificationWizardNextBtn');
+    if (understandingCheckbox && nextBtn && notificationWizardState.currentStep === 1) {
+        understandingCheckbox.addEventListener('change', () => {
+            notificationWizardState.understandingAccepted = understandingCheckbox.checked;
+            nextBtn.disabled = !understandingCheckbox.checked;
+        });
+    }
+
+    // Step 2: bind field changes into state
+    if (notificationWizardState.currentStep === 2) {
+        const lowStockCheckbox = document.getElementById('wizard_low_stock_notification');
+        if (lowStockCheckbox) {
+            lowStockCheckbox.addEventListener('change', () => {
+                notificationWizardState.data.low_stock_notification = lowStockCheckbox.checked;
+            });
+        }
+
+        const thresholdInput = document.getElementById('wizard_low_stock_threshold');
+        if (thresholdInput) {
+            thresholdInput.addEventListener('input', () => {
+                notificationWizardState.data.low_stock_threshold = parseInt(thresholdInput.value || '20', 10);
+            });
+        }
+
+        const auditLogCheckbox = document.getElementById('wizard_enable_audit_log');
+        if (auditLogCheckbox) {
+            auditLogCheckbox.addEventListener('change', () => {
+                notificationWizardState.data.enable_audit_log = auditLogCheckbox.checked;
+            });
+        }
+
+        const retentionInput = document.getElementById('wizard_audit_log_retention_days');
+        if (retentionInput) {
+            retentionInput.addEventListener('input', () => {
+                notificationWizardState.data.audit_log_retention_days = parseInt(retentionInput.value || '90', 10);
+            });
+        }
+
+        const rateLimitCheckbox = document.getElementById('wizard_enable_api_rate_limit');
+        if (rateLimitCheckbox) {
+            rateLimitCheckbox.addEventListener('change', () => {
+                notificationWizardState.data.enable_api_rate_limit = rateLimitCheckbox.checked;
+            });
+        }
+
+        const rateLimitInput = document.getElementById('wizard_api_rate_limit_per_minute');
+        if (rateLimitInput) {
+            rateLimitInput.addEventListener('input', () => {
+                notificationWizardState.data.api_rate_limit_per_minute = parseInt(rateLimitInput.value || '60', 10);
+            });
+        }
+    }
+}
+
+function validateNotificationWizardField(key, value) {
+    let message = '';
+    let isValid = true;
+
+    if (key === 'low_stock_threshold') {
+        const threshold = parseInt(value, 10);
+        if (isNaN(threshold) || threshold < 1) {
+            isValid = false;
+            message = 'Threshold must be at least 1%.';
+        } else if (threshold > 50) {
+            isValid = false;
+            message = 'Threshold cannot exceed 50%.';
+        } else if (threshold < 10) {
+            isValid = true;
+            message = '⚠️ Very low threshold may cause excessive alerts.';
+        } else if (threshold > 40) {
+            isValid = true;
+            message = '⚠️ High threshold may miss critical stock shortages.';
+        } else {
+            isValid = true;
+            message = '✓ Good threshold for most use cases.';
+        }
+    } else if (key === 'audit_log_retention_days') {
+        const days = parseInt(value, 10);
+        if (isNaN(days) || days < 7) {
+            isValid = false;
+            message = 'Retention must be at least 7 days.';
+        } else if (days > 365) {
+            isValid = false;
+            message = 'Retention cannot exceed 365 days.';
+        } else if (days < 30) {
+            isValid = true;
+            message = '⚠️ Short retention may not meet compliance requirements.';
+        } else if (days > 180) {
+            isValid = true;
+            message = '⚠️ Long retention will consume significant storage space.';
+        } else {
+            isValid = true;
+            message = '✓ Good retention period for compliance.';
+        }
+    } else if (key === 'api_rate_limit_per_minute') {
+        const limit = parseInt(value, 10);
+        if (isNaN(limit) || limit < 10) {
+            isValid = false;
+            message = 'Rate limit must be at least 10 requests/minute.';
+        } else if (limit > 1000) {
+            isValid = false;
+            message = 'Rate limit cannot exceed 1000 requests/minute.';
+        } else if (limit < 30) {
+            isValid = true;
+            message = '⚠️ Very low limit may block legitimate users.';
+        } else if (limit > 500) {
+            isValid = true;
+            message = '⚠️ Very high limit may not protect against abuse.';
+        } else {
+            isValid = true;
+            message = '✓ Good rate limit for most use cases.';
+        }
+    }
+
+    const validationDiv = document.getElementById(`validation_${key}`);
+    if (validationDiv) {
+        if (message) {
+            validationDiv.style.display = 'block';
+            validationDiv.style.color = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+            validationDiv.style.fontSize = '0.875rem';
+            validationDiv.innerHTML = message;
+        } else {
+            validationDiv.style.display = 'none';
+            validationDiv.innerHTML = '';
+        }
+    }
+}
+
+async function saveNotificationWizardSettings() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const isSuperadmin = currentUser && currentUser.role === 'superadmin';
+    const isInspectMode = isSuperadminInspectMode();
+
+    if (isInspectMode) {
+        showNotification('Cannot save in Inspect Mode. Switch to Configure Mode to make changes.', 'error');
+        return;
+    }
+
+    // Build settings to save from wizard state
+    const settingsToSave = [
+        { key: 'low_stock_notification', value: notificationWizardState.data.low_stock_notification ? 'true' : 'false', category: 'notification' },
+        { key: 'low_stock_threshold', value: String(notificationWizardState.data.low_stock_threshold), category: 'notification' },
+        { key: 'enable_audit_log', value: notificationWizardState.data.enable_audit_log ? 'true' : 'false', category: 'notification' },
+        { key: 'audit_log_retention_days', value: String(notificationWizardState.data.audit_log_retention_days), category: 'notification' },
+        { key: 'enable_api_rate_limit', value: notificationWizardState.data.enable_api_rate_limit ? 'true' : 'false', category: 'notification' },
+        { key: 'api_rate_limit_per_minute', value: String(notificationWizardState.data.api_rate_limit_per_minute), category: 'notification' }
+    ];
+
+    const saveBtn = document.getElementById('notificationWizardSaveBtn');
+    const originalText = saveBtn ? saveBtn.innerHTML : '';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
+    try {
+        await apiRequest('/settings', {
+            method: 'PUT',
+            body: {
+                settings: settingsToSave,
+                category: 'notification',
+                superadminMode: currentUser && currentUser.role === 'superadmin' ? superadminMode : null
+            }
+        });
+
+        showNotification('Notification settings saved successfully.', 'success');
+
+        // Reset wizard state and reload settings
+        notificationWizardState.currentStep = 1;
+        notificationWizardState.understandingAccepted = false;
+        await loadSettings();
+    } catch (error) {
+        showNotification('Error saving notification settings: ' + (error && error.message ? error.message : 'Unknown error'), 'error');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// Expose notification wizard functions to global scope
+window.notificationWizardNextStep = notificationWizardNextStep;
+window.notificationWizardPreviousStep = notificationWizardPreviousStep;
+window.validateNotificationWizardField = validateNotificationWizardField;
+window.saveNotificationWizardSettings = saveNotificationWizardSettings;
 

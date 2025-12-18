@@ -21,13 +21,18 @@ async function initShopSelector() {
         shopsList = await apiRequest('/shops');
         
         // Create shop selector HTML
+        const viewShopLabel = window.i18n ? window.i18n.t('dashboard.viewShop') : 'View Shop:';
+        const allShopsOption = window.i18n ? window.i18n.t('dashboard.allShops') : 'All Shops';
+        const viewAllShopsTitle = window.i18n ? window.i18n.t('dashboard.viewAllShops') : 'View All Shops';
+        const allShopsButtonText = window.i18n ? window.i18n.t('dashboard.allShops') : 'All Shops';
+        
         const shopSelectorHTML = `
             <div id="shopSelectorContainer" class="shop-selector-container">
                 <label for="shopSelector" class="shop-selector-label">
-                    <i class="fas fa-store"></i> View Shop:
+                    <i class="fas fa-store"></i> ${viewShopLabel}
                 </label>
                 <select id="shopSelector" class="shop-selector" onchange="handleShopSelection(event)">
-                    <option value="">All Shops</option>
+                    <option value="">${allShopsOption}</option>
                     ${shopsList.map(shop => `
                         <option value="${shop.id}" ${selectedShopId === shop.id ? 'selected' : ''}>
                             ${escapeHtml(shop.shop_name)} (${escapeHtml(shop.shop_code)})
@@ -35,8 +40,8 @@ async function initShopSelector() {
                     `).join('')}
                 </select>
                 ${selectedShopId ? `
-                    <button class="btn btn-secondary" onclick="clearShopSelection()" title="View All Shops">
-                        <i class="fas fa-store"></i> <span class="btn-text">All Shops</span>
+                    <button class="btn btn-secondary" onclick="clearShopSelection()" title="${viewAllShopsTitle}">
+                        <i class="fas fa-store"></i> <span class="btn-text">${allShopsButtonText}</span>
                     </button>
                 ` : ''}
             </div>
@@ -227,7 +232,8 @@ function reloadPageData() {
         ? shopsList.find(s => s.id === selectedShopId)?.shop_name || 'Selected Shop'
         : 'All Shops';
     if (typeof showNotification === 'function') {
-        showNotification(`Viewing data for: ${shopName}`, 'success');
+        const viewingMessage = window.i18n ? window.i18n.t('dashboard.viewingDataFor', {shopName: shopName}) : `Viewing data for: ${shopName}`;
+        showNotification(viewingMessage, 'success');
     } else {
         console.log(`Viewing data for: ${shopName}`);
     }
