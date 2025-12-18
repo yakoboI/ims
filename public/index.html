@@ -33,8 +33,11 @@
     <meta name="theme-color" content="#2563eb">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
     <link rel="manifest" href="manifest.json">
     
     <!-- Normalize CSS - Ensures consistent styling across browsers -->
@@ -71,30 +74,36 @@
     <main id="main-content" class="login-container" role="main">
         <div class="login-box">
             <header>
+                <div class="login-logo">
+                    <img src="favicon.svg" alt="IMS Logo" class="login-favicon">
+                </div>
                 <h1>
-                    <i class="fas fa-boxes fa-icon-primary" aria-hidden="true"></i>
                     <span>Inventory Management System</span>
                 </h1>
             </header>
             <form id="loginForm" role="form" aria-label="Login form">
                 <div class="form-group">
                     <label for="username" data-i18n="login.username">Username</label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        required 
-                        autocomplete="username"
-                        autocapitalize="off"
-                        spellcheck="false"
-                        inputmode="text"
-                        aria-required="true"
-                        aria-label="Enter your username"
-                        data-i18n-placeholder="login.username">
+                    <div class="input-wrapper">
+                        <i class="fas fa-user input-icon" aria-hidden="true"></i>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            required 
+                            autocomplete="username"
+                            autocapitalize="off"
+                            spellcheck="false"
+                            inputmode="text"
+                            aria-required="true"
+                            aria-label="Enter your username"
+                            data-i18n-placeholder="login.username">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="password" data-i18n="login.password">Password</label>
                     <div class="password-input-wrapper">
+                        <i class="fas fa-lock input-icon" aria-hidden="true"></i>
                         <input 
                             type="password" 
                             id="password" 

@@ -462,7 +462,7 @@ function printBarcode() {
                 <canvas id="printBarcode"></canvas>
                 <div class="barcode-value">${escapeHtml(item.barcode)}</div>
             </div>
-            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <script src="/js/jsbarcode.all.min.js"></script>
             <script>
                 JsBarcode("#printBarcode", "${escapeHtml(item.barcode)}", {
                     format: "CODE128",
@@ -651,7 +651,7 @@ function printAllBarcodes() {
                 </div>
             `;
             }).join('')}
-            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+            <script src="/js/jsbarcode.all.min.js"></script>
             <script>
                 ${uniqueBarcodes.map((barcodeValue, index) => `
                     (function() {

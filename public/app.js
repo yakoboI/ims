@@ -341,6 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (navUser) {
             navUser.textContent = `${currentUser.full_name || currentUser.username} (${currentUser.role})`;
         }
+        // Update brand user ID
+        const navBrandUserId = document.getElementById('navBrandUserId');
+        if (navBrandUserId) {
+            navBrandUserId.textContent = currentUser.username || currentUser.id || '-';
+        }
         loadAndApplyRolePermissions(currentUser.role);
     }
 });
@@ -990,6 +995,183 @@ if (document.readyState === 'loading') {
 } else {
     setupMobileMenuToggle();
 }
+
+// ============================================================================
+// Sidebar Management - Pure Implementation
+// ============================================================================
+
+/**
+ * Sidebar state management utilities
+ */
+const SidebarState = {
+    STORAGE_KEY: 'sidebarCollapsed',
+    
+    /**
+     * Check if sidebar should be collapsed (desktop only)
+     */
+    isDesktopMode: () => window.innerWidth > 768,
+    
+    /**
+     * Get current collapsed state from localStorage
+     */
+    getSavedState: () => localStorage.getItem(SidebarState.STORAGE_KEY) === 'true',
+    
+    /**
+     * Save collapsed state to localStorage
+     */
+    saveState: (isCollapsed) => {
+        localStorage.setItem(SidebarState.STORAGE_KEY, isCollapsed ? 'true' : 'false');
+    },
+    
+    /**
+     * Get current collapsed state from DOM
+     */
+    getCurrentState: () => {
+        const navbar = document.querySelector('.navbar');
+        return navbar?.classList.contains('collapsed') ?? false;
+    }
+};
+
+/**
+ * Update toggle icon based on collapsed state
+ */
+function updateSidebarToggleIcon(isCollapsed) {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const toggleIcon = sidebarToggle?.querySelector('i');
+    
+    if (!toggleIcon) return;
+    
+    // Remove both classes first to ensure clean state
+    toggleIcon.classList.remove('fa-angle-left', 'fa-angle-right');
+    
+    // Add appropriate class
+    toggleIcon.classList.add(isCollapsed ? 'fa-angle-right' : 'fa-angle-left');
+}
+
+/**
+ * Update tooltips for nav links when sidebar is collapsed
+ */
+function updateNavLinkTooltips(isCollapsed) {
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        if (isCollapsed) {
+            // Get text content for tooltip
+            const text = link.textContent.trim();
+            const icon = link.querySelector('i');
+            if (icon && text) {
+                // Remove icon text from tooltip
+                const tooltipText = text.replace(icon.outerHTML, '').trim();
+                link.setAttribute('data-tooltip', tooltipText);
+            } else {
+                link.setAttribute('data-tooltip', text);
+            }
+        } else {
+            link.removeAttribute('data-tooltip');
+        }
+    });
+}
+
+/**
+ * Apply sidebar collapsed state to DOM (pure function)
+ */
+function applySidebarState(isCollapsed) {
+    const navbar = document.querySelector('.navbar');
+    const body = document.body;
+    
+    if (!navbar) return;
+    
+    // Update navbar class
+    if (isCollapsed) {
+        navbar.classList.add('collapsed');
+        body.classList.add('sidebar-collapsed');
+    } else {
+        navbar.classList.remove('collapsed');
+        body.classList.remove('sidebar-collapsed');
+    }
+    
+    // Update toggle icon
+    updateSidebarToggleIcon(isCollapsed);
+    
+    // Update tooltips
+    updateNavLinkTooltips(isCollapsed);
+}
+
+/**
+ * Toggle sidebar collapsed state (desktop only)
+ */
+function toggleSidebar() {
+    const navbar = document.querySelector('.navbar');
+    
+    if (!navbar) return;
+    
+    // Only work on desktop (width > 768px)
+    if (!SidebarState.isDesktopMode()) {
+        return;
+    }
+    
+    // Get current state and toggle it
+    const currentState = SidebarState.getCurrentState();
+    const newState = !currentState;
+    
+    // Apply new state to DOM
+    applySidebarState(newState);
+    
+    // Save state to localStorage
+    SidebarState.saveState(newState);
+}
+
+/**
+ * Initialize sidebar state from localStorage (pure initialization)
+ */
+function initializeSidebarState() {
+    const navbar = document.querySelector('.navbar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (!navbar || !sidebarToggle) return;
+    
+    // Only apply on desktop
+    if (!SidebarState.isDesktopMode()) {
+        // Ensure sidebar is expanded on mobile
+        applySidebarState(false);
+        return;
+    }
+    
+    // Get saved state from localStorage
+    const savedState = SidebarState.getSavedState();
+    
+    // Apply saved state to DOM
+    applySidebarState(savedState);
+}
+
+/**
+ * Handle window resize - restore sidebar state appropriately
+ */
+function handleSidebarResize() {
+    const navbar = document.querySelector('.navbar');
+    if (!navbar) return;
+    
+    if (!SidebarState.isDesktopMode()) {
+        // On mobile, ensure sidebar is always expanded (not collapsed)
+        applySidebarState(false);
+    } else {
+        // On desktop, restore saved state
+        initializeSidebarState();
+    }
+}
+
+// Handle window resize - restore sidebar on mobile/desktop transitions
+window.addEventListener('resize', handleSidebarResize);
+
+// Initialize sidebar on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeSidebarState);
+} else {
+    initializeSidebarState();
+}
+
+// Make toggleSidebar available globally
+window.toggleSidebar = toggleSidebar;
 
 async function loadAndApplyRolePermissions(userRole) {
     try {

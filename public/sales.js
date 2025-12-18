@@ -356,7 +356,10 @@ async function startCameraScan() {
         
         // Check if ZXing is available
         if (typeof ZXing === 'undefined' || !ZXing.BrowserMultiFormatReader) {
-            throw new Error('Barcode scanning library not loaded. Please refresh the page.');
+            const errorMsg = window.i18n 
+                ? window.i18n.t('messages.barcodeLibraryNotLoaded') 
+                : 'Camera barcode scanning is not available. The scanning library failed to load (possibly blocked by browser privacy settings). You can still use manual barcode input.';
+            throw new Error(errorMsg);
         }
         
         // Detect mobile device
@@ -1418,7 +1421,7 @@ async function printReceipt(saleId) {
                     <button onclick="window.close()" class="btn receipt-close-btn">Close</button>
                 </div>
                 
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <script src="/js/jsbarcode.all.min.js"></script>
                 <script>
                     window.onload = function() {
                         // Generate barcodes for receipt and items

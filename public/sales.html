@@ -19,8 +19,11 @@
     <meta name="theme-color" content="#2563eb">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📦%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon.svg">
     <link rel="manifest" href="manifest.json">
     
     <!-- Normalize CSS - Ensures consistent styling across browsers -->
@@ -49,11 +52,16 @@
     <!-- Empty States -->
     <script src="empty-states.js"></script>
     
-    <!-- JsBarcode Library for generating barcode images -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- JsBarcode Library for generating barcode images (local file) -->
+    <script src="js/jsbarcode.all.min.js"></script>
     
     <!-- ZXing (Zebra Crossing) for camera barcode scanning -->
-    <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
+    <!-- Note: ZXing is currently commented out due to browser tracking prevention blocking CDN access -->
+    <!-- To enable camera scanning, download ZXing library locally and uncomment the line below -->
+    <!-- Option 1: Download from https://github.com/zxing-js/library/releases and save as js/zxing.min.js -->
+    <!-- <script src="js/zxing.min.js"></script> -->
+    <!-- Option 2: Use CDN (may be blocked by browser tracking prevention) -->
+    <!-- <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script> -->
     
     <!-- Product Flow Management -->
     <script src="product-flow.js"></script>
@@ -86,7 +94,20 @@
     
     <button class="mobile-menu-toggle" onclick="toggleMobileMenuHandler(event)" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-menu"><i class="fas fa-bars"></i></button>
     <nav class="navbar" role="navigation" aria-label="Main navigation" id="nav-menu">
-        <div class="nav-brand" aria-label="Inventory Management System"><i class="fas fa-boxes fa-icon-primary"></i> IMS</div>
+        <div class="nav-brand" aria-label="Inventory Management System">
+            <div class="nav-brand-left">
+                <div class="nav-brand-logo">
+                    <i class="fas fa-store"></i>
+                </div>
+                <span>IMS</span>
+            </div>
+            <div class="nav-brand-right">
+                <span class="nav-brand-user-id" id="navBrandUserId">-</span>
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" title="Collapse/Expand sidebar" onclick="toggleSidebar()">
+                    <i class="fas fa-angle-left"></i>
+                </button>
+            </div>
+        </div>
         <div class="nav-footer">
             <span class="nav-user" id="navUser" aria-label="Current user"></span>
             <button class="btn btn-sm btn-danger" onclick="logout()" aria-label="Logout from system"><i class="fas fa-sign-out-alt"></i> Logout</button>

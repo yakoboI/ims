@@ -7,6 +7,20 @@
     box-sizing: border-box;
 }
 
+/* Base body font size - Standardized to 12px Segoe UI */
+body {
+    font-size: var(--font-size-base); /* 16px on mobile for touch targets */
+    font-family: var(--font-family-base);
+}
+
+/* Large screens - All text uses 12px Segoe UI */
+@media (min-width: 769px) {
+    body {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
 /* Accessibility: Screen reader only class */
 .sr-only {
     position: absolute;
@@ -55,15 +69,15 @@
     --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     
-    /* Typography System - Respects device font settings */
-    /* Base font size respects user's browser/system font size preference */
-    --font-size-base: 1rem;     /* 16px default, scales with user preference */
-    --font-size-xs: 0.75rem;    /* 12px - scales with user preference */
-    --font-size-sm: 0.875rem;   /* 14px - scales with user preference */
-    --font-size-lg: 1.125rem;   /* 18px - scales with user preference */
-    --font-size-xl: 1.25rem;    /* 20px - scales with user preference */
-    --font-size-2xl: 1.5rem;    /* 24px - scales with user preference */
-    --font-size-3xl: 2rem;      /* 32px - scales with user preference */
+    /* Typography System - Standardized to 12px Segoe UI on Desktop */
+    /* All text uses 12px on large screens */
+    --font-size-base: 0.75rem;    /* 12px - Standard size for all text */
+    --font-size-xs: 0.75rem;      /* 12px - Same size */
+    --font-size-sm: 0.75rem;     /* 12px - Same size */
+    --font-size-lg: 0.75rem;     /* 12px - Same size */
+    --font-size-xl: 0.75rem;     /* 12px - Same size */
+    --font-size-2xl: 0.75rem;    /* 12px - Same size */
+    --font-size-3xl: 0.75rem;    /* 12px - Same size */
     
     /* Line Heights - Optimized for readability */
     --line-height-tight: 1.2;
@@ -78,13 +92,15 @@
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
     
-    /* Font Family - System fonts that respect device settings */
-    /* Prioritizes native system fonts for better performance and user familiarity */
+    /* Font Family - Windows 11 Fluent Design System */
+    /* Prioritizes Segoe UI Variable for Windows 11 Fluent Design */
     --font-family-base: 
+        "Segoe UI Variable",          /* Windows 11 Fluent Design System font */
+        "Segoe UI Variable Text",      /* Windows 11 variable font */
+        "Segoe UI",                   /* Windows system font fallback */
         system-ui,                    /* Modern system UI font */
         -apple-system,                /* macOS/iOS system font */
         BlinkMacSystemFont,           /* macOS Chrome/Edge */
-        "Segoe UI",                   /* Windows system font */
         Roboto,                       /* Android system font */
         "Helvetica Neue",             /* macOS/iOS fallback */
         Arial,                        /* Universal fallback */
@@ -137,7 +153,25 @@
 .fa-icon-muted { color: var(--text-secondary); }
 
 /* Icon spacing in buttons and links */
+/* Button icons and text - Windows 11 Fluent Design */
 .btn i, .nav-link i, button i {
+    font-family: var(--font-family-base);
+}
+
+.btn, button {
+    font-family: var(--font-family-base);
+}
+
+.btn span, .btn-text, button span {
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .btn span, .btn-text, button span {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
     margin-right: 0.5rem;
 }
 
@@ -153,6 +187,14 @@
 .nav-link i, .btn i {
     display: inline-block;
     vertical-align: middle;
+}
+
+/* Ensure all nav-link icons have consistent frame area (excludes collapsed navbar) */
+.navbar:not(.collapsed) .nav-link i {
+    width: 1.25rem;
+    font-size: 1rem;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 /* HTML Base - Font sizing handled by font-system.css */
@@ -242,6 +284,31 @@ h4, .h4 {
     color: var(--text-primary);
 }
 
+/* Heading sizes - All use 12px Segoe UI on desktop */
+h1, .h1 {
+    font-size: var(--font-size-3xl);
+}
+
+h2, .h2 {
+    font-size: var(--font-size-2xl);
+}
+
+h3, .h3 {
+    font-size: var(--font-size-xl);
+}
+
+h4, .h4 {
+    font-size: var(--font-size-lg);
+}
+
+/* Large screens - All headings use 12px Segoe UI */
+@media (min-width: 769px) {
+    h1, .h1, h2, .h2, h3, .h3, h4, .h4 {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
 /* Body Text Styles */
 p, .body-text {
     font-size: var(--font-size-base);
@@ -251,11 +318,24 @@ p, .body-text {
     color: var(--text-primary);
 }
 
+/* Body text - Standardized to 12px Segoe UI */
+p, .body-text {
+    font-size: var(--font-size-base);
+}
+
+@media (min-width: 769px) {
+    p, .body-text {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
 small, .text-sm, .small-text {
     font-size: var(--font-size-sm);
     line-height: var(--line-height-normal);
     font-weight: var(--font-weight-normal);
     color: var(--text-secondary);
+    font-family: var(--font-family-base);
 }
 
 .text-xs, .extra-small {
@@ -263,6 +343,15 @@ small, .text-sm, .small-text {
     line-height: var(--line-height-normal);
     font-weight: var(--font-weight-normal);
     color: var(--text-secondary);
+    font-family: var(--font-family-base);
+}
+
+/* Large screens - All small text uses 12px Segoe UI */
+@media (min-width: 769px) {
+    small, .text-sm, .small-text, .text-xs, .extra-small {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 /* Responsive Typography Adjustments */
@@ -355,6 +444,22 @@ small, .text-sm, .small-text {
         margin-left: 260px;
         width: calc(100% - 260px);
     }
+    
+    /* GLOBAL: All text elements use 12px Segoe UI on large screens */
+    body, p, span, div, a, li, td, th, label, input, select, textarea, button, 
+    h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6,
+    .btn, .nav-link, .card-title, .card-content, .alert, .badge,
+    .stat-content h3, .stat-content p, .nav-brand, .nav-user,
+    .data-table th, .data-table td, .page-header h1,
+    small, .text-sm, .text-xs, .small-text {
+        font-size: 0.75rem !important; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif !important;
+    }
+    
+    /* Keep icon sizes flexible - icons inherit from parent */
+    i, .fas, .far, .fab, .fa, [class*="fa-"] {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", sans-serif !important;
+    }
 
     /* Prevent cards from feeling too huge on desktop */
     .section-card,
@@ -386,14 +491,39 @@ small, .text-sm, .small-text {
     text-align: center;
 }
 
+/* Buttons - Standardized to 12px Segoe UI */
+@media (min-width: 769px) {
+    .btn {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.5rem 1rem;
+    }
+}
+
 .btn-sm {
     font-size: var(--font-size-sm); /* 14px */
     padding: 0.5rem 0.875rem;
 }
 
+@media (min-width: 769px) {
+    .btn-sm {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.375rem 0.75rem;
+    }
+}
+
 .btn-lg {
     font-size: 1.125rem; /* 18px */
     padding: 1rem 1.5rem;
+}
+
+@media (min-width: 769px) {
+    .btn-lg {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.625rem 1.25rem;
+    }
 }
 
 /* Mobile button optimization */
@@ -440,6 +570,34 @@ textarea {
     opacity: 0.7;
 }
 
+/* Form inputs - Standardized to 12px Segoe UI */
+@media (min-width: 769px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="time"],
+    input[type="tel"],
+    input[type="search"],
+    select,
+    textarea {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    label, .form-label {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        margin-bottom: 0.375rem;
+    }
+    
+    ::placeholder {
+        font-size: 0.75rem; /* 12px - Standardized size */
+    }
+}
+
 /* Mobile input optimization */
 @media (max-width: 768px) {
     input[type="text"],
@@ -479,6 +637,21 @@ textarea {
     color: var(--text-primary);
 }
 
+/* Tables - Standardized to 12px Segoe UI */
+@media (min-width: 769px) {
+    .data-table th {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .data-table td {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.5rem 0.75rem;
+    }
+}
+
 /* Mobile table optimization */
 @media (max-width: 768px) {
     .data-table td {
@@ -492,43 +665,77 @@ textarea {
     }
 }
 
-/* Compact table variant */
+/* Compact table variant - Standardized to 12px Segoe UI */
 .data-table.compact th,
 .data-table.compact td {
-    font-size: var(--font-size-sm); /* 14px */
+    font-size: var(--font-size-sm);
     padding: 0.625rem 0.75rem;
 }
 
-/* Cards & Stat Cards Typography */
+@media (min-width: 769px) {
+    .data-table.compact th,
+    .data-table.compact td {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
+/* Cards & Stat Cards Typography - Standardized to 12px Segoe UI */
 .card-title {
-    font-size: var(--font-size-lg); /* 18px */
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
     line-height: 1.3;
     margin-bottom: 0.25rem;
 }
 
 .card-content {
-    font-size: var(--font-size-sm); /* 14px */
+    font-size: var(--font-size-sm);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
     color: var(--text-secondary);
 }
 
-/* Stat Numbers - Specific styling for stat cards */
+@media (min-width: 769px) {
+    .card-title {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+    
+    .card-content {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
+/* Stat Numbers - Standardized to 12px Segoe UI */
 .stat-content h3 {
-    font-size: 2rem; /* 32px */
+    font-size: 1.5rem;
     font-weight: var(--font-weight-semibold);
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
     margin-bottom: 0.25rem;
+    font-family: var(--font-family-base);
 }
 
 .stat-content p {
-    font-size: var(--font-size-sm); /* 14px */
+    font-size: var(--font-size-sm);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
     color: var(--text-secondary);
+}
+
+/* Large screens - All stat content uses 12px Segoe UI */
+@media (min-width: 769px) {
+    .stat-content h3 {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+    
+    .stat-content p {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 /* Mobile card optimization */
@@ -538,7 +745,7 @@ textarea {
     }
     
     .stat-content h3 {
-        font-size: 1.5rem; /* 24px */
+        font-size: 1.25rem; /* 20px */
     }
     
     .stat-content p {
@@ -596,18 +803,30 @@ textarea {
     }
 }
 
-/* Alerts & Notifications Typography */
+/* Alerts & Notifications Typography - Standardized to 12px Segoe UI */
 .alert, .notification {
-    font-size: var(--font-size-sm); /* 14px */
+    font-size: var(--font-size-sm);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
     padding: 0.75rem 1rem;
 }
 
 .alert-title {
-    font-size: var(--font-size-base); /* 16px */
+    font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
     margin-bottom: 0.25rem;
+}
+
+@media (min-width: 769px) {
+    .alert, .notification {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+    
+    .alert-title {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 /* Breadcrumbs Typography */
@@ -715,66 +934,413 @@ code, .code,
     align-items: center;
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.5rem;
 }
 
 .login-container {
     width: 100%;
-    max-width: 400px;
-    padding: 20px;
+    max-width: 440px;
+    padding: 0;
+}
+
+@media (max-width: 480px) {
+    .login-page {
+        padding: 1rem;
+    }
 }
 
 @media (max-width: 360px) {
-    .login-container {
-        padding: 15px;
+    .login-page {
+        padding: 0.75rem;
     }
 }
 
 .login-box {
     background: var(--card-bg);
-    padding: 40px;
-    border-radius: 0;
-    box-shadow: var(--shadow-lg);
+    padding: 3rem 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    .login-box {
+        padding: 2rem 1.5rem;
+        border-radius: 8px;
+    }
+}
+
+@media (max-width: 360px) {
+    .login-box {
+        padding: 1.5rem 1.25rem;
+    }
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-favicon {
+    width: 80px;
+    height: 80px;
+    display: block;
+    margin: 0 auto;
+}
+
+@media (max-width: 480px) {
+    .login-favicon {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+@media (max-width: 360px) {
+    .login-favicon {
+        width: 56px;
+        height: 56px;
+    }
 }
 
 .login-box h1 {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 2rem;
     color: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    font-size: var(--font-size-xl);
+    gap: 0.75rem;
+    font-size: 1.75rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+}
+
+@media (max-width: 480px) {
+    .login-box h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.75rem;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .login-box h1 {
+        font-size: 1.375rem;
+        margin-bottom: 1.5rem;
+    }
+}
+
+/* Login form specific styles */
+.login-box form {
+    margin-top: 0;
+}
+
+.login-box .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.login-box .form-group:last-of-type {
+    margin-bottom: 1.75rem;
+}
+
+.login-box .form-group label {
+    display: block;
+    margin-bottom: 0.625rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.login-box .form-group input[type="text"],
+.login-box .form-group input[type="password"] {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 0;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background-color: var(--card-bg);
+    min-height: 48px;
+    height: 48px;
+    box-sizing: border-box;
+    line-height: 1.5;
+}
+
+/* Input wrapper styles for login box */
+.login-box .input-wrapper input[type="text"],
+.login-box .input-wrapper input[type="email"] {
+    padding-left: 2.75rem;
+    height: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+.login-box .input-wrapper .input-icon {
+    left: 1rem;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.login-box .input-wrapper:focus-within .input-icon {
+    color: var(--primary-color);
+}
+
+/* Password input in wrapper - connected design by default (mobile-first) */
+.login-box .password-input-wrapper input[type="password"],
+.login-box .password-input-wrapper input[type="text"] {
+    padding-left: 2.75rem;
+    padding-right: 0.75rem;
+    border-radius: 0;
+    border-right: none;
+    height: 48px;
+    min-height: 48px;
+}
+
+.login-box .password-input-wrapper .input-icon {
+    left: 1rem;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.login-box .password-input-wrapper:focus-within .input-icon {
+    color: var(--primary-color);
+}
+
+.login-box .password-input-wrapper .password-toggle {
+    border-radius: 0;
+    border-left: 1.5px solid var(--border-color);
+}
+
+.login-box .password-input-wrapper:focus-within input[type="password"],
+.login-box .password-input-wrapper:focus-within input[type="text"] {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-box .password-input-wrapper:focus-within .password-toggle {
+    border-color: var(--primary-color);
+    border-left-color: var(--primary-color);
+}
+
+.login-box .form-group input[type="text"]:focus,
+.login-box .form-group input[type="password"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-box .btn-primary {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    margin-top: 0.5rem;
+    min-height: 48px;
+    font-size: 1rem;
+    font-weight: var(--font-weight-semibold);
+    border-radius: 0;
+    transition: all 0.2s ease;
+}
+
+.login-box .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.login-box .error-message {
+    margin-top: 1rem;
+    padding: 0.875rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+}
+
+/* Responsive password field adjustments */
+/* Desktop: separate design with gap for better visual separation */
+@media (min-width: 769px) {
+    .login-box .password-input-wrapper {
+        gap: 0.5rem;
+    }
+    
+    .login-box .input-wrapper input[type="text"],
+    .login-box .input-wrapper input[type="email"] {
+        padding-left: 2.75rem;
+    }
+    
+    .login-box .password-input-wrapper input[type="password"],
+    .login-box .password-input-wrapper input[type="text"] {
+        border-radius: 0;
+        border-right: 1.5px solid var(--border-color);
+        padding-left: 2.75rem;
+        padding-right: 1rem;
+        height: 48px;
+        min-height: 48px;
+        max-height: 48px;
+        box-sizing: border-box;
+    }
+    
+    .login-box .password-input-wrapper .password-toggle {
+        border-radius: 0;
+        border-left: 1.5px solid var(--border-color);
+        height: 48px;
+        min-height: 48px;
+        max-height: 48px;
+        box-sizing: border-box;
+    }
+    
+    .login-box .password-input-wrapper:focus-within input[type="password"],
+    .login-box .password-input-wrapper:focus-within input[type="text"] {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .login-box .password-input-wrapper:focus-within .password-toggle {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+}
+
+/* Mobile and tablet: connected design for better UX and touch targets */
+@media (max-width: 768px) {
+    .login-box .password-input-wrapper {
+        gap: 0;
+    }
+}
+
+/* Ensure password toggle button doesn't shrink on any device */
+@media (max-width: 575.98px) {
+    .login-box .password-input-wrapper .password-toggle {
+        flex-shrink: 0;
+        min-width: 48px;
+        width: 48px;
+    }
+    
+    .login-box .password-input-wrapper input[type="password"],
+    .login-box .password-input-wrapper input[type="text"] {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
 }
 
 .login-info {
-    margin-top: 20px;
-    padding: 15px;
+    margin-top: 1.5rem;
+    padding: 1rem;
     background: #f1f5f9;
-    border-radius: 0;
-    font-size: var(--font-size-sm); /* Use typography system - 14px */
+    border-radius: 8px;
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Input wrapper with icon */
+.input-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+    overflow: visible;
+}
+
+.input-wrapper .input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    z-index: 10;
+    pointer-events: none;
+    width: 1rem;
+    text-align: center;
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+.input-wrapper input[type="text"],
+.input-wrapper input[type="email"] {
+    padding-left: 2.75rem;
+    flex: 1 1 auto;
 }
 
 /* Password field with toggle button */
 .password-input-wrapper {
     display: flex;
     align-items: stretch;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    position: relative;
+    overflow: visible;
+}
+
+.password-input-wrapper .input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    z-index: 10;
+    pointer-events: none;
+    width: 1rem;
+    text-align: center;
+    display: block;
+    visibility: visible;
+    opacity: 1;
 }
 
 .password-input-wrapper input[type="password"],
 .password-input-wrapper input[type="text"] {
     flex: 1 1 auto;
+    min-width: 0; /* Prevents flex item from overflowing */
+    height: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
 }
 
 .password-input-wrapper .password-toggle {
     flex: 0 0 auto;
-    padding: 0 0.75rem;
-    min-width: 44px;
+    padding: 0 !important; /* Override btn-sm padding */
+    min-width: 48px;
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-color);
+    background-color: var(--card-bg);
+    transition: all 0.2s ease;
+    margin: 0;
+    font-size: 1rem; /* Override btn-sm font-size */
+    line-height: 1;
+    box-sizing: border-box;
 }
 
-/* Sidebar Navigation */
+.password-input-wrapper .password-toggle:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    border-color: var(--primary-color);
+}
+
+.password-input-wrapper .password-toggle:active {
+    background-color: #e2e8f0;
+    transform: scale(0.98);
+}
+
+.password-input-wrapper .password-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.password-input-wrapper .password-toggle i {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.password-input-wrapper .password-toggle:hover:not(:disabled) i {
+    color: var(--primary-color);
+}
+
 .navbar {
     background: var(--card-bg);
     width: 260px;
@@ -791,10 +1357,66 @@ code, .code,
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) #f1f5f9;
-    /* Prevent automatic scroll restoration */
     scroll-behavior: auto;
-    /* Preserve scroll position */
     overscroll-behavior: contain;
+    transition: width 0.3s ease;
+}
+
+.navbar.collapsed {
+    width: 50px;
+}
+
+.navbar.collapsed .nav-brand {
+    justify-content: center;
+    padding: 0.875rem 0.5rem;
+}
+
+.navbar.collapsed .nav-brand-left span,
+.navbar.collapsed .nav-brand-right {
+    display: none;
+}
+
+.navbar.collapsed .nav-link {
+    justify-content: center;
+    padding: 0.5rem;
+    font-size: 0;
+}
+
+.navbar.collapsed .nav-link span,
+.navbar.collapsed .nav-link:not(:has(i)) {
+    display: none;
+}
+
+.navbar.collapsed .nav-link i {
+    margin: 0;
+    font-size: 1.25rem;
+    display: inline-block;
+}
+
+.navbar.collapsed .nav-footer {
+    padding: 0.75rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar.collapsed .nav-user {
+    display: none;
+}
+
+.navbar.collapsed .nav-footer .btn {
+    width: 100%;
+    padding: 0.5rem;
+    justify-content: center;
+}
+
+.navbar.collapsed .nav-footer .btn span {
+    display: none;
+}
+
+.navbar.collapsed .nav-footer .btn i {
+    margin: 0;
 }
 
 .navbar::-webkit-scrollbar {
@@ -816,7 +1438,6 @@ code, .code,
     background: var(--text-secondary);
 }
 
-/* Ensure sidebar overlay is properly styled */
 #sidebar-overlay {
     position: fixed;
     top: 0;
@@ -836,21 +1457,123 @@ code, .code,
     pointer-events: auto;
 }
 
-/* Prevent body scroll when mobile menu is open */
 body.menu-open {
     overflow: hidden;
 }
 
 .nav-brand {
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     font-weight: bold;
     color: var(--primary-color);
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
-    padding: 1rem 1.5rem 0.75rem;
+    padding: 0.875rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+    position: relative;
+}
+
+.sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 1rem;
+}
+
+@media (min-width: 769px) {
+    .sidebar-toggle {
+        display: flex;
+    }
+}
+
+.sidebar-toggle:hover {
+    background: #f1f5f9;
+    color: var(--primary-color);
+}
+
+.sidebar-toggle:active {
+    background: #e2e8f0;
+    transform: scale(0.95);
+}
+
+.navbar.collapsed .sidebar-toggle {
+    margin: 0 auto;
+}
+
+@media (min-width: 769px) {
+    .nav-brand {
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.75rem 1rem;
+    }
+}
+
+.nav-brand-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-brand-logo {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    border-radius: 8px;
+    color: white;
+    font-size: 1.25rem;
+}
+
+@media (min-width: 769px) {
+    .nav-brand-logo {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
+.nav-brand-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.nav-brand-user-id {
+    background: var(--bg-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+@media (min-width: 769px) {
+    .nav-brand-right {
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+    
+    .nav-brand-user-id {
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.25rem 0.625rem;
+    }
 }
 
 .mobile-menu-toggle {
@@ -893,37 +1616,134 @@ body.menu-open {
     text-decoration: none;
     color: var(--text-secondary);
     font-weight: 500;
-    transition: all 0.2s;
-    padding: 0.625rem 1.5rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    padding: 0.5rem 1.25rem;
     border-radius: 0;
     white-space: nowrap;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.625rem;
     border-left: 3px solid transparent;
     text-align: left;
     justify-content: flex-start;
+    position: relative;
+    cursor: pointer;
 }
 
-/* Ensure Settings link aligns properly with other nav links */
-#settingsLink.nav-link {
-    padding: 0.625rem 1.5rem;
-    text-align: left;
-    justify-content: flex-start;
-    align-items: center;
+.nav-link span {
+    transition: opacity 0.2s ease;
+}
+
+.navbar.collapsed .nav-link {
+    position: relative;
+}
+
+.navbar.collapsed .nav-link::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    margin-left: 0.5rem;
+    z-index: 1001;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.navbar.collapsed .nav-link:hover::after {
+    opacity: 1;
+}
+
+@media (min-width: 769px) {
+    .nav-link {
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+        padding: 0.5rem 1rem;
+    }
 }
 
 .nav-link:hover {
     color: var(--primary-color);
-    background: #eff6ff;
+    background: #dbeafe;
     border-left-color: var(--primary-color);
+    border-left-width: 4px;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover i {
+    color: var(--primary-color);
+    transform: scale(1.1);
+    transition: all 0.2s ease;
+}
+
+.nav-link:active {
+    background: #bfdbfe;
+    transform: translateX(0);
+    border-left-width: 4px;
+}
+
+.nav-link:active i {
+    transform: scale(0.95);
 }
 
 .nav-link.active {
     color: var(--primary-color);
-    background: #eff6ff;
+    background: #dbeafe;
     border-left-color: var(--primary-color);
+    border-left-width: 4px;
     font-weight: 600;
+}
+
+.nav-link.active i {
+    color: var(--primary-color);
+}
+
+.nav-link:focus {
+    outline: none;
+    background: #dbeafe;
+    color: var(--primary-color);
+    border-left-color: var(--primary-color);
+    border-left-width: 4px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .nav-link:active {
+        background: #bfdbfe !important;
+        color: var(--primary-color) !important;
+        border-left-color: var(--primary-color) !important;
+        border-left-width: 4px !important;
+    }
+    
+    .nav-link:active i {
+        color: var(--primary-color) !important;
+    }
+    
+    .nav-link:focus {
+        background: #dbeafe !important;
+        color: var(--primary-color) !important;
+        border-left-color: var(--primary-color) !important;
+        border-left-width: 4px !important;
+        outline: none;
+    }
+    
+    .nav-link:focus i {
+        color: var(--primary-color) !important;
+    }
+    
+    .nav-link {
+        -webkit-tap-highlight-color: rgba(37, 99, 235, 0.2);
+        touch-action: manipulation;
+    }
 }
 
 .nav-footer {
@@ -941,14 +1761,20 @@ body.menu-open {
     display: block;
 }
 
+@media (min-width: 769px) {
+    .nav-user {
+        font-size: 0.75rem;
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+
 .navbar .btn {
     margin: 0;
     width: 100%;
     padding: 0.5rem 0.875rem;
-    font-size: var(--font-size-sm); /* 14px - use typography system */
+    font-size: var(--font-size-sm);
 }
 
-/* Container */
 .container {
     max-width: 1400px;
     margin-left: 260px;
@@ -956,6 +1782,19 @@ body.menu-open {
     width: calc(100% - 260px);
     overflow-x: hidden;
     min-height: 100vh;
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+body.sidebar-collapsed .container {
+    margin-left: 50px;
+    width: calc(100% - 50px);
+}
+
+@supports selector(:has(*)) {
+    body:has(.navbar.collapsed) .container {
+        margin-left: 50px;
+        width: calc(100% - 50px);
+    }
 }
 
 .page-header {
@@ -965,6 +1804,17 @@ body.menu-open {
     margin-bottom: 2rem;
     flex-wrap: wrap;
     gap: 1rem;
+}
+
+@media (min-width: 769px) {
+    .page-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .page-header h1 {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 .page-header > div {
@@ -1661,15 +2511,41 @@ input[type="checkbox"]:disabled:checked {
     }
 }
 
-/* Numeric alignment for mathematical data */
+/* Numeric alignment for mathematical data - Windows 11 Fluent Design */
 .data-table td.numeric,
 .data-table td.text-right {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    font-family: var(--font-family-base);
+}
+
+/* Price and amount columns - Standardized to 12px Segoe UI */
+.data-table .col-price,
+.data-table .col-amount,
+.data-table td[data-label*="Price"],
+.data-table td[data-label*="Amount"],
+.data-table td[data-label*="Total"],
+.data-table td[data-label*="Cost"] {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .data-table .col-price,
+    .data-table .col-amount,
+    .data-table td[data-label*="Price"],
+    .data-table td[data-label*="Amount"],
+    .data-table td[data-label*="Total"],
+    .data-table td[data-label*="Cost"] {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
+}
+    font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
 }
 
-/* Specific numeric column classes */
+/* Specific numeric column classes - Windows 11 Fluent Design */
 .data-table .col-price,
 .data-table .col-amount,
 .data-table .col-quantity,
@@ -1680,6 +2556,20 @@ input[type="checkbox"]:disabled:checked {
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .data-table .col-price,
+    .data-table .col-amount,
+    .data-table .col-quantity,
+    .data-table .col-total,
+    .data-table .col-cost,
+    .data-table .col-stock,
+    .data-table .col-min-stock {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 .data-table th.col-price,
@@ -1739,6 +2629,17 @@ input[type="checkbox"]:disabled:checked {
     border-top: 2px solid var(--border-color);
     border-bottom: 2px solid var(--border-color);
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .data-table tbody tr.report-total-row,
+    .data-table tbody tr.total-row,
+    .data-table tbody tr.summary-row {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 .data-table tbody tr.report-total-row:hover,
@@ -2281,6 +3182,15 @@ input[type="checkbox"]:disabled:checked {
 .price-input {
     flex: 1;
     min-width: 100px;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .price-input {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 /* Responsive - Mobile First Approach */
@@ -2290,7 +3200,7 @@ input[type="checkbox"]:disabled:checked {
     .container {
         margin-left: 0;
         width: 100%;
-        padding: 0 0.75rem 0.75rem;
+        padding: 56px 0.75rem 0.75rem; /* Top padding for menu toggle row (48px + 8px spacing) */
     }
 
     .navbar {
@@ -2304,9 +3214,34 @@ input[type="checkbox"]:disabled:checked {
 
     .mobile-menu-toggle {
         font-size: 1.25rem;
-        padding: 0.375rem;
-        min-width: 40px;
-        min-height: 40px;
+        padding: 0.75rem 1rem;
+        min-width: 48px;
+        min-height: 48px;
+        height: 48px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .mobile-menu-toggle:hover,
+    .mobile-menu-toggle:active,
+    .mobile-menu-toggle:focus {
+        background: var(--primary-color) !important;
+        color: white !important;
+        outline: none;
+    }
+    
+    .mobile-menu-toggle i {
+        color: white !important;
     }
 
     .page-header h1 {
@@ -2558,7 +3493,7 @@ input[type="checkbox"]:disabled:checked {
     .container {
         margin-left: 0;
         width: 100%;
-        padding: 0 1rem 1rem;
+        padding: 56px 1rem 1rem; /* Top padding for menu toggle row (48px + 8px spacing) */
     }
 
     .navbar {
@@ -2580,6 +3515,34 @@ input[type="checkbox"]:disabled:checked {
 
     .mobile-menu-toggle {
         display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 1002;
+        padding: 0.75rem 1rem;
+        min-height: 48px;
+        height: 48px;
+    }
+    
+    .mobile-menu-toggle:hover,
+    .mobile-menu-toggle:active,
+    .mobile-menu-toggle:focus {
+        background: var(--primary-color) !important;
+        color: white !important;
+        outline: none;
+    }
+    
+    .mobile-menu-toggle i {
+        color: white !important;
     }
 
     .nav-menu {
@@ -2597,9 +3560,24 @@ input[type="checkbox"]:disabled:checked {
     }
 
     .nav-link.active {
-        background: #eff6ff;
+        background: #dbeafe;
         color: var(--primary-color);
         border-left-color: var(--primary-color);
+        border-left-width: 4px;
+    }
+    
+    .nav-link:hover {
+        background: #dbeafe;
+        color: var(--primary-color);
+        border-left-color: var(--primary-color);
+        border-left-width: 4px;
+    }
+    
+    .nav-link:active {
+        background: #bfdbfe;
+        color: var(--primary-color);
+        border-left-color: var(--primary-color);
+        border-left-width: 4px;
     }
 
     .nav-user {
@@ -3164,6 +4142,14 @@ input[type="checkbox"]:disabled:checked {
     font-variant-numeric: tabular-nums;
     text-align: right;
     min-width: 120px;
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .recent-item-amount {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 .empty-state-text {
@@ -3179,6 +4165,15 @@ input[type="checkbox"]:disabled:checked {
     background: #f1f5f9 !important;
     font-weight: bold;
     border-top: 2px solid var(--border-color);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-family-base);
+}
+
+@media (min-width: 769px) {
+    .report-total-row {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 /* Table row states */
@@ -3908,6 +4903,19 @@ form.submitting .btn-primary::after {
     min-width: auto;
 }
 
+/* On large screens, make view action buttons equal width */
+@media (min-width: 769px) {
+    .view-actions {
+        flex-wrap: nowrap;
+    }
+    
+    .view-actions .btn {
+        flex: 1 1 0;
+        min-width: 0;
+        width: 100%;
+    }
+}
+
 .view-actions .btn-view {
     background-color: #fbbf24;
     color: white;
@@ -4109,6 +5117,13 @@ form.submitting .btn-primary::after {
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
     text-align: right;
+}
+
+@media (min-width: 769px) {
+    .form-group input.number-with-separator {
+        font-size: 0.75rem; /* 12px - Standardized size */
+        font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+    }
 }
 
 .form-group input.number-with-separator:focus {
