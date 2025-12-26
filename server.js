@@ -196,6 +196,10 @@ let apiLimiter = rateLimit({
   validate: false, // Skip validation since we have trust proxy enabled (app.set('trust proxy', true))
 });
 
+// IMPORTANT: Express captures middleware functions at registration time.
+// We wrap the current limiter so updates to `apiLimiter` take effect.
+const apiLimiterMiddleware = (req, res, next) => apiLimiter(req, res, next);
+
 // Update API rate limiter based on settings
 async function updateApiRateLimiter() {
   try {
@@ -274,7 +278,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Apply general API rate limiting to all API routes
-app.use('/api/', apiLimiter);
+app.use('/api/', apiLimiterMiddleware);
 
 // Setup Swagger API documentation
 setupSwagger(app);
